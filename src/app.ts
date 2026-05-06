@@ -102,9 +102,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       const rawText = payloadPath ? await fs.readFile(payloadPath, "utf8") : await readStdin();
       const payload = parseJson(rawText);
       const result = await ingestPayload(root, payload);
-      writeLine(streams.stdout, `run_id: ${result.runId}`);
-      writeLine(streams.stdout, `run_dir: ${result.runDir}`);
-      writeLine(streams.stdout, `files: ${result.generatedFiles.length}`);
+      printIngestResult(streams.stdout, result);
       return 0;
     }
 
@@ -115,9 +113,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
         throw new CliError("请提供 --file <file>。");
       }
       const result = await ingestFile(root, path.resolve(file));
-      writeLine(streams.stdout, `run_id: ${result.runId}`);
-      writeLine(streams.stdout, `run_dir: ${result.runDir}`);
-      writeLine(streams.stdout, `files: ${result.generatedFiles.length}`);
+      printIngestResult(streams.stdout, result);
       return 0;
     }
 
@@ -150,9 +146,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
           language: "zh-CN"
         }
       });
-      writeLine(streams.stdout, `run_id: ${result.runId}`);
-      writeLine(streams.stdout, `run_dir: ${result.runDir}`);
-      writeLine(streams.stdout, `files: ${result.generatedFiles.length}`);
+      printIngestResult(streams.stdout, result);
       return 0;
     }
 
@@ -180,6 +174,30 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki ingest-agent --stdin --path <path>");
   writeLine(stream, "  aiwiki ingest-file --file <file> --path <path>");
   writeLine(stream, "  aiwiki ingest-url <url> --content-file <file> --path <path>");
+}
+
+function printIngestResult(stream: NodeJS.WritableStream, result: Awaited<ReturnType<typeof ingestPayload>>): void {
+  writeLine(stream, `ingested: ${result.agentReport.ingested ? "yes" : "no"}`);
+  writeLine(stream, `recorded: ${result.agentReport.recorded ? "yes" : "no"}`);
+  writeLine(stream, `fetch_status: ${result.agentReport.fetchStatus}`);
+  writeLine(stream, `fit_score: ${result.agentReport.fitScore}`);
+  writeLine(stream, `fit_level: ${result.agentReport.fitLevel}`);
+  writeLine(stream, `source_title: ${result.agentReport.sourceTitle}`);
+  if (result.agentReport.sourceUrl) {
+    writeLine(stream, `source_url: ${result.agentReport.sourceUrl}`);
+  }
+  writeLine(stream, `summary: ${result.agentReport.summary}`);
+  writeLine(stream, `run_id: ${result.runId}`);
+  writeLine(stream, `run_dir: ${result.runDir}`);
+  writeLine(stream, `files: ${result.generatedFiles.length}`);
+  writeLine(stream, `processing_summary: ${result.agentReport.keyFiles.processingSummary}`);
+  if (result.agentReport.keyFiles.sourceCard) {
+    writeLine(stream, `source_card: ${result.agentReport.keyFiles.sourceCard}`);
+  }
+  if (result.agentReport.keyFiles.draftOutline) {
+    writeLine(stream, `draft_outline: ${result.agentReport.keyFiles.draftOutline}`);
+  }
+  writeLine(stream, `warnings: ${result.warnings.length}`);
 }
 
 async function readStdin() {

@@ -11,6 +11,23 @@ export type IngestResult = {
   runDir: string;
   generatedFiles: string[];
   warnings: string[];
+  agentReport: AgentReport;
+};
+
+export type AgentReport = {
+  ingested: boolean;
+  recorded: boolean;
+  fetchStatus: "ok" | "failed";
+  sourceTitle: string;
+  sourceUrl?: string;
+  fitScore: number;
+  fitLevel: string;
+  summary: string;
+  keyFiles: {
+    processingSummary: string;
+    sourceCard?: string;
+    draftOutline?: string;
+  };
 };
 
 export async function ingestPayload(rootPath: string, rawPayload: unknown) {
@@ -31,7 +48,7 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
       ...payload.warnings,
       "宿主 Agent 未能提供正文，AIWiki CLI 没有自行抓取网页。"
     ]);
-    return { runId: runDirName, runDir, generatedFiles, warnings: payload.warnings };
+    return { runId: runDirName, runDir, generatedFiles, warnings: payload.warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
   }
 
   const slug = slugify(payload.source.title ?? payload.source.url);
@@ -53,7 +70,7 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
 
   const warnings = [...payload.warnings, ...collisionWarnings];
   await writeSummary(root, runDir, payload, generatedFiles, warnings);
-  return { runId, runDir, generatedFiles, warnings };
+  return { runId, runDir, generatedFiles, warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
 }
 
 export async function ingestFile(rootPath: string, filePath: string) {
@@ -181,6 +198,72 @@ function outline(payload: NormalizedPayload): string {
 
 function trimPreview(value: string): string {
   return value.trim().slice(0, 500) || "待人工补充。";
+}
+
+function buildAgentReport(root: string, runDir: string, payload: NormalizedPayload, generatedFiles: string[]): AgentReport {
+  const content = payload.source.content ?? "";
+  const fetchFailed = payload.source.fetch_status === "failed";
+  const fitScore = fetchFailed ? 0 : estimateFitScore(payload, content);
+  return {
+    ingested: !fetchFailed,
+    recorded: true,
+    fetchStatus: payload.source.fetch_status,
+    sourceTitle: payload.source.title ?? "Untitled",
+    sourceUrl: payload.source.url,
+    fitScore,
+    fitLevel: fitLevel(fitScore, fetchFailed),
+    summary: fetchFailed ? (payload.source.fetch_notes ?? "Host Agent did not provide readable content.") : summarizeContent(content),
+    keyFiles: {
+      processingSummary: relativePath(root, path.join(runDir, "processing-summary.md")),
+      sourceCard: findGeneratedFile(root, generatedFiles, "source-card.md"),
+      draftOutline: findGeneratedFile(root, generatedFiles, "draft-outline.md")
+    }
+  };
+}
+
+function estimateFitScore(payload: NormalizedPayload, content: string) {
+  let score = 45;
+  if (payload.source.kind === "url" || payload.source.kind === "file") {
+    score += 10;
+  }
+  if ((payload.source.title ?? "").trim()) {
+    score += 10;
+  }
+  if (content.trim().length >= 500) {
+    score += 20;
+  } else if (content.trim().length >= 150) {
+    score += 10;
+  }
+  if (payload.source.url) {
+    score += 5;
+  }
+  return Math.min(95, score);
+}
+
+function fitLevel(score: number, fetchFailed: boolean) {
+  if (fetchFailed) {
+    return "fetch_failed";
+  }
+  if (score >= 80) {
+    return "high";
+  }
+  if (score >= 60) {
+    return "medium";
+  }
+  return "low";
+}
+
+function summarizeContent(content: string) {
+  const compact = content.replace(/\s+/g, " ").trim();
+  if (!compact) {
+    return "No readable content was provided.";
+  }
+  return compact.length > 180 ? `${compact.slice(0, 180)}...` : compact;
+}
+
+function findGeneratedFile(root: string, files: string[], basename: string) {
+  const match = files.find((file) => path.basename(file) === basename);
+  return match ? relativePath(root, match) : undefined;
 }
 
 function escapeYaml(value: string): string {

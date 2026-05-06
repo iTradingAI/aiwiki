@@ -259,3 +259,53 @@ aiwiki status --path "F:\knowledge_data\aiwiki-test"
 - `processing-summary.md` 存在。
 - 成功读取时，`03-sources/article-cards` 下出现资料卡。
 - 抓取失败时，`09-runs/<run-id>-fetch-failed` 下出现失败记录。
+
+## 10. Qclaw 端会收到什么输出
+
+处理完成后，AIWiki CLI 会输出一组适合 Agent 直接回传给用户的 key-value 信息。
+
+成功入库时类似：
+
+```text
+ingested: yes
+recorded: yes
+fetch_status: ok
+fit_score: 90
+fit_level: high
+source_title: 文章标题
+source_url: https://example.com/article
+summary: 这里是正文前段摘要，方便 Agent 快速告诉用户文章大意。
+run_id: 20260506-153012-abc123
+run_dir: F:\knowledge_data\aiwiki-test\09-runs\20260506-153012-abc123
+files: 13
+processing_summary: 09-runs\20260506-153012-abc123\processing-summary.md
+source_card: 09-runs\20260506-153012-abc123\source-card.md
+draft_outline: 09-runs\20260506-153012-abc123\draft-outline.md
+warnings: 0
+```
+
+抓取失败但已记录失败原因时类似：
+
+```text
+ingested: no
+recorded: yes
+fetch_status: failed
+fit_score: 0
+fit_level: fetch_failed
+summary: 网页需要登录或宿主 Agent 无法访问正文。
+run_id: 20260506-153012-abc123-fetch-failed
+run_dir: F:\knowledge_data\aiwiki-test\09-runs\20260506-153012-abc123-fetch-failed
+files: 2
+processing_summary: 09-runs\20260506-153012-abc123-fetch-failed\processing-summary.md
+warnings: 0
+```
+
+Qclaw 回复用户时，建议重点展示：
+
+- 是否成功入库：看 `ingested`。
+- 是否留下记录：看 `recorded`。
+- 文章契合度：看 `fit_score` 和 `fit_level`。
+- 文章简要总结：看 `summary`。
+- 本地结果位置：看 `run_dir` 和 `processing_summary`。
+
+`fit_score` 是基础版的轻量契合度反馈，主要帮助 Agent 判断这条资料是否值得用户继续审阅；它不是正式评分系统。

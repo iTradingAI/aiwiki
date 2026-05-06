@@ -69,7 +69,16 @@ test("CLI ingest-agent payload and ingest-url boundary", async () => {
     const err = new MemoryWritable();
     const payload = fixturePath("agent_payload.url.valid.json");
     assert.equal(await runCli(["ingest-agent", "--payload", payload, "--path", root], { stdout: out, stderr: err }), 0);
+    assert.match(out.text(), /ingested: yes/);
+    assert.match(out.text(), /recorded: yes/);
+    assert.match(out.text(), /fetch_status: ok/);
+    assert.match(out.text(), /fit_score: \d+/);
+    assert.match(out.text(), /fit_level: (high|medium|low)/);
+    assert.match(out.text(), /summary:/);
     assert.match(out.text(), /run_id:/);
+    assert.match(out.text(), /processing_summary:/);
+    assert.match(out.text(), /source_card:/);
+    assert.match(out.text(), /draft_outline:/);
     assert.equal(err.text(), "");
 
     const boundaryErr = new MemoryWritable();
@@ -79,6 +88,26 @@ test("CLI ingest-agent payload and ingest-url boundary", async () => {
     });
     assert.equal(code, 1);
     assert.match(boundaryErr.text(), /不抓取网页/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI ingest-agent reports fetch failure without claiming ingestion success", async () => {
+  const root = await tempRoot("aiwiki-cli-fetch-failed-report");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const out = new MemoryWritable();
+    const err = new MemoryWritable();
+    assert.equal(await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.fetch_failed.valid.json"), "--path", root], { stdout: out, stderr: err }), 0);
+    assert.match(out.text(), /ingested: no/);
+    assert.match(out.text(), /recorded: yes/);
+    assert.match(out.text(), /fetch_status: failed/);
+    assert.match(out.text(), /fit_score: 0/);
+    assert.match(out.text(), /fit_level: fetch_failed/);
+    assert.match(out.text(), /processing_summary:/);
+    assert.doesNotMatch(out.text(), /source_card:/);
+    assert.equal(err.text(), "");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

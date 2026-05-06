@@ -11,6 +11,15 @@ The host Agent reads the webpage or user-provided body, then passes structured c
 
 The base CLI writes files and does not own webpage fetching stability.
 
+After the CLI runs, read the command output and report these fields to the user:
+
+- `ingested`: whether readable content was written into the knowledge base.
+- `recorded`: whether AIWiki wrote a run record.
+- `fetch_status`: whether the host Agent supplied readable content.
+- `fit_score` and `fit_level`: lightweight fit feedback for review priority.
+- `summary`: short content summary or fetch-failure note.
+- `run_dir` and `processing_summary`: local result entry points.
+
 ## Agent Handoff
 
 1. Read the URL, message, attachment, or user-provided body.
