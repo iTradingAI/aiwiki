@@ -1,0 +1,21 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "url",
+    "url": "https://example.com/legacy-metadata",
+    "title": "Legacy Metadata Payload"
+  },
+  "content": {
+    "text": "这个 fixture 使用旧 content.text 和 metadata 字段，只用于兼容测试。"
+  },
+  "metadata": {
+    "fetcher": "legacy-host-agent",
+    "captured_at": "2026-05-06T10:35:00+08:00",
+    "language": "zh-CN"
+  },
+  "request": {
+    "mode": "ingest",
+    "outputs": ["source_card", "processing_summary"],
+    "language": "zh-CN"
+  }
+}

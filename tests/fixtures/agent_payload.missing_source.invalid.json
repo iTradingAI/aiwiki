@@ -1,10 +1,8 @@
 {
   "schema_version": "aiwiki.agent_payload.v1",
-  "content": {
-    "text": "这个 payload 缺少 source，应该被 schema validation 拒绝。"
-  },
-  "metadata": {
-    "fetcher": "test",
-    "captured_at": "2026-05-06T10:15:00+08:00"
+  "request": {
+    "mode": "ingest",
+    "outputs": ["processing_summary"],
+    "language": "zh-CN"
   }
 }

@@ -3,10 +3,14 @@
   "source": {
     "kind": "url",
     "url": "https://example.com/no-content",
-    "title": "URL Without Content"
-  },
-  "metadata": {
+    "title": "URL Without Content",
     "fetcher": "host-agent",
+    "fetch_status": "ok",
     "captured_at": "2026-05-06T10:20:00+08:00"
+  },
+  "request": {
+    "mode": "ingest",
+    "outputs": ["processing_summary"],
+    "language": "zh-CN"
   }
 }

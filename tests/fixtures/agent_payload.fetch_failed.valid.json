@@ -1,0 +1,17 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "url",
+    "url": "https://example.com/fetch-failed",
+    "title": "Fetch Failed Example",
+    "fetcher": "host-agent",
+    "fetch_status": "failed",
+    "fetch_notes": "Host Agent could not read the article body.",
+    "captured_at": "2026-05-06T10:30:00+08:00"
+  },
+  "request": {
+    "mode": "record_fetch_failure",
+    "outputs": ["processing_summary"],
+    "language": "zh-CN"
+  }
+}

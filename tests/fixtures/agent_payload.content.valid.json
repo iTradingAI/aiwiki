@@ -3,14 +3,17 @@
   "source": {
     "kind": "manual",
     "title": "手动输入资料",
-    "author": "Max"
-  },
-  "content": {
-    "text": "这是一段手动输入的知识资料，用于测试 AIWiki 基础版在没有 URL 时也能生成本地 run 结果。"
-  },
-  "metadata": {
+    "author": "Max",
+    "content_format": "text",
+    "content": "这是一段手动输入的知识资料，用于测试 AIWiki 基础版在没有 URL 时也能生成本地 run 结果。",
     "fetcher": "manual-input",
+    "fetch_status": "ok",
     "captured_at": "2026-05-06T10:05:00+08:00",
+    "language": "zh-CN"
+  },
+  "request": {
+    "mode": "ingest",
+    "outputs": ["source_card", "creative_assets", "topics", "draft_outline", "processing_summary"],
     "language": "zh-CN"
   }
 }

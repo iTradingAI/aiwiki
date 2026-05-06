@@ -1,0 +1,16 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "manual",
+    "title": "Missing Captured Time",
+    "content_format": "text",
+    "content": "这个 fixture 故意缺少 captured_at，用于验证运行时会用 run_started_at 补齐并在 summary 写 warning。",
+    "fetcher": "manual-input",
+    "fetch_status": "ok"
+  },
+  "request": {
+    "mode": "ingest",
+    "outputs": ["source_card", "processing_summary"],
+    "language": "zh-CN"
+  }
+}
