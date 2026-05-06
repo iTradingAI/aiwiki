@@ -9,14 +9,14 @@ You send a URL or article body to a host Agent, add the `aiwiki` keyword, and AI
 Quick run:
 
 ```bash
-npx aiwiki init --path "F:\knowledge_data\aiwiki"
+npx aiwiki init --path "F:\knowledge_data\aiwiki" --yes
 ```
 
 Global install:
 
 ```bash
 npm install -g aiwiki
-aiwiki init --path "F:\knowledge_data\aiwiki"
+aiwiki init --path "F:\knowledge_data\aiwiki" --yes
 ```
 
 Local install:
@@ -45,13 +45,17 @@ The host Agent is responsible for reading webpages, files, or messages. AIWiki r
 Initial MVP commands:
 
 ```bash
-aiwiki init
-aiwiki config show
-aiwiki doctor
+aiwiki init --path <path> --yes
+aiwiki config show --path <path>
+aiwiki doctor --path <path>
+aiwiki status --path <path>
 aiwiki ingest-agent --payload <file>
 aiwiki ingest-agent --stdin
 aiwiki ingest-file --file <file>
+aiwiki ingest-url <url> --content-file <file>
 ```
+
+`ingest-url` binds URL metadata to content that was already provided by the host Agent or user. It does not fetch the webpage itself.
 
 ## Out Of Scope
 
