@@ -1,48 +1,52 @@
 # AIWiki
 
-AIWiki is an Agent-first knowledge production tool for a single local knowledge base.
+AIWiki 是一个 Agent-first 的本地知识库工具，用来把 Agent 已经读到的文章、网页正文或本地文本，写入一个单知识库目录，方便后续在 Obsidian 中长期审阅和沉淀。
 
-You send a URL or article body to a host Agent, add the `aiwiki` keyword, and AIWiki turns the Agent-provided content into local knowledge files for Obsidian review.
+你把文章链接或正文发给 Qclaw、Codex、Claude Code 等宿主 Agent，并加上 `aiwiki` 关键词；宿主 Agent 负责读取网页或整理正文，AIWiki CLI 负责把结构化结果写成本地文件。
 
-## Install
+完整使用说明见：[docs/USAGE.md](docs/USAGE.md)。
 
-Quick run:
+## 安装
+
+发布后可直接使用：
 
 ```bash
 npx aiwiki init --path "F:\knowledge_data\aiwiki" --yes
 ```
 
-Global install:
+全局安装：
 
 ```bash
 npm install -g aiwiki
 aiwiki init --path "F:\knowledge_data\aiwiki" --yes
 ```
 
-Local install:
+本地开发测试：
 
 ```bash
-npm install --save-dev aiwiki
-npx aiwiki doctor --path "F:\knowledge_data\aiwiki"
+npm install
+npm run build
+npm link
+aiwiki doctor --path "F:\knowledge_data\aiwiki"
 ```
 
-## Scope
+## 范围
 
-- Single knowledge base
-- Single input per run
-- Agent-fetched URL/body handoff
-- Local filesystem writes through `aiwiki`
-- Source Card, creative assets, topics, draft outline, processing summary
+- 单知识库
+- 单次处理一条输入
+- 宿主 Agent 读取网页或正文
+- CLI 只负责本地文件写入
+- 生成 Source Card、素材建议、主题候选、草稿大纲、处理摘要
 
-## Agent Boundary
+## Agent 边界
 
-AIWiki does not act as a general webpage scraper.
+AIWiki CLI 不做通用网页抓取。
 
-The host Agent is responsible for reading webpages, files, or messages. AIWiki receives the content and writes structured local files.
+网页读取、附件读取、消息读取属于宿主 Agent；AIWiki 接收内容，并写入结构化本地文件。
 
-## Commands
+## 命令
 
-Initial MVP commands:
+当前可用命令：
 
 ```bash
 aiwiki init --path <path> --yes
@@ -55,16 +59,16 @@ aiwiki ingest-file --file <file>
 aiwiki ingest-url <url> --content-file <file>
 ```
 
-`ingest-url` binds URL metadata to content that was already provided by the host Agent or user. It does not fetch the webpage itself.
+`ingest-url` 只把 URL 元数据和已提供正文绑定起来，不会自己抓网页。
 
-## Out Of Scope
+## 当前不包含
 
-- Multi-knowledge-base routing
-- Batch processing
-- Scheduled or specified collection
-- Formal state machine
-- Technical support
-- General webpage scraping inside the base CLI
+- 跨主题自动路由
+- 批处理
+- 定时或指定采集
+- 长流程状态机
+- 技术支持流程
+- CLI 内置通用网页抓取
 
 ## License
 

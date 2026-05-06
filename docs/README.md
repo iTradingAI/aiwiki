@@ -1,6 +1,8 @@
 # AIWiki Docs
 
-AIWiki is the public Agent-first tool for turning one Agent-provided article or note into local knowledge files.
+AIWiki 是一个 Agent-first 的本地知识库工具，用来把宿主 Agent 已经读取到的文章、网页正文或本地文本写入单知识库。
+
+完整实测手册见：[USAGE.md](USAGE.md)。
 
 ## Quick Start
 
@@ -30,7 +32,7 @@ Send a link or text to your Agent and include the keyword:
 aiwiki
 ```
 
-The Agent reads the webpage or attachment. AIWiki structures the content and writes it into your local knowledge base.
+宿主 Agent 读取网页或附件。AIWiki 负责结构化内容并写入本地知识库。
 
 ## Commands
 
@@ -47,4 +49,4 @@ aiwiki ingest-url <url> --content-file <file> --path <path>
 
 ## Important Boundary
 
-The CLI does not guarantee webpage scraping success. Webpage reading belongs to the host Agent.
+CLI 不保证网页抓取成功。网页读取属于宿主 Agent。
