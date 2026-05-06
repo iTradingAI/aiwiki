@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
@@ -26,6 +27,11 @@ export type WorkspaceConfig = {
   product: string;
   schemaVersion: string;
   createdAt: string;
+};
+
+export type UserConfig = {
+  defaultPath?: string;
+  updatedAt?: string;
 };
 
 export type DoctorCheck = {
@@ -62,6 +68,35 @@ export function defaultConfig(createdAt = new Date().toISOString()): string {
   ].join("\n");
 }
 
+export function defaultSetupPath(): string {
+  return path.join(os.homedir(), "AIWiki");
+}
+
+export function userConfigPath(): string {
+  const home = process.env.AIWIKI_HOME ? path.resolve(process.env.AIWIKI_HOME) : path.join(os.homedir(), ".aiwiki");
+  return path.join(home, "config.json");
+}
+
+export async function setDefaultWorkspace(rootPath: string) {
+  const root = resolveRoot(rootPath);
+  const configPath = userConfigPath();
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  const config: UserConfig = {
+    defaultPath: root,
+    updatedAt: new Date().toISOString()
+  };
+  await fs.writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+  return { configPath, defaultPath: root };
+}
+
+export async function readUserConfig(): Promise<UserConfig> {
+  const configPath = userConfigPath();
+  if (!(await exists(configPath))) {
+    return {};
+  }
+  return JSON.parse(await fs.readFile(configPath, "utf8")) as UserConfig;
+}
+
 export async function initWorkspace(rootPath: string) {
   const root = resolveRoot(rootPath);
   await fs.mkdir(root, { recursive: true });
@@ -89,7 +124,7 @@ export async function resolveWorkspace(optionalPath?: string, startDir = process
   if (optionalPath) {
     const root = resolveRoot(optionalPath);
     if (!(await exists(path.join(root, CONFIG_FILE)))) {
-      throw new CliError(`未找到配置文件: ${path.join(root, CONFIG_FILE)}。请先运行 aiwiki init --path "${root}" --yes。`);
+      throw new CliError(`未找到配置文件：${path.join(root, CONFIG_FILE)}。请先运行 aiwiki init --path "${root}" --yes。`);
     }
     return root;
   }
@@ -99,7 +134,16 @@ export async function resolveWorkspace(optionalPath?: string, startDir = process
     return found;
   }
 
-  throw new CliError(`未找到 ${CONFIG_FILE}。请传入 --path <知识库路径>，或先运行 aiwiki init。`);
+  const userConfig = await readUserConfig();
+  if (userConfig.defaultPath) {
+    const root = resolveRoot(userConfig.defaultPath);
+    if (await exists(path.join(root, CONFIG_FILE))) {
+      return root;
+    }
+    throw new CliError(`默认知识库不可用：${root}。请运行 aiwiki setup --path <知识库路径> --yes 重新设置。`);
+  }
+
+  throw new CliError("未找到 AIWiki 知识库。请先运行 aiwiki setup --path <知识库路径> --yes。");
 }
 
 export async function findWorkspace(startDir: string) {
@@ -148,7 +192,7 @@ export async function readConfig(rootPath: string) {
   const root = resolveRoot(rootPath);
   const configPath = path.join(root, CONFIG_FILE);
   if (!(await exists(configPath))) {
-    throw new CliError(`未找到配置文件: ${configPath}`);
+    throw new CliError(`未找到配置文件：${configPath}`);
   }
 
   const text = await fs.readFile(configPath, "utf8");

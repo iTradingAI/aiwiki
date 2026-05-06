@@ -6,12 +6,14 @@ import { ingestFile, ingestPayload } from "./ingest.js";
 import { CliError, CliStreams, writeLine } from "./output.js";
 import {
   confirmInit,
+  defaultSetupPath,
   directorySummary,
   doctor,
   initWorkspace,
   promptForInitPath,
   readConfig,
   resolveWorkspace,
+  setDefaultWorkspace,
   statusSummary
 } from "./workspace.js";
 
@@ -31,6 +33,19 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       return 0;
     }
 
+    if (command === "setup") {
+      const rootPath = flagString(args, "path") ?? defaultSetupPath();
+      const result = await initWorkspace(rootPath);
+      const defaultConfig = await setDefaultWorkspace(result.root);
+      writeLine(streams.stdout, `AIWiki initialized: ${result.root}`);
+      writeLine(streams.stdout, `config: ${result.createdConfig ? "created" : "kept"}`);
+      writeLine(streams.stdout, `directories created: ${result.createdDirs.length}`);
+      writeLine(streams.stdout, `default_path: ${defaultConfig.defaultPath}`);
+      writeLine(streams.stdout, `user_config: ${defaultConfig.configPath}`);
+      writeLine(streams.stdout, "next: send a link to your Agent with the aiwiki keyword");
+      return 0;
+    }
+
     if (command === "init") {
       let rootPath = flagString(args, "path");
       if (!rootPath) {
@@ -47,6 +62,11 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `AIWiki initialized: ${result.root}`);
       writeLine(streams.stdout, `config: ${result.createdConfig ? "created" : "kept"}`);
       writeLine(streams.stdout, `directories created: ${result.createdDirs.length}`);
+      if (flagBool(args, "set-default")) {
+        const defaultConfig = await setDefaultWorkspace(result.root);
+        writeLine(streams.stdout, `default_path: ${defaultConfig.defaultPath}`);
+        writeLine(streams.stdout, `user_config: ${defaultConfig.configPath}`);
+      }
       return 0;
     }
 
@@ -76,7 +96,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
         }
       }
       if (failed) {
-        writeLine(streams.stdout, `repair: aiwiki init --path "${root}" --yes`);
+        writeLine(streams.stdout, `repair: aiwiki setup --path "${root}" --yes`);
         return 1;
       }
       return 0;
@@ -166,14 +186,15 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "AIWiki");
   writeLine(stream, "");
   writeLine(stream, "Usage:");
-  writeLine(stream, "  aiwiki init --path <path> --yes");
-  writeLine(stream, "  aiwiki config show --path <path>");
-  writeLine(stream, "  aiwiki doctor --path <path>");
-  writeLine(stream, "  aiwiki status --path <path>");
-  writeLine(stream, "  aiwiki ingest-agent --payload <file> --path <path>");
-  writeLine(stream, "  aiwiki ingest-agent --stdin --path <path>");
-  writeLine(stream, "  aiwiki ingest-file --file <file> --path <path>");
-  writeLine(stream, "  aiwiki ingest-url <url> --content-file <file> --path <path>");
+  writeLine(stream, "  aiwiki setup --path <path> --yes");
+  writeLine(stream, "  aiwiki doctor");
+  writeLine(stream, "  aiwiki status");
+  writeLine(stream, "  aiwiki ingest-agent --stdin");
+  writeLine(stream, "  aiwiki ingest-file --file <file>");
+  writeLine(stream, "  aiwiki init --path <path> --yes --set-default");
+  writeLine(stream, "  aiwiki config show");
+  writeLine(stream, "  aiwiki ingest-agent --payload <file>");
+  writeLine(stream, "  aiwiki ingest-url <url> --content-file <file>");
 }
 
 function printIngestResult(stream: NodeJS.WritableStream, result: Awaited<ReturnType<typeof ingestPayload>>): void {

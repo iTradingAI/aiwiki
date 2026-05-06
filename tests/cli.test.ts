@@ -49,6 +49,57 @@ test("CLI init config doctor and status", async () => {
   }
 });
 
+test("CLI setup stores default workspace for no-path commands", async () => {
+  const root = await tempRoot("aiwiki-cli-setup-root");
+  const configHome = await tempRoot("aiwiki-cli-setup-home");
+  const previousHome = process.env.AIWIKI_HOME;
+  process.env.AIWIKI_HOME = configHome;
+  try {
+    const setupOut = new MemoryWritable();
+    assert.equal(await runCli(["setup", "--path", root, "--yes"], { stdout: setupOut, stderr: new MemoryWritable() }), 0);
+    assert.match(setupOut.text(), /default_path:/);
+    assert.match(setupOut.text(), /user_config:/);
+
+    const doctorOut = new MemoryWritable();
+    assert.equal(await runCli(["doctor"], { stdout: doctorOut, stderr: new MemoryWritable() }), 0);
+    assert.match(doctorOut.text(), /ok: aiwiki.yaml/);
+
+    const statusOut = new MemoryWritable();
+    assert.equal(await runCli(["status"], { stdout: statusOut, stderr: new MemoryWritable() }), 0);
+    assert.match(statusOut.text(), new RegExp(`path: ${escapeRegExp(path.resolve(root))}`));
+
+    const ingestOut = new MemoryWritable();
+    assert.equal(await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json")], { stdout: ingestOut, stderr: new MemoryWritable() }), 0);
+    assert.match(ingestOut.text(), /ingested: yes/);
+  } finally {
+    if (previousHome === undefined) {
+      delete process.env.AIWIKI_HOME;
+    } else {
+      process.env.AIWIKI_HOME = previousHome;
+    }
+    await rm(root, { recursive: true, force: true });
+    await rm(configHome, { recursive: true, force: true });
+  }
+});
+
+test("CLI no-path commands guide users to setup when no default exists", async () => {
+  const configHome = await tempRoot("aiwiki-cli-no-default");
+  const previousHome = process.env.AIWIKI_HOME;
+  process.env.AIWIKI_HOME = configHome;
+  try {
+    const stderr = new MemoryWritable();
+    assert.equal(await runCli(["doctor"], { stdout: new MemoryWritable(), stderr }), 1);
+    assert.match(stderr.text(), /aiwiki setup/);
+  } finally {
+    if (previousHome === undefined) {
+      delete process.env.AIWIKI_HOME;
+    } else {
+      process.env.AIWIKI_HOME = previousHome;
+    }
+    await rm(configHome, { recursive: true, force: true });
+  }
+});
+
 test("status rejects non-workspace path", async () => {
   const root = await tempRoot("aiwiki-not-workspace");
   try {
@@ -60,6 +111,10 @@ test("status rejects non-workspace path", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 test("CLI ingest-agent payload and ingest-url boundary", async () => {
   const root = await tempRoot("aiwiki-cli-ingest");
