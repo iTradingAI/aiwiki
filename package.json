@@ -1,0 +1,29 @@
+{
+  "name": "aiwiki",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Agent-first local knowledge production CLI for a single knowledge base.",
+  "license": "UNLICENSED",
+  "files": [
+    "dist/src",
+    "README.md",
+    "docs",
+    "skill"
+  ],
+  "bin": {
+    "aiwiki": "./dist/src/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"dist/tests/*.test.js\"",
+    "check": "npm run test",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
