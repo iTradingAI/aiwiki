@@ -1,0 +1,18 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "url",
+    "url": "https://example.com/ai-agent-workflow",
+    "title": "AI Agent Workflow Notes",
+    "author": "Example Author",
+    "platform": "example.com"
+  },
+  "content": {
+    "text": "这是一篇关于 AI Agent 工作流的示例文章。文章讨论了如何把网页资料整理成资料卡、可复用素材和文章大纲。"
+  },
+  "metadata": {
+    "fetcher": "host-agent",
+    "captured_at": "2026-05-06T10:00:00+08:00",
+    "language": "zh-CN"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "url",
+    "url": "https://example.com/no-content",
+    "title": "URL Without Content"
+  },
+  "metadata": {
+    "fetcher": "host-agent",
+    "captured_at": "2026-05-06T10:20:00+08:00"
+  }
+}

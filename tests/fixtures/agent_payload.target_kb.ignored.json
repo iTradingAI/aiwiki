@@ -1,0 +1,18 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "target_kb": "career",
+  "source": {
+    "kind": "url",
+    "url": "https://example.com/career-note",
+    "title": "Career Note",
+    "platform": "example.com"
+  },
+  "content": {
+    "text": "这条资料带有 target_kb 字段。基础版应接受该字段，但永远写入当前单知识库，并在 summary 中说明该字段被忽略。"
+  },
+  "metadata": {
+    "fetcher": "host-agent",
+    "captured_at": "2026-05-06T10:10:00+08:00",
+    "language": "zh-CN"
+  }
+}

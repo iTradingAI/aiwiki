@@ -1,0 +1,17 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "manual",
+    "title": "Path Escape Attempt"
+  },
+  "content": {
+    "text": "这个 payload 模拟恶意输出路径。CLI 必须忽略 payload 中任何试图控制输出路径的字段。"
+  },
+  "metadata": {
+    "fetcher": "security-test",
+    "captured_at": "2026-05-06T10:25:00+08:00"
+  },
+  "output": {
+    "path": "..\\..\\outside.md"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "must_stay_under_workspace": true,
+  "required_outputs": [
+    "02-raw/articles",
+    "03-sources/article-cards",
+    "04-claims/_suggestions",
+    "06-assets/_suggestions",
+    "07-topics/ready",
+    "08-outputs/outlines",
+    "09-runs"
+  ]
+}

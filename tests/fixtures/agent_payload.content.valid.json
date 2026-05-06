@@ -1,0 +1,16 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "manual",
+    "title": "手动输入资料",
+    "author": "Max"
+  },
+  "content": {
+    "text": "这是一段手动输入的知识资料，用于测试 AIWiki 基础版在没有 URL 时也能生成本地 run 结果。"
+  },
+  "metadata": {
+    "fetcher": "manual-input",
+    "captured_at": "2026-05-06T10:05:00+08:00",
+    "language": "zh-CN"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "required_fields": [
+    "title",
+    "source_type",
+    "captured_at",
+    "run_id"
+  ]
+}
