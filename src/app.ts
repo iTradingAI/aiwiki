@@ -17,7 +17,7 @@ import {
   statusSummary
 } from "./workspace.js";
 
-export const VERSION = "0.1.1";
+export const VERSION = "0.1.2";
 
 export async function runCli(argv: string[], streams: CliStreams = { stdout: process.stdout, stderr: process.stderr }) {
   try {
@@ -46,7 +46,8 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `directories created: ${result.createdDirs.length}`);
       writeLine(streams.stdout, `default_path: ${defaultConfig.defaultPath}`);
       writeLine(streams.stdout, `user_config: ${defaultConfig.configPath}`);
-      writeLine(streams.stdout, "next: send `入库 <url>` to your Agent");
+      writeLine(streams.stdout, "next: run `aiwiki prompt agent`, then install or paste the prompt into your host Agent.");
+      writeLine(streams.stdout, "after Agent setup: send `入库 <url>` to your Agent");
       return 0;
     }
 

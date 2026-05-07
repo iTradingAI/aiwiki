@@ -38,7 +38,7 @@ test("version flag prints CLI version", async () => {
   const stdout = new MemoryWritable();
   const code = await runCli(["--version"], { stdout, stderr: new MemoryWritable() });
   assert.equal(code, 0);
-  assert.match(stdout.text(), /^aiwiki 0\.1\.1/);
+  assert.match(stdout.text(), /^aiwiki 0\.1\.2/);
 });
 
 test("CLI init config doctor and status", async () => {
@@ -76,6 +76,8 @@ test("CLI setup stores default workspace for no-path commands", async () => {
     assert.equal(await runCli(["setup", "--path", root, "--yes"], { stdout: setupOut, stderr: new MemoryWritable() }), 0);
     assert.match(setupOut.text(), /default_path:/);
     assert.match(setupOut.text(), /user_config:/);
+    assert.match(setupOut.text(), /aiwiki prompt agent/);
+    assert.match(setupOut.text(), /after Agent setup/);
 
     const doctorOut = new MemoryWritable();
     assert.equal(await runCli(["doctor"], { stdout: doctorOut, stderr: new MemoryWritable() }), 0);

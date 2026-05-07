@@ -48,9 +48,19 @@ aiwiki status
 
 之后大多数命令都可以省略 `--path`。
 
-## 2. 日常使用
+## 2. 让宿主 Agent 学会 AIWiki
 
-把下面的话发给宿主 Agent，并替换链接：
+初始化知识库之后，先把 AIWiki 对接协议交给宿主 Agent：
+
+```bash
+aiwiki prompt agent
+```
+
+把输出内容安装成宿主 Agent 的 skill，或粘贴到宿主 Agent 的项目/会话说明里。不同 Agent 的安装入口不同，所以基础版只提供通用协议和提示词。
+
+## 3. 日常使用
+
+宿主 Agent 已经加载 AIWiki 协议后，把下面的话发给它，并替换链接：
 
 ```text
 入库 https://example.com/article
@@ -65,7 +75,7 @@ aiwiki status
 
 用户不需要保存 JSON，不需要手动运行 `ingest-agent`，也不需要每次输入知识库路径。
 
-## 3. 宿主 Agent 端应回复什么
+## 4. 宿主 Agent 端应回复什么
 
 AIWiki CLI 会输出 key-value 信息。成功入库时类似：
 
@@ -121,7 +131,7 @@ warnings: 0
 记录目录：……
 ```
 
-## 4. 成功后会生成什么
+## 5. 成功后会生成什么
 
 每次 run 会写入：
 
@@ -148,7 +158,7 @@ warnings: 0
 
 Obsidian 主要审阅长期目录；`09-runs` 用于追溯每次处理。
 
-## 5. Agent 对接协议
+## 6. Agent 对接协议
 
 给任意宿主 Agent 的详细协议见：
 
@@ -164,7 +174,7 @@ docs/AGENT_HANDOFF.md
 - Agent 生成 payload 后优先通过 stdin 调用 `aiwiki ingest-agent --stdin`。
 - Agent 最后只向用户汇报入库状态、契合度、摘要和结果入口。
 
-## 6. 高级调试
+## 7. 高级调试
 
 如果 Agent 只能输出 JSON，才需要手动保存 payload：
 
@@ -192,7 +202,7 @@ aiwiki ingest-url "https://example.com/article" --content-file "F:\knowledge_dat
 
 注意：`ingest-url` 不会抓网页，只会读取 `--content-file`。
 
-## 7. 常见问题
+## 8. 常见问题
 
 ### 找不到 `aiwiki` 命令
 
@@ -224,7 +234,7 @@ aiwiki setup --path "F:\knowledge_data\aiwiki" --yes
 aiwiki setup --path "新的知识库路径" --yes
 ```
 
-## 8. 最小验收清单
+## 9. 最小验收清单
 
 完成一次 Agent 入库测试后，检查：
 
