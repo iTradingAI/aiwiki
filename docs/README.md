@@ -15,7 +15,7 @@ aiwiki doctor
 之后把链接发给宿主 Agent：
 
 ```text
-aiwiki 处理这篇文章：https://example.com/article
+入库 https://example.com/article
 ```
 
 ## Important Boundary

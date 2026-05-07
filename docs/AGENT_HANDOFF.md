@@ -1,13 +1,13 @@
 # AIWiki Agent Handoff
 
-这份文档写给 Qclaw、Codex、Claude Code 等宿主 Agent。
+这份文档写给任何可以读取网页、生成结构化内容并调用本机命令的宿主 Agent。
 
 ## 目标
 
 当用户说：
 
 ```text
-aiwiki 处理这篇文章：https://example.com/article
+入库 https://example.com/article
 ```
 
 Agent 应自动读取网页，生成 payload，通过 AIWiki CLI 写入本地知识库，并把结果摘要回复给用户。
@@ -48,7 +48,7 @@ aiwiki ingest-agent --stdin
     "title": "文章标题",
     "content_format": "markdown",
     "content": "这里是宿主 Agent 读取到的正文内容。",
-    "fetcher": "qclaw",
+    "fetcher": "host-agent",
     "fetch_status": "ok",
     "captured_at": "2026-05-07T10:00:00+08:00"
   },
@@ -75,7 +75,7 @@ aiwiki ingest-agent --stdin
     "kind": "url",
     "url": "https://example.com/article",
     "title": "无法读取的文章",
-    "fetcher": "qclaw",
+    "fetcher": "host-agent",
     "fetch_status": "failed",
     "fetch_notes": "网页需要登录或宿主 Agent 无法访问正文。",
     "captured_at": "2026-05-07T10:00:00+08:00"

@@ -6,7 +6,7 @@
 用户只做一次 setup -> 之后只把链接发给 Agent -> Agent 自动调用 AIWiki 入库
 ```
 
-AIWiki CLI 不负责网页抓取。Qclaw、Codex、Claude Code 等宿主 Agent 负责读取网页或整理正文，AIWiki 负责写入本地知识库文件。
+AIWiki CLI 不负责网页抓取。Qclaw、Codex、Claude Code、Cursor、Gemini CLI 等都只是宿主 Agent 的例子；基础版面向的是通用宿主 Agent 协作。
 
 ## 1. 一次性设置
 
@@ -42,13 +42,13 @@ aiwiki status
 
 ## 2. 日常使用
 
-把下面的话发给 Qclaw，并替换链接：
+把下面的话发给宿主 Agent，并替换链接：
 
 ```text
-aiwiki 处理这篇文章：https://example.com/article
+入库 https://example.com/article
 ```
 
-Qclaw 应该自动完成：
+宿主 Agent 应该自动完成：
 
 1. 读取网页正文。
 2. 生成 `aiwiki.agent_payload.v1`。
@@ -57,7 +57,7 @@ Qclaw 应该自动完成：
 
 用户不需要保存 JSON，不需要手动运行 `ingest-agent`，也不需要每次输入知识库路径。
 
-## 3. Qclaw 端应回复什么
+## 3. 宿主 Agent 端应回复什么
 
 AIWiki CLI 会输出 key-value 信息。成功入库时类似：
 
@@ -79,7 +79,7 @@ draft_outline: 09-runs\20260507-153012-abc123\draft-outline.md
 warnings: 0
 ```
 
-Qclaw 回复用户时建议展示：
+宿主 Agent 回复用户时建议展示：
 
 ```text
 已入库成功。
@@ -105,7 +105,7 @@ processing_summary: 09-runs\20260507-153012-abc123-fetch-failed\processing-summa
 warnings: 0
 ```
 
-Qclaw 回复用户时建议展示：
+宿主 Agent 回复用户时建议展示：
 
 ```text
 未成功入库正文，但已记录失败原因。
@@ -142,7 +142,7 @@ Obsidian 主要审阅长期目录；`09-runs` 用于追溯每次处理。
 
 ## 5. Agent 对接协议
 
-给 Qclaw、Codex、Claude Code 等 Agent 的详细协议见：
+给任意宿主 Agent 的详细协议见：
 
 ```text
 docs/AGENT_HANDOFF.md
@@ -204,9 +204,9 @@ npm link
 aiwiki setup --path "F:\knowledge_data\aiwiki" --yes
 ```
 
-### Qclaw 抓不到网页
+### 宿主 Agent 抓不到网页
 
-这是宿主 Agent 的网页读取问题，不是 AIWiki CLI 的问题。让 Qclaw 生成 `fetch_status=failed` 的 payload，AIWiki 会记录失败原因。
+这是宿主 Agent 的网页读取问题，不是 AIWiki CLI 的问题。让宿主 Agent 生成 `fetch_status=failed` 的 payload，AIWiki 会记录失败原因。
 
 ### 想换默认知识库目录
 
@@ -218,7 +218,7 @@ aiwiki setup --path "新的知识库路径" --yes
 
 ## 8. 最小验收清单
 
-完成一次 Qclaw 测试后，检查：
+完成一次 Agent 入库测试后，检查：
 
 ```bash
 aiwiki status

@@ -13,7 +13,22 @@ test("help exposes only base commands", async () => {
   const text = stdout.text();
   assert.equal(code, 0);
   assert.match(text, /aiwiki init/);
+  assert.match(text, /aiwiki prompt agent/);
+  assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
+  assert.equal(stderr.text(), "");
+});
+
+test("prompt agent prints neutral Agent handoff instructions", async () => {
+  const stdout = new MemoryWritable();
+  const stderr = new MemoryWritable();
+  const code = await runCli(["prompt", "agent"], { stdout, stderr });
+  const text = stdout.text();
+  assert.equal(code, 0);
+  assert.match(text, /入库 <url>/);
+  assert.match(text, /aiwiki ingest-agent --stdin/);
+  assert.match(text, /普通会话中不要把所有 URL 都自动入库/);
+  assert.doesNotMatch(text, /qclaw/i);
   assert.equal(stderr.text(), "");
 });
 

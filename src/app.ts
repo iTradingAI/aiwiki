@@ -42,7 +42,12 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `directories created: ${result.createdDirs.length}`);
       writeLine(streams.stdout, `default_path: ${defaultConfig.defaultPath}`);
       writeLine(streams.stdout, `user_config: ${defaultConfig.configPath}`);
-      writeLine(streams.stdout, "next: send a link to your Agent with the aiwiki keyword");
+      writeLine(streams.stdout, "next: send `入库 <url>` to your Agent");
+      return 0;
+    }
+
+    if (command === "prompt" && (subcommand === "agent" || !subcommand)) {
+      printAgentPrompt(streams.stdout);
       return 0;
     }
 
@@ -187,6 +192,7 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "");
   writeLine(stream, "Usage:");
   writeLine(stream, "  aiwiki setup --path <path> --yes");
+  writeLine(stream, "  aiwiki prompt agent");
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
   writeLine(stream, "  aiwiki ingest-agent --stdin");
@@ -195,6 +201,22 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki config show");
   writeLine(stream, "  aiwiki ingest-agent --payload <file>");
   writeLine(stream, "  aiwiki ingest-url <url> --content-file <file>");
+}
+
+function printAgentPrompt(stream: NodeJS.WritableStream): void {
+  writeLine(stream, "AIWiki Agent Prompt");
+  writeLine(stream, "");
+  writeLine(stream, "当用户发送以下触发语时，请自动执行 AIWiki 入库流程：");
+  writeLine(stream, "- 入库 <url>");
+  writeLine(stream, "- 收录 <url>");
+  writeLine(stream, "- 存一下 <url>");
+  writeLine(stream, "- aiwiki <url>");
+  writeLine(stream, "");
+  writeLine(stream, "如果当前会话被用户明确设定为 AIWiki 入库助手，则用户只发送 URL 也默认触发入库。普通会话中不要把所有 URL 都自动入库。");
+  writeLine(stream, "");
+  writeLine(stream, "流程：读取网页正文；生成 aiwiki.agent_payload.v1；通过 stdin 调用 `aiwiki ingest-agent --stdin`；读取 CLI 输出；只向用户汇报 ingested、recorded、fit_score、fit_level、summary、run_dir、processing_summary。");
+  writeLine(stream, "");
+  writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取。");
 }
 
 function printIngestResult(stream: NodeJS.WritableStream, result: Awaited<ReturnType<typeof ingestPayload>>): void {
