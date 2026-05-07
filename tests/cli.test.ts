@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile, rm } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { access, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -94,6 +95,24 @@ test("CLI setup stores default workspace for no-path commands", async () => {
       process.env.AIWIKI_HOME = previousHome;
     }
     await rm(root, { recursive: true, force: true });
+    await rm(configHome, { recursive: true, force: true });
+  }
+});
+
+test("CLI setup refuses silent non-interactive defaults", async () => {
+  const configHome = await tempRoot("aiwiki-cli-setup-noninteractive-home");
+  try {
+    const result = spawnSync(process.execPath, ["dist/src/cli.js", "setup"], {
+      cwd: process.cwd(),
+      env: { ...process.env, AIWIKI_HOME: configHome },
+      input: "",
+      encoding: "utf8"
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Interactive setup requires a terminal/);
+    await assert.rejects(access(path.join(configHome, "config.json")));
+  } finally {
     await rm(configHome, { recursive: true, force: true });
   }
 });

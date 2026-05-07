@@ -209,6 +209,11 @@ export async function promptForSetup(options: { rootPath?: string; yes: boolean 
 
 async function promptForSetupFromPipe(options: { rootPath?: string; yes: boolean }) {
   const lines = await readInputLines();
+  const hasExplicitInput = lines.some((line) => line.trim().length > 0);
+  if (!options.yes && !hasExplicitInput) {
+    throw new CliError("Interactive setup requires a terminal. For scripts, run aiwiki setup --path <path> --yes.");
+  }
+
   let lineIndex = 0;
   let rootPath = options.rootPath;
   if (!rootPath) {
