@@ -12,6 +12,7 @@ test("help exposes only base commands", async () => {
   const code = await runCli(["--help"], { stdout, stderr });
   const text = stdout.text();
   assert.equal(code, 0);
+  assert.match(text, /aiwiki setup/);
   assert.match(text, /aiwiki init/);
   assert.match(text, /aiwiki prompt agent/);
   assert.doesNotMatch(text, /prompt qclaw/i);

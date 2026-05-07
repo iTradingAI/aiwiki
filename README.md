@@ -6,7 +6,15 @@ AIWiki 是一个 Agent-first 的本地知识库工具。用户把文章链接或
 
 ## 最短使用路径
 
-一次性设置默认知识库：
+一次性设置默认知识库。普通用户推荐直接运行交互式 setup：
+
+```bash
+npx aiwiki setup
+```
+
+CLI 会询问知识库路径；直接回车会使用默认目录。确认后会创建目录并设置为默认知识库。
+
+自动化安装可以使用：
 
 ```bash
 npx aiwiki setup --path "F:\knowledge_data\aiwiki" --yes
@@ -46,6 +54,7 @@ AIWiki CLI 不做通用网页抓取。网页读取、附件读取、消息读取
 ## 常用命令
 
 ```bash
+aiwiki setup
 aiwiki setup --path <path> --yes
 aiwiki prompt agent
 aiwiki doctor

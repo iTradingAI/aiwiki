@@ -143,7 +143,7 @@ export async function resolveWorkspace(optionalPath?: string, startDir = process
     throw new CliError(`默认知识库不可用：${root}。请运行 aiwiki setup --path <知识库路径> --yes 重新设置。`);
   }
 
-  throw new CliError("未找到 AIWiki 知识库。请先运行 aiwiki setup --path <知识库路径> --yes。");
+  throw new CliError("未找到 AIWiki 知识库。请先运行 aiwiki setup，或运行 aiwiki setup --path <知识库路径> --yes。");
 }
 
 export async function findWorkspace(startDir: string) {
@@ -171,6 +171,70 @@ export async function promptForInitPath() {
   } finally {
     rl.close();
   }
+}
+
+export async function promptForSetup(options: { rootPath?: string; yes: boolean }) {
+  if (options.rootPath && options.yes) {
+    return { rootPath: options.rootPath, confirmed: true };
+  }
+
+  if (!input.isTTY) {
+    return promptForSetupFromPipe(options);
+  }
+
+  const rl = createInterface({ input, output });
+  try {
+    let rootPath = options.rootPath;
+    if (!rootPath) {
+      const defaultPath = defaultSetupPath();
+      const answer = await rl.question(`AIWiki 知识库路径（直接回车使用 ${defaultPath}）: `);
+      rootPath = answer.trim() || defaultPath;
+    }
+    if (!options.yes) {
+      const root = resolveRoot(rootPath);
+      output.write(`将创建或补齐 AIWiki 目录: ${root}\n`);
+      for (const dir of REQUIRED_DIRS) {
+        output.write(`  - ${dir}\n`);
+      }
+      const answer = await rl.question("确认创建？输入 y 继续: ");
+      if (answer.trim().toLowerCase() !== "y") {
+        return { rootPath, confirmed: false };
+      }
+    }
+    return { rootPath, confirmed: true };
+  } finally {
+    rl.close();
+  }
+}
+
+async function promptForSetupFromPipe(options: { rootPath?: string; yes: boolean }) {
+  const lines = await readInputLines();
+  let lineIndex = 0;
+  let rootPath = options.rootPath;
+  if (!rootPath) {
+    const defaultPath = defaultSetupPath();
+    output.write(`AIWiki 知识库路径（直接回车使用 ${defaultPath}）: `);
+    rootPath = lines[lineIndex]?.trim() || defaultPath;
+    lineIndex += 1;
+  }
+  if (!options.yes) {
+    const root = resolveRoot(rootPath);
+    output.write(`将创建或补齐 AIWiki 目录: ${root}\n`);
+    for (const dir of REQUIRED_DIRS) {
+      output.write(`  - ${dir}\n`);
+    }
+    output.write("确认创建？输入 y 继续: ");
+    return { rootPath, confirmed: lines[lineIndex]?.trim().toLowerCase() === "y" };
+  }
+  return { rootPath, confirmed: true };
+}
+
+async function readInputLines() {
+  const chunks: Buffer[] = [];
+  for await (const chunk of input) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString("utf8").split(/\r?\n/);
 }
 
 export async function confirmInit(rootPath: string) {

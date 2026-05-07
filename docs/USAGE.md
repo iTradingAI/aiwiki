@@ -10,7 +10,15 @@ AIWiki CLI 不负责网页抓取。Qclaw、Codex、Claude Code、Cursor、Gemini
 
 ## 1. 一次性设置
 
-发布后直接运行：
+发布后直接运行交互式 setup：
+
+```bash
+npx aiwiki setup
+```
+
+CLI 会询问知识库路径。直接回车会使用默认目录；输入 `y` 后会创建或补齐目录，并设置为默认知识库。
+
+如果你想一行命令完成，也可以运行：
 
 ```bash
 npx aiwiki setup --path "F:\knowledge_data\aiwiki" --yes

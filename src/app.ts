@@ -6,10 +6,10 @@ import { ingestFile, ingestPayload } from "./ingest.js";
 import { CliError, CliStreams, writeLine } from "./output.js";
 import {
   confirmInit,
-  defaultSetupPath,
   directorySummary,
   doctor,
   initWorkspace,
+  promptForSetup,
   promptForInitPath,
   readConfig,
   resolveWorkspace,
@@ -34,8 +34,12 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
     }
 
     if (command === "setup") {
-      const rootPath = flagString(args, "path") ?? defaultSetupPath();
-      const result = await initWorkspace(rootPath);
+      const setup = await promptForSetup({ rootPath: flagString(args, "path"), yes: flagBool(args, "yes") });
+      if (!setup.confirmed) {
+        writeLine(streams.stdout, "已取消。");
+        return 0;
+      }
+      const result = await initWorkspace(setup.rootPath);
       const defaultConfig = await setDefaultWorkspace(result.root);
       writeLine(streams.stdout, `AIWiki initialized: ${result.root}`);
       writeLine(streams.stdout, `config: ${result.createdConfig ? "created" : "kept"}`);
@@ -191,6 +195,7 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "AIWiki");
   writeLine(stream, "");
   writeLine(stream, "Usage:");
+  writeLine(stream, "  aiwiki setup");
   writeLine(stream, "  aiwiki setup --path <path> --yes");
   writeLine(stream, "  aiwiki prompt agent");
   writeLine(stream, "  aiwiki doctor");
