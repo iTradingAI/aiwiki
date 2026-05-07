@@ -50,13 +50,25 @@ aiwiki status
 
 ## 2. 让宿主 Agent 学会 AIWiki
 
-初始化知识库之后，先把 AIWiki 对接协议交给宿主 Agent：
+初始化知识库之后，先让宿主 Agent 学会 AIWiki。Codex 用户可直接安装本地 skill：
+
+```bash
+aiwiki skill install
+```
+
+如果已经存在旧版本 skill，可覆盖更新：
+
+```bash
+aiwiki skill install --force
+```
+
+如果你使用的是其他宿主 Agent，则输出通用对接协议：
 
 ```bash
 aiwiki prompt agent
 ```
 
-把输出内容安装成宿主 Agent 的 skill，或粘贴到宿主 Agent 的项目/会话说明里。不同 Agent 的安装入口不同，所以基础版只提供通用协议和提示词。
+把输出内容安装成宿主 Agent 的 skill，或粘贴到宿主 Agent 的项目/会话说明里。不同 Agent 的安装入口不同，所以基础版提供 Codex 自动安装和通用协议两条路径。
 
 ## 3. 日常使用
 

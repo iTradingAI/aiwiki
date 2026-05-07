@@ -1,5 +1,7 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { flagBool, flagString, parseArgs } from "./args.js";
 import { ingestFile, ingestPayload } from "./ingest.js";
@@ -17,7 +19,7 @@ import {
   statusSummary
 } from "./workspace.js";
 
-export const VERSION = "0.1.2";
+export const VERSION = "0.1.3";
 
 export async function runCli(argv: string[], streams: CliStreams = { stdout: process.stdout, stderr: process.stderr }) {
   try {
@@ -46,8 +48,17 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `directories created: ${result.createdDirs.length}`);
       writeLine(streams.stdout, `default_path: ${defaultConfig.defaultPath}`);
       writeLine(streams.stdout, `user_config: ${defaultConfig.configPath}`);
-      writeLine(streams.stdout, "next: run `aiwiki prompt agent`, then install or paste the prompt into your host Agent.");
+      writeLine(streams.stdout, "next: run `aiwiki skill install` for Codex, or `aiwiki prompt agent` for other host Agents.");
       writeLine(streams.stdout, "after Agent setup: send `入库 <url>` to your Agent");
+      return 0;
+    }
+
+    if (command === "skill" && subcommand === "install") {
+      const result = await installCodexSkill(flagBool(args, "force"));
+      writeLine(streams.stdout, `skill: aiwiki`);
+      writeLine(streams.stdout, `target: ${result.target}`);
+      writeLine(streams.stdout, `status: ${result.updated ? "updated" : "installed"}`);
+      writeLine(streams.stdout, "next: restart or reload your Agent, then send `入库 <url>`.");
       return 0;
     }
 
@@ -198,6 +209,7 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "Usage:");
   writeLine(stream, "  aiwiki setup");
   writeLine(stream, "  aiwiki setup --path <path> --yes");
+  writeLine(stream, "  aiwiki skill install");
   writeLine(stream, "  aiwiki prompt agent");
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
@@ -207,6 +219,36 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki config show");
   writeLine(stream, "  aiwiki ingest-agent --payload <file>");
   writeLine(stream, "  aiwiki ingest-url <url> --content-file <file>");
+}
+
+async function installCodexSkill(force: boolean) {
+  const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const source = path.join(packageRoot, "skill", "SKILL.md");
+  const codexHome = process.env.CODEX_HOME ? path.resolve(process.env.CODEX_HOME) : path.join(os.homedir(), ".codex");
+  const targetDir = path.join(codexHome, "skills", "aiwiki");
+  const target = path.join(targetDir, "SKILL.md");
+
+  try {
+    await fs.access(source);
+  } catch {
+    throw new CliError(`AIWiki skill source not found: ${source}`);
+  }
+
+  let existed = false;
+  try {
+    await fs.access(target);
+    existed = true;
+  } catch {
+    existed = false;
+  }
+
+  if (existed && !force) {
+    throw new CliError(`AIWiki skill already exists: ${target}. Use --force to overwrite.`);
+  }
+
+  await fs.mkdir(targetDir, { recursive: true });
+  await fs.copyFile(source, target);
+  return { target, updated: existed };
 }
 
 function printAgentPrompt(stream: NodeJS.WritableStream): void {

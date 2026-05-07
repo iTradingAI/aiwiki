@@ -15,6 +15,7 @@ test("help exposes only base commands", async () => {
   assert.equal(code, 0);
   assert.match(text, /aiwiki setup/);
   assert.match(text, /aiwiki init/);
+  assert.match(text, /aiwiki skill install/);
   assert.match(text, /aiwiki prompt agent/);
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
@@ -38,7 +39,7 @@ test("version flag prints CLI version", async () => {
   const stdout = new MemoryWritable();
   const code = await runCli(["--version"], { stdout, stderr: new MemoryWritable() });
   assert.equal(code, 0);
-  assert.match(stdout.text(), /^aiwiki 0\.1\.2/);
+  assert.match(stdout.text(), /^aiwiki 0\.1\.3/);
 });
 
 test("CLI init config doctor and status", async () => {
@@ -76,6 +77,7 @@ test("CLI setup stores default workspace for no-path commands", async () => {
     assert.equal(await runCli(["setup", "--path", root, "--yes"], { stdout: setupOut, stderr: new MemoryWritable() }), 0);
     assert.match(setupOut.text(), /default_path:/);
     assert.match(setupOut.text(), /user_config:/);
+    assert.match(setupOut.text(), /aiwiki skill install/);
     assert.match(setupOut.text(), /aiwiki prompt agent/);
     assert.match(setupOut.text(), /after Agent setup/);
 
@@ -98,6 +100,37 @@ test("CLI setup stores default workspace for no-path commands", async () => {
     }
     await rm(root, { recursive: true, force: true });
     await rm(configHome, { recursive: true, force: true });
+  }
+});
+
+test("CLI skill install copies bundled skill to Codex home", async () => {
+  const codexHome = await tempRoot("aiwiki-cli-codex-home");
+  const previousCodexHome = process.env.CODEX_HOME;
+  process.env.CODEX_HOME = codexHome;
+  try {
+    const out = new MemoryWritable();
+    assert.equal(await runCli(["skill", "install"], { stdout: out, stderr: new MemoryWritable() }), 0);
+    assert.match(out.text(), /status: installed/);
+    assert.match(out.text(), /skills[\\/]aiwiki[\\/]SKILL\.md/);
+
+    const installed = await readFile(path.join(codexHome, "skills", "aiwiki", "SKILL.md"), "utf8");
+    assert.match(installed, /name: aiwiki/);
+    assert.match(installed, /aiwiki ingest-agent --stdin/);
+
+    const duplicateErr = new MemoryWritable();
+    assert.equal(await runCli(["skill", "install"], { stdout: new MemoryWritable(), stderr: duplicateErr }), 1);
+    assert.match(duplicateErr.text(), /already exists/);
+
+    const forceOut = new MemoryWritable();
+    assert.equal(await runCli(["skill", "install", "--force"], { stdout: forceOut, stderr: new MemoryWritable() }), 0);
+    assert.match(forceOut.text(), /status: updated/);
+  } finally {
+    if (previousCodexHome === undefined) {
+      delete process.env.CODEX_HOME;
+    } else {
+      process.env.CODEX_HOME = previousCodexHome;
+    }
+    await rm(codexHome, { recursive: true, force: true });
   }
 });
 
