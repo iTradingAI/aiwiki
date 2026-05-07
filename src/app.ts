@@ -17,7 +17,7 @@ import {
   statusSummary
 } from "./workspace.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 
 export async function runCli(argv: string[], streams: CliStreams = { stdout: process.stdout, stderr: process.stderr }) {
   try {
