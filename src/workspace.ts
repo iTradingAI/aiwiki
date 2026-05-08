@@ -48,18 +48,18 @@ export type DoctorCheck = {
 const WORKSPACE_SEEDS: Array<{ path: string; content: string }> = [
   {
     path: "dashboards/AIWiki Home.md",
-    content: `# AIWiki Home
+    content: `# AIWiki 首页
 
 AIWiki 的 Obsidian 入口。Dataview 是可选增强；未安装时仍可使用下方普通链接、Properties、Backlinks 和 Graph View。
 
-## Native Links
+## 原生链接入口
 
-- [[dashboards/Review Queue|Review Queue]]
-- [[dashboards/Recent Runs|Recent Runs]]
-- [[dashboards/Topic Pipeline|Topic Pipeline]]
-- [[_system/schemas/aiwiki-frontmatter|Frontmatter Schema]]
+- [[dashboards/Review Queue|待审队列]]
+- [[dashboards/Recent Runs|最近处理]]
+- [[dashboards/Topic Pipeline|选题管线]]
+- [[_system/schemas/aiwiki-frontmatter|字段说明]]
 
-## Recent Sources
+## 最近收录
 
 \`\`\`dataview
 TABLE status, source_url, captured_at, run_summary
@@ -68,7 +68,7 @@ WHERE type = "source_card"
 SORT captured_at DESC
 \`\`\`
 
-## Review Queue
+## 待审队列
 
 \`\`\`dataview
 TABLE type, status, source_card, raw_note, run_summary
@@ -80,11 +80,11 @@ SORT created_at DESC
   },
   {
     path: "dashboards/Review Queue.md",
-    content: `# Review Queue
+    content: `# 待审队列
 
 未安装 Dataview 时，可直接打开 [[03-sources/article-cards]]、[[04-claims/_suggestions]]、[[06-assets/_suggestions]] 和 [[08-outputs/outlines]] 手工审阅。
 
-## To Review
+## 待审内容
 
 \`\`\`dataview
 TABLE type, source_url, source_card, raw_note, claims_note, assets_note, outline_note
@@ -96,7 +96,7 @@ SORT captured_at DESC
   },
   {
     path: "dashboards/Recent Runs.md",
-    content: `# Recent Runs
+    content: `# 最近处理
 
 处理记录用于追溯每次宿主 Agent 入库的 payload、产物和告警。
 
@@ -110,7 +110,7 @@ SORT created_at DESC
   },
   {
     path: "dashboards/Topic Pipeline.md",
-    content: `# Topic Pipeline
+    content: `# 选题管线
 
 选题和大纲是从资料卡继续写作的入口。
 
@@ -170,16 +170,16 @@ run_summary: ""
 tags: ["aiwiki/source-card"]
 ---
 
-# Source Card
+# 资料卡
 
-## Obsidian Links
+## Obsidian 链接
 
-- Raw:
-- Claims:
-- Assets:
-- Topics:
-- Outline:
-- Run Summary:
+- 原文：
+- Claim 建议：
+- 素材建议：
+- 选题：
+- 大纲：
+- 处理记录：
 
 ## 摘要
 
@@ -195,7 +195,7 @@ created_at: ""
 tags: ["aiwiki/review"]
 ---
 
-# Review Note
+# 审阅记录
 
 ## 判断
 

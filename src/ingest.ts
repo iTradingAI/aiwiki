@@ -191,20 +191,20 @@ async function writeSummary(
     `tags: ["aiwiki/run"]`,
     "---",
     "",
-    "# processing-summary",
+    "# 处理记录",
     "",
-    `Input source: ${payload.source.kind}`,
-    `Fetch status: ${payload.source.fetch_status}`,
-    `Host fetcher: ${payload.source.fetcher ?? "unknown"}`,
+    `来源类型：${payload.source.kind}`,
+    `读取状态：${payload.source.fetch_status}`,
+    `宿主读取器：${payload.source.fetcher ?? "unknown"}`,
     "",
-    "Generated files:",
+    "生成文件：",
     ...files.map((file) => `- ${obsidianFileReference(root, file)}`),
     "",
-    "Warnings:",
+    "告警：",
     ...(warnings.length ? warnings.map((warning) => `- ${warning}`) : ["- none"]),
     "",
-    "next review:",
-    "- 请在 Obsidian 中人工审阅 Source Card、Claim 建议、资产建议、选题和大纲。",
+    "下一步审阅：",
+    "- 请在 Obsidian 中人工审阅资料卡、Claim 建议、素材建议、选题和大纲。",
     "- AIWiki CLI 不负责网页抓取稳定性。"
   ];
   await fs.writeFile(summaryPath, `${lines.join("\n")}\n`, { encoding: "utf8", flag: "wx" });
@@ -230,10 +230,10 @@ function contentFile(payload: NormalizedPayload, content: string, links: Artifac
     "",
     `# ${payload.source.title ?? "Untitled"}`,
     "",
-    "## AIWiki Links",
+    "## AIWiki 链接",
     "",
-    `- Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
-    `- Run Summary: ${obsidianLink(links.runSummary, "处理记录")}`,
+    `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
+    `- 处理记录：${obsidianLink(links.runSummary, "处理记录")}`,
     "",
     content,
     ""
@@ -262,14 +262,14 @@ function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLi
     "",
     `# ${payload.source.title ?? "Untitled"}`,
     "",
-    "## Obsidian Links",
+    "## Obsidian 链接",
     "",
-    `- Raw: ${obsidianLink(links.raw, "原文")}`,
-    `- Claims: ${obsidianLink(links.claims, "Claim 建议")}`,
-    `- Assets: ${obsidianLink(links.assets, "素材建议")}`,
-    `- Topics: ${obsidianLink(links.topics, "选题")}`,
-    `- Outline: ${obsidianLink(links.outline, "大纲")}`,
-    `- Run Summary: ${obsidianLink(links.runSummary, "处理记录")}`,
+    `- 原文：${obsidianLink(links.raw, "原文")}`,
+    `- Claim 建议：${obsidianLink(links.claims, "Claim 建议")}`,
+    `- 素材建议：${obsidianLink(links.assets, "素材建议")}`,
+    `- 选题：${obsidianLink(links.topics, "选题")}`,
+    `- 大纲：${obsidianLink(links.outline, "大纲")}`,
+    `- 处理记录：${obsidianLink(links.runSummary, "处理记录")}`,
     "",
     "## 摘要",
     "",
@@ -295,10 +295,10 @@ function claims(payload: NormalizedPayload, links: ArtifactLinks): string {
     `tags: ["aiwiki/claims"]`,
     "---",
     "",
-    "# Claim Suggestions",
+    "# Claim 建议",
     "",
-    `- Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
-    `- Raw: ${obsidianLink(links.raw, "原文")}`,
+    `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
+    `- 原文：${obsidianLink(links.raw, "原文")}`,
     `- 待人工审阅：${payload.source.title ?? "Untitled"}`,
     ""
   ].join("\n");
@@ -321,10 +321,10 @@ function creativeAssets(payload: NormalizedPayload, links: ArtifactLinks): strin
     `tags: ["aiwiki/assets"]`,
     "---",
     "",
-    "# Creative Assets",
+    "# 素材建议",
     "",
-    `- Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
-    `- Raw: ${obsidianLink(links.raw, "原文")}`,
+    `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
+    `- 原文：${obsidianLink(links.raw, "原文")}`,
     `- 可复用素材：${payload.source.title ?? "Untitled"}`,
     ""
   ].join("\n");
@@ -347,10 +347,10 @@ function topics(payload: NormalizedPayload, links: ArtifactLinks): string {
     `tags: ["aiwiki/topics"]`,
     "---",
     "",
-    "# Topic Candidates",
+    "# 选题候选",
     "",
-    `- Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
-    `- Outline: ${obsidianLink(links.outline, "大纲")}`,
+    `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
+    `- 大纲：${obsidianLink(links.outline, "大纲")}`,
     `- ${payload.source.title ?? "Untitled"}`,
     ""
   ].join("\n");
@@ -373,10 +373,10 @@ function outline(payload: NormalizedPayload, links: ArtifactLinks): string {
     `tags: ["aiwiki/outline"]`,
     "---",
     "",
-    "# Draft Outline",
+    "# 草稿大纲",
     "",
-    `Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
-    `Raw: ${obsidianLink(links.raw, "原文")}`,
+    `资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
+    `原文：${obsidianLink(links.raw, "原文")}`,
     "",
     "1. 背景",
     "2. 关键观点",
@@ -402,7 +402,7 @@ function buildAgentReport(root: string, runDir: string, payload: NormalizedPaylo
     sourceUrl: payload.source.url,
     fitScore,
     fitLevel: fitLevel(fitScore, fetchFailed),
-    summary: fetchFailed ? (payload.source.fetch_notes ?? "Host Agent did not provide readable content.") : summarizeContent(content),
+    summary: fetchFailed ? (payload.source.fetch_notes ?? "宿主 Agent 没有提供可读正文。") : summarizeContent(content),
     keyFiles: {
       processingSummary: relativePath(root, path.join(runDir, "processing-summary.md")),
       sourceCard: findGeneratedFileInDir(root, generatedFiles, "03-sources/article-cards"),
@@ -448,7 +448,7 @@ function fitLevel(score: number, fetchFailed: boolean) {
 function summarizeContent(content: string) {
   const compact = content.replace(/\s+/g, " ").trim();
   if (!compact) {
-    return "No readable content was provided.";
+    return "没有提供可读正文。";
   }
   return compact.length > 180 ? `${compact.slice(0, 180)}...` : compact;
 }

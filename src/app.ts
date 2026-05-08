@@ -21,7 +21,7 @@ import {
   statusSummary
 } from "./workspace.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";
 
 export async function runCli(argv: string[], streams: CliStreams = { stdout: process.stdout, stderr: process.stderr }) {
   try {
@@ -403,7 +403,7 @@ async function copyInstallFile(source: string, target: string, force: boolean) {
 }
 
 function printAgentPrompt(stream: NodeJS.WritableStream): void {
-  writeLine(stream, "AIWiki Agent Prompt");
+  writeLine(stream, "AIWiki Agent 中文提示");
   writeLine(stream, "");
   writeLine(stream, "当用户发送以下触发语时，请自动执行 AIWiki 入库流程：");
   writeLine(stream, "- 入库 <url>");

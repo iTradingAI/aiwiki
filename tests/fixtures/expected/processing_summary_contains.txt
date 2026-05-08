@@ -1,4 +1,4 @@
-input source
-generated files
-warnings
-next review
+来源类型
+生成文件
+告警
+下一步审阅

@@ -42,7 +42,7 @@ test("version flag prints CLI version", async () => {
   const stdout = new MemoryWritable();
   const code = await runCli(["--version"], { stdout, stderr: new MemoryWritable() });
   assert.equal(code, 0);
-  assert.match(stdout.text(), /^aiwiki 0\.2\.0/);
+  assert.match(stdout.text(), /^aiwiki 0\.2\.1/);
 });
 
 test("CLI init config doctor and status", async () => {
@@ -177,7 +177,7 @@ test("CLI agent install writes Claude prompt command", async () => {
     assert.match(out.text(), /installed: Claude Code/);
 
     const installed = await readFile(target, "utf8");
-    assert.match(installed, /AIWiki Agent Handoff/);
+    assert.match(installed, /AIWiki Agent 对接说明/);
     assert.match(installed, /aiwiki ingest-agent --stdin/);
     assert.match(installed, /dashboard/);
     assert.match(installed, /review_queue/);
