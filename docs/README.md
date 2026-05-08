@@ -23,6 +23,6 @@ aiwiki doctor
 入库 https://example.com/article
 ```
 
-## Important Boundary
+## 重要边界
 
 CLI 不保证网页抓取成功。网页读取属于宿主 Agent。

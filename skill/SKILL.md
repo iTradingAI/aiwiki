@@ -9,7 +9,7 @@ Use this skill when the user asks an Agent to process one URL, article body, or 
 
 The host Agent reads the webpage or user-provided body, then passes structured content to the `aiwiki` CLI. The base CLI writes files and does not own webpage fetching stability.
 
-## Agent Handoff
+## Agent 对接流程
 
 1. Read the URL, message, attachment, or user-provided body.
 2. Build an `aiwiki.agent_payload.v1` payload with `source` and `request`.
@@ -27,7 +27,7 @@ For local files, call:
 aiwiki ingest-file --file <file>
 ```
 
-## User Reply
+## 用户回复
 
 After the CLI runs, read the command output and report these fields to the user:
 
@@ -54,15 +54,16 @@ Obsidian 入口：<dashboard>
 
 If `fetch_status` is `failed`, say that AIWiki recorded the failure reason but did not ingest readable content.
 
-## Obsidian + Dataview Boundary
+## Obsidian + Dataview 边界
 
-- AIWiki works with Obsidian native Markdown, Properties, Backlinks, Search, and Graph View.
-- Dataview is optional. It only enhances the generated dashboards.
-- Do not install Dataview for the user.
-- Do not edit `.obsidian`, `community-plugins.json`, or Obsidian plugin settings.
-- If the user asks about Dataview, explain that they can install it manually from Obsidian Community plugins, then open `dashboards/AIWiki Home.md`.
+- AIWiki 默认使用中文提示和中文审阅流程。
+- AIWiki 可直接配合 Obsidian 原生 Markdown、Properties、Backlinks、Search 和 Graph View 使用。
+- Dataview 是可选增强，只用于渲染生成的 dashboards。
+- 不要替用户安装 Dataview。
+- 不要编辑 `.obsidian`、`community-plugins.json` 或 Obsidian 插件配置。
+- 如果用户问 Dataview，说明可以在 Obsidian Community plugins 中手动安装并启用，然后打开 `dashboards/AIWiki Home.md`。
 
-## Minimal Payload
+## 最小 Payload
 
 ```json
 {
