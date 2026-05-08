@@ -21,7 +21,7 @@ import {
   statusSummary
 } from "./workspace.js";
 
-export const VERSION = "0.2.1";
+export const VERSION = "0.2.2";
 
 export async function runCli(argv: string[], streams: CliStreams = { stdout: process.stdout, stderr: process.stderr }) {
   try {
@@ -271,7 +271,7 @@ async function discoverAgentTargets(): Promise<AgentTarget[]> {
       kind: "skill",
       source: skillSource,
       target: path.join(codexHome, "skills", "aiwiki", "SKILL.md"),
-      note: "Installs user skill under CODEX_HOME."
+      note: "安装到 Codex 用户 skills 目录。"
     },
     {
       id: "qclaw",
@@ -281,7 +281,7 @@ async function discoverAgentTargets(): Promise<AgentTarget[]> {
       kind: "skill",
       source: skillSource,
       target: path.join(qclawHome, "skills", "aiwiki", "SKILL.md"),
-      note: "Installs into the local QClaw skills directory."
+      note: "安装到本机 QClaw skills 目录。"
     },
     {
       id: "openclaw",
@@ -291,7 +291,7 @@ async function discoverAgentTargets(): Promise<AgentTarget[]> {
       kind: "skill",
       source: skillSource,
       target: path.join(openclawHome, "workspace", "skills", "aiwiki", "SKILL.md"),
-      note: "Installs into the workspace skills directory."
+      note: "安装到 OpenClaw workspace skills 目录。"
     },
     {
       id: "claude",
@@ -301,7 +301,7 @@ async function discoverAgentTargets(): Promise<AgentTarget[]> {
       kind: "command",
       source: promptSource,
       target: path.join(claudeHome, "commands", "aiwiki.md"),
-      note: "Installs a slash-command prompt file."
+      note: "安装为 Claude Code slash-command 提示文件。"
     },
     {
       id: "opencode",
@@ -309,7 +309,7 @@ async function discoverAgentTargets(): Promise<AgentTarget[]> {
       detected: await exists(opencodeHome),
       installable: false,
       kind: "prompt",
-      note: "Detected, but no stable user prompt directory is configured yet. Use aiwiki prompt agent."
+      note: "已检测到，但暂未确认稳定的用户提示目录。请先使用 aiwiki prompt agent。"
     },
     {
       id: "hermes",
@@ -317,7 +317,7 @@ async function discoverAgentTargets(): Promise<AgentTarget[]> {
       detected: await exists(hermesHome),
       installable: false,
       kind: "prompt",
-      note: "Detected, but no stable skill directory is configured yet. Use aiwiki prompt agent."
+      note: "已检测到，但暂未确认稳定的 skill 目录。请先使用 aiwiki prompt agent。"
     }
   ];
 }

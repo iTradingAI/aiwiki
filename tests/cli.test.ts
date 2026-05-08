@@ -42,7 +42,7 @@ test("version flag prints CLI version", async () => {
   const stdout = new MemoryWritable();
   const code = await runCli(["--version"], { stdout, stderr: new MemoryWritable() });
   assert.equal(code, 0);
-  assert.match(stdout.text(), /^aiwiki 0\.2\.1/);
+  assert.match(stdout.text(), /^aiwiki 0\.2\.2/);
 });
 
 test("CLI init config doctor and status", async () => {
@@ -126,6 +126,8 @@ test("CLI agent list prints detected and unsupported hosts", async () => {
     assert.match(out.text(), /qclaw: QClaw \| 已检测=是 \| 可安装=是/);
     assert.match(out.text(), /openclaw: OpenClaw \| 已检测=是 \| 可安装=是/);
     assert.match(out.text(), /opencode: opencode \| 已检测=否 \| 可安装=否/);
+    assert.match(out.text(), /安装到 Codex 用户 skills 目录/);
+    assert.match(out.text(), /暂未确认稳定的用户提示目录/);
   } finally {
     restoreEnv("CODEX_HOME", previousCodexHome);
     restoreEnv("QCLAW_HOME", previousQclawHome);
