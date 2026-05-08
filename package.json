@@ -1,6 +1,6 @@
 {
   "name": "aiwiki",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "type": "module",
   "description": "Agent-first local knowledge production CLI for a single knowledge base.",
   "license": "UNLICENSED",

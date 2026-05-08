@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="820" viewBox="0 0 1280 820" role="img" aria-labelledby="title desc">
+  <title id="title">AIWiki Base Architecture</title>
+  <desc id="desc">AIWiki base edition architecture showing setup, host Agent installation, ingestion, CLI processing, and local knowledge base outputs.</desc>
+  <defs>
+    <style>
+      .bg { fill: #fbfaf7; }
+      .band { fill: #fff7ed; stroke: #d9a36a; stroke-width: 2; }
+      .panel { fill: #ffffff; stroke: #b9c2cc; stroke-width: 1.5; }
+      .core { fill: #eef6ff; stroke: #4e85bd; stroke-width: 2; }
+      .agent { fill: #f2fbf5; stroke: #4c9a67; stroke-width: 2; }
+      .store { fill: #fff4f0; stroke: #c8755a; stroke-width: 2; }
+      .note { fill: #f7f7f7; stroke: #c5c5c5; stroke-width: 1.2; }
+      .title { font: 700 30px Arial, "Microsoft YaHei", sans-serif; fill: #25313d; }
+      .h2 { font: 700 18px Arial, "Microsoft YaHei", sans-serif; fill: #25313d; }
+      .text { font: 15px Arial, "Microsoft YaHei", sans-serif; fill: #334155; }
+      .small { font: 13px Arial, "Microsoft YaHei", sans-serif; fill: #52606d; }
+      .mono { font: 14px Consolas, "SFMono-Regular", monospace; fill: #243b53; }
+      .arrow { stroke: #536471; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 7 6; }
+      .chip { fill: #eef2f7; stroke: #c9d2dd; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L8,3 z" fill="#536471"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1280" height="820"/>
+  <text class="title" x="54" y="58">AIWiki 基础版架构图</text>
+  <text class="small" x="56" y="86">目标：宿主 Agent 负责读取与理解，AIWiki CLI 负责校验与本地确定性写入。</text>
+
+  <rect class="band" x="48" y="118" width="1184" height="118" rx="8"/>
+  <text class="h2" x="72" y="153">1. 一次性初始化与 Agent 安装</text>
+  <rect class="chip" x="72" y="174" width="172" height="34" rx="6"/>
+  <text class="mono" x="91" y="197">aiwiki setup</text>
+  <rect class="chip" x="292" y="174" width="172" height="34" rx="6"/>
+  <text class="mono" x="315" y="197">agent list</text>
+  <rect class="chip" x="512" y="174" width="212" height="34" rx="6"/>
+  <text class="mono" x="533" y="197">agent install</text>
+  <rect class="chip" x="772" y="174" width="210" height="34" rx="6"/>
+  <text class="mono" x="794" y="197">prompt agent</text>
+  <text class="small" x="1014" y="187">不自动乱写未知 Agent；</text>
+  <text class="small" x="1014" y="207">用户选择后才复制。</text>
+  <path class="arrow" d="M244 191 H292"/>
+  <path class="arrow" d="M464 191 H512"/>
+  <path class="arrow" d="M724 191 H772"/>
+
+  <rect class="panel" x="58" y="280" width="264" height="330" rx="8"/>
+  <text class="h2" x="84" y="318">用户 / 安装向导</text>
+  <text class="text" x="84" y="356">选择宿主 Agent：</text>
+  <text class="small" x="104" y="386">Codex</text>
+  <text class="small" x="104" y="414">QClaw / OpenClaw</text>
+  <text class="small" x="104" y="442">Claude Code</text>
+  <text class="small" x="104" y="470">opencode / Hermes</text>
+  <rect class="note" x="84" y="505" width="206" height="72" rx="6"/>
+  <text class="small" x="101" y="532">未知目录只给 prompt，</text>
+  <text class="small" x="101" y="555">不直接改配置。</text>
+
+  <rect class="agent" x="382" y="280" width="330" height="330" rx="8"/>
+  <text class="h2" x="414" y="318">宿主 Agent 层</text>
+  <text class="text" x="414" y="356">已加载 AIWiki skill / prompt</text>
+  <text class="small" x="434" y="386">读取 URL / 文件 / 正文</text>
+  <text class="small" x="434" y="414">提取标题、正文、来源信息</text>
+  <text class="small" x="434" y="442">生成 agent payload v1</text>
+  <text class="small" x="434" y="470">调用 stdin 交给 CLI</text>
+  <rect class="note" x="414" y="505" width="260" height="72" rx="6"/>
+  <text class="mono" x="434" y="533">aiwiki ingest-agent</text>
+  <text class="mono" x="434" y="555">  --stdin</text>
+
+  <rect class="core" x="772" y="280" width="210" height="330" rx="8"/>
+  <text class="h2" x="812" y="318">AIWiki CLI</text>
+  <text class="small" x="806" y="356">校验 payload</text>
+  <text class="small" x="806" y="386">拒绝越界路径</text>
+  <text class="small" x="806" y="416">生成 run_id</text>
+  <text class="small" x="806" y="446">写入运行产物</text>
+  <text class="small" x="806" y="476">写入长期目录</text>
+  <text class="small" x="806" y="506">输出 key-value 结果</text>
+
+  <rect class="store" x="1042" y="280" width="190" height="330" rx="8"/>
+  <text class="h2" x="1082" y="318">本地知识库</text>
+  <text class="mono" x="1064" y="356">aiwiki.yaml</text>
+  <text class="mono" x="1064" y="386">09-runs/</text>
+  <text class="mono" x="1064" y="416">02-raw/</text>
+  <text class="mono" x="1064" y="446">03-sources/</text>
+  <text class="mono" x="1064" y="476">04-claims/</text>
+  <text class="mono" x="1064" y="506">07-topics/</text>
+  <text class="mono" x="1064" y="536">08-outputs/</text>
+
+  <path class="arrow" d="M322 445 H382"/>
+  <path class="arrow" d="M712 445 H772"/>
+  <path class="arrow" d="M982 445 H1042"/>
+  <path class="arrow dash" d="M876 610 C876 688 544 688 544 610"/>
+  <text class="small" x="602" y="712">CLI 输出入库状态、契合度、摘要、run_dir，由宿主 Agent 回复用户</text>
+
+  <rect class="panel" x="58" y="650" width="452" height="102" rx="8"/>
+  <text class="h2" x="84" y="684">安装目标</text>
+  <text class="small" x="84" y="714">自动复制：Codex、QClaw、OpenClaw、Claude Code</text>
+  <text class="small" x="84" y="738">仅提示协议：opencode、Hermes（目录规范确认后再开放）</text>
+
+  <rect class="panel" x="772" y="650" width="460" height="102" rx="8"/>
+  <text class="h2" x="798" y="684">边界</text>
+  <text class="small" x="798" y="714">基础版不抓网页、不做多知识库、不做状态机、不做批量队列。</text>
+  <text class="small" x="798" y="738">所有写入必须限制在目标知识库根目录内。</text>
+</svg>

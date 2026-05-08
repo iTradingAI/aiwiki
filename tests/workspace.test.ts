@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFile, rm } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { directorySummary, doctor, initWorkspace, readConfig, statusSummary } from "../src/workspace.js";
@@ -12,14 +12,21 @@ test("init creates layout and keeps existing config", async () => {
     const first = await initWorkspace(root);
     assert.equal(first.createdConfig, true);
     assert.equal(first.createdDirs.length, 12);
+    assert.equal(first.seededFiles.filter((file) => file.created).length, 7);
 
     const configPath = path.join(root, "aiwiki.yaml");
     const original = await readFile(configPath, "utf8");
+    const dashboardPath = path.join(root, "dashboards", "AIWiki Home.md");
+    const customDashboard = "# Custom AIWiki Home\n";
+    await writeFile(dashboardPath, customDashboard, "utf8");
     const second = await initWorkspace(root);
     const after = await readFile(configPath, "utf8");
 
     assert.equal(second.createdConfig, false);
+    assert.equal(second.seededFiles.filter((file) => file.created).length, 0);
     assert.equal(after, original);
+    assert.equal(await readFile(dashboardPath, "utf8"), customDashboard);
+    assert.match(await readFile(path.join(root, "_system", "schemas", "aiwiki-frontmatter.md"), "utf8"), /Dataview/);
 
     const summary = await directorySummary(root);
     assert.equal(summary.missing.length, 0);

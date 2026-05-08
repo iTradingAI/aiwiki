@@ -32,6 +32,7 @@ test("ingests agent payload into run and long-term files", async () => {
     await stat(path.join(root, "03-sources", "article-cards", "ai-agent-workflow-notes.md"));
     await assertSourceCardFrontmatter(path.join(result.runDir, "source-card.md"));
     await assertSummaryContains(path.join(result.runDir, "processing-summary.md"));
+    await assertObsidianLinks(root, result.runDir);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -119,4 +120,29 @@ async function assertSummaryContains(file: string) {
   for (const fragment of expected.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)) {
     assert.match(text, new RegExp(fragment));
   }
+}
+
+async function assertObsidianLinks(root: string, runDir: string) {
+  const sourceCard = await readFile(path.join(root, "03-sources", "article-cards", "ai-agent-workflow-notes.md"), "utf8");
+  assert.match(sourceCard, /\[\[02-raw\/articles\/ai-agent-workflow-notes\|原文\]\]/);
+  assert.match(sourceCard, /\[\[04-claims\/_suggestions\/ai-agent-workflow-notes-claims\|Claim 建议\]\]/);
+  assert.match(sourceCard, /\[\[08-outputs\/outlines\/ai-agent-workflow-notes-outline\|大纲\]\]/);
+  assert.match(sourceCard, /^aiwiki_id: "ai-agent-workflow-notes:source-card"$/m);
+  assert.match(sourceCard, /^slug: "ai-agent-workflow-notes"$/m);
+  assert.match(sourceCard, /^source_card: "\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|资料卡\]\]"$/m);
+  assert.match(sourceCard, /^run_summary: "\[\[09-runs\/.+\/processing-summary\|处理记录\]\]"$/m);
+
+  const claims = await readFile(path.join(root, "04-claims", "_suggestions", "ai-agent-workflow-notes-claims.md"), "utf8");
+  assert.match(claims, /\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|资料卡\]\]/);
+  assert.match(claims, /^raw_note: "\[\[02-raw\/articles\/ai-agent-workflow-notes\|原文\]\]"$/m);
+
+  const raw = await readFile(path.join(root, "02-raw", "articles", "ai-agent-workflow-notes.md"), "utf8");
+  assert.match(raw, /\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|资料卡\]\]/);
+  assert.match(raw, /^type: "raw_article"$/m);
+
+  const summary = await readFile(path.join(runDir, "processing-summary.md"), "utf8");
+  assert.match(summary, /^type: "processing_summary"$/m);
+  assert.match(summary, /^status: "to-review"$/m);
+  assert.match(summary, /\[\[09-runs\/.+\/source-card\|source-card\]\]/);
+  assert.match(summary, /\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|ai-agent-workflow-notes\]\]/);
 }

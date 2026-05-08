@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { access, readFile, rm } from "node:fs/promises";
+import { access, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -15,7 +15,8 @@ test("help exposes only base commands", async () => {
   assert.equal(code, 0);
   assert.match(text, /aiwiki setup/);
   assert.match(text, /aiwiki init/);
-  assert.match(text, /aiwiki skill install/);
+  assert.match(text, /aiwiki agent list/);
+  assert.match(text, /aiwiki agent install/);
   assert.match(text, /aiwiki prompt agent/);
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
@@ -31,6 +32,8 @@ test("prompt agent prints neutral Agent handoff instructions", async () => {
   assert.match(text, /入库 <url>/);
   assert.match(text, /aiwiki ingest-agent --stdin/);
   assert.match(text, /普通会话中不要把所有 URL 都自动入库/);
+  assert.match(text, /已加入 Obsidian 审阅队列/);
+  assert.match(text, /Dataview 是可选增强/);
   assert.doesNotMatch(text, /qclaw/i);
   assert.equal(stderr.text(), "");
 });
@@ -39,7 +42,7 @@ test("version flag prints CLI version", async () => {
   const stdout = new MemoryWritable();
   const code = await runCli(["--version"], { stdout, stderr: new MemoryWritable() });
   assert.equal(code, 0);
-  assert.match(stdout.text(), /^aiwiki 0\.1\.3/);
+  assert.match(stdout.text(), /^aiwiki 0\.2\.0/);
 });
 
 test("CLI init config doctor and status", async () => {
@@ -77,8 +80,9 @@ test("CLI setup stores default workspace for no-path commands", async () => {
     assert.equal(await runCli(["setup", "--path", root, "--yes"], { stdout: setupOut, stderr: new MemoryWritable() }), 0);
     assert.match(setupOut.text(), /default_path:/);
     assert.match(setupOut.text(), /user_config:/);
-    assert.match(setupOut.text(), /aiwiki skill install/);
-    assert.match(setupOut.text(), /aiwiki prompt agent/);
+    assert.match(setupOut.text(), /database files created: 7/);
+    assert.match(setupOut.text(), /obsidian_entry: dashboards\/AIWiki Home\.md/);
+    assert.match(setupOut.text(), /aiwiki agent install/);
     assert.match(setupOut.text(), /after Agent setup/);
 
     const doctorOut = new MemoryWritable();
@@ -103,34 +107,99 @@ test("CLI setup stores default workspace for no-path commands", async () => {
   }
 });
 
-test("CLI skill install copies bundled skill to Codex home", async () => {
+test("CLI agent list prints detected and unsupported hosts", async () => {
+  const codexHome = await tempRoot("aiwiki-cli-codex-home");
+  const qclawHome = await tempRoot("aiwiki-cli-qclaw-home");
+  const openclawHome = await tempRoot("aiwiki-cli-openclaw-home");
+  const previousCodexHome = process.env.CODEX_HOME;
+  const previousQclawHome = process.env.QCLAW_HOME;
+  const previousOpenclawHome = process.env.OPENCLAW_HOME;
+  const previousOpencodeHome = process.env.OPENCODE_HOME;
+  process.env.CODEX_HOME = codexHome;
+  process.env.QCLAW_HOME = qclawHome;
+  process.env.OPENCLAW_HOME = openclawHome;
+  process.env.OPENCODE_HOME = path.join(codexHome, "missing-opencode");
+  try {
+    const out = new MemoryWritable();
+    assert.equal(await runCli(["agent", "list"], { stdout: out, stderr: new MemoryWritable() }), 0);
+    assert.match(out.text(), /codex: Codex \| detected=yes \| installable=yes/);
+    assert.match(out.text(), /qclaw: QClaw \| detected=yes \| installable=yes/);
+    assert.match(out.text(), /openclaw: OpenClaw \| detected=yes \| installable=yes/);
+    assert.match(out.text(), /opencode: opencode \| detected=no \| installable=no/);
+  } finally {
+    restoreEnv("CODEX_HOME", previousCodexHome);
+    restoreEnv("QCLAW_HOME", previousQclawHome);
+    restoreEnv("OPENCLAW_HOME", previousOpenclawHome);
+    restoreEnv("OPENCODE_HOME", previousOpencodeHome);
+    await rm(codexHome, { recursive: true, force: true });
+    await rm(qclawHome, { recursive: true, force: true });
+    await rm(openclawHome, { recursive: true, force: true });
+  }
+});
+
+test("CLI agent install copies bundled skill to selected host", async () => {
   const codexHome = await tempRoot("aiwiki-cli-codex-home");
   const previousCodexHome = process.env.CODEX_HOME;
   process.env.CODEX_HOME = codexHome;
   try {
     const out = new MemoryWritable();
-    assert.equal(await runCli(["skill", "install"], { stdout: out, stderr: new MemoryWritable() }), 0);
-    assert.match(out.text(), /status: installed/);
-    assert.match(out.text(), /skills[\\/]aiwiki[\\/]SKILL\.md/);
+    assert.equal(await runCli(["agent", "install", "--agent", "codex", "--yes"], { stdout: out, stderr: new MemoryWritable() }), 0);
+    const target = path.join(codexHome, "skills", "aiwiki", "SKILL.md");
+    assert.match(out.text(), /installed: Codex/);
+    assert.match(out.text(), new RegExp(`target: ${escapeRegExp(target)}`));
 
-    const installed = await readFile(path.join(codexHome, "skills", "aiwiki", "SKILL.md"), "utf8");
+    const installed = await readFile(target, "utf8");
     assert.match(installed, /name: aiwiki/);
     assert.match(installed, /aiwiki ingest-agent --stdin/);
 
     const duplicateErr = new MemoryWritable();
-    assert.equal(await runCli(["skill", "install"], { stdout: new MemoryWritable(), stderr: duplicateErr }), 1);
-    assert.match(duplicateErr.text(), /already exists/);
+    assert.equal(await runCli(["agent", "install", "--agent", "codex", "--yes"], { stdout: new MemoryWritable(), stderr: duplicateErr }), 1);
+    assert.match(duplicateErr.text(), /Target already exists/);
 
     const forceOut = new MemoryWritable();
-    assert.equal(await runCli(["skill", "install", "--force"], { stdout: forceOut, stderr: new MemoryWritable() }), 0);
-    assert.match(forceOut.text(), /status: updated/);
+    assert.equal(await runCli(["agent", "install", "--agent", "codex", "--yes", "--force"], { stdout: forceOut, stderr: new MemoryWritable() }), 0);
+    assert.match(forceOut.text(), /installed: Codex/);
   } finally {
-    if (previousCodexHome === undefined) {
-      delete process.env.CODEX_HOME;
-    } else {
-      process.env.CODEX_HOME = previousCodexHome;
-    }
+    restoreEnv("CODEX_HOME", previousCodexHome);
     await rm(codexHome, { recursive: true, force: true });
+  }
+});
+
+test("CLI agent install writes Claude prompt command", async () => {
+  const claudeHome = await tempRoot("aiwiki-cli-claude-home");
+  const previousClaudeHome = process.env.CLAUDE_HOME;
+  process.env.CLAUDE_HOME = claudeHome;
+  await mkdir(claudeHome, { recursive: true });
+  try {
+    const out = new MemoryWritable();
+    assert.equal(await runCli(["agent", "install", "--agent", "claude", "--yes"], { stdout: out, stderr: new MemoryWritable() }), 0);
+    const target = path.join(claudeHome, "commands", "aiwiki.md");
+    assert.match(out.text(), /installed: Claude Code/);
+
+    const installed = await readFile(target, "utf8");
+    assert.match(installed, /AIWiki Agent Handoff/);
+    assert.match(installed, /aiwiki ingest-agent --stdin/);
+    assert.match(installed, /dashboard/);
+    assert.match(installed, /review_queue/);
+    assert.match(installed, /不要替用户安装 Dataview/);
+    assert.match(installed, /不要修改 `\.obsidian`/);
+  } finally {
+    restoreEnv("CLAUDE_HOME", previousClaudeHome);
+    await rm(claudeHome, { recursive: true, force: true });
+  }
+});
+
+test("CLI agent install rejects unsupported detected hosts", async () => {
+  const opencodeHome = await tempRoot("aiwiki-cli-opencode-home");
+  const previousOpencodeHome = process.env.OPENCODE_HOME;
+  process.env.OPENCODE_HOME = opencodeHome;
+  try {
+    const err = new MemoryWritable();
+    assert.equal(await runCli(["agent", "install", "--agent", "opencode", "--yes"], { stdout: new MemoryWritable(), stderr: err }), 1);
+    assert.match(err.text(), /automatic installation is not configured/);
+  } finally {
+    restoreEnv("OPENCODE_HOME", previousOpencodeHome);
+    await rm(opencodeHome, { recursive: true, force: true });
   }
 });
 
@@ -186,6 +255,14 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}
+
 test("CLI ingest-agent payload and ingest-url boundary", async () => {
   const root = await tempRoot("aiwiki-cli-ingest");
   try {
@@ -203,7 +280,10 @@ test("CLI ingest-agent payload and ingest-url boundary", async () => {
     assert.match(out.text(), /run_id:/);
     assert.match(out.text(), /processing_summary:/);
     assert.match(out.text(), /source_card:/);
+    assert.match(out.text(), /source_card: 03-sources\/article-cards\/ai-agent-workflow-notes\.md/);
     assert.match(out.text(), /draft_outline:/);
+    assert.match(out.text(), /dashboard: dashboards\/AIWiki Home\.md/);
+    assert.match(out.text(), /review_queue: dashboards\/Review Queue\.md/);
     assert.equal(err.text(), "");
 
     const boundaryErr = new MemoryWritable();
@@ -232,6 +312,8 @@ test("CLI ingest-agent reports fetch failure without claiming ingestion success"
     assert.match(out.text(), /fit_level: fetch_failed/);
     assert.match(out.text(), /processing_summary:/);
     assert.doesNotMatch(out.text(), /source_card:/);
+    assert.match(out.text(), /dashboard: dashboards\/AIWiki Home\.md/);
+    assert.match(out.text(), /review_queue: dashboards\/Review Queue\.md/);
     assert.equal(err.text(), "");
   } finally {
     await rm(root, { recursive: true, force: true });

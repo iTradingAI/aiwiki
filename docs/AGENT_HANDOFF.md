@@ -35,7 +35,7 @@ AIWiki CLI 不做通用网页抓取。网页读取失败时，Agent 仍然要调
 aiwiki ingest-agent --stdin
 ```
 
-7. 读取 CLI 输出，向用户回复入库状态、契合度、摘要和结果入口。
+7. 读取 CLI 输出，向用户回复入库状态、契合度、摘要、资料卡、处理记录和 Obsidian 审阅入口。
 
 ## 成功 payload
 
@@ -97,17 +97,27 @@ aiwiki ingest-agent --stdin
 - 不要让用户每次输入 `--path`。
 - 不要声称网页抓取是 AIWiki CLI 的能力。
 - 不要在 `fetch_status: "failed"` 时塞入正文内容。
+- 不要替用户安装 Dataview。
+- 不要修改 `.obsidian`、`community-plugins.json` 或 Obsidian 插件配置。
+
+## Obsidian + Dataview 边界
+
+AIWiki 生成的知识库不依赖 Dataview。用户不安装 Dataview 时，也可以用 Obsidian 原生 Properties、Backlinks、Search、Graph View 和普通 wikilink 审阅。
+
+Dataview 只是可选增强。用户自行在 Obsidian Community plugins 中安装并启用 Dataview 后，`dashboards/AIWiki Home.md`、`dashboards/Review Queue.md`、`dashboards/Recent Runs.md` 和 `dashboards/Topic Pipeline.md` 会渲染成表格。
 
 ## Agent 回复模板
 
 成功时：
 
 ```text
-已入库成功。
+已加入 Obsidian 审阅队列。
 契合度：<fit_score> / <fit_level>
 摘要：<summary>
-结果目录：<run_dir>
 资料卡：<source_card>
+处理记录：<processing_summary>
+Obsidian 入口：<dashboard>
+待审队列：<review_queue>
 ```
 
 失败但已记录时：
@@ -117,4 +127,6 @@ aiwiki ingest-agent --stdin
 原因：<summary>
 记录目录：<run_dir>
 处理摘要：<processing_summary>
+Obsidian 入口：<dashboard>
+待审队列：<review_queue>
 ```

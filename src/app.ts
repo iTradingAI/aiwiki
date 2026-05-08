@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
 import { flagBool, flagString, parseArgs } from "./args.js";
@@ -10,6 +11,7 @@ import {
   confirmInit,
   directorySummary,
   doctor,
+  exists,
   initWorkspace,
   promptForSetup,
   promptForInitPath,
@@ -19,7 +21,7 @@ import {
   statusSummary
 } from "./workspace.js";
 
-export const VERSION = "0.1.3";
+export const VERSION = "0.2.0";
 
 export async function runCli(argv: string[], streams: CliStreams = { stdout: process.stdout, stderr: process.stderr }) {
   try {
@@ -46,19 +48,32 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `AIWiki initialized: ${result.root}`);
       writeLine(streams.stdout, `config: ${result.createdConfig ? "created" : "kept"}`);
       writeLine(streams.stdout, `directories created: ${result.createdDirs.length}`);
+      writeLine(streams.stdout, `database files created: ${result.seededFiles.filter((file) => file.created).length}`);
       writeLine(streams.stdout, `default_path: ${defaultConfig.defaultPath}`);
       writeLine(streams.stdout, `user_config: ${defaultConfig.configPath}`);
-      writeLine(streams.stdout, "next: run `aiwiki skill install` for Codex, or `aiwiki prompt agent` for other host Agents.");
+      writeLine(streams.stdout, "obsidian_entry: dashboards/AIWiki Home.md");
+      writeLine(streams.stdout, "next: run `aiwiki agent install` to install the AIWiki skill into a host Agent.");
       writeLine(streams.stdout, "after Agent setup: send `入库 <url>` to your Agent");
       return 0;
     }
 
-    if (command === "skill" && subcommand === "install") {
-      const result = await installCodexSkill(flagBool(args, "force"));
-      writeLine(streams.stdout, `skill: aiwiki`);
-      writeLine(streams.stdout, `target: ${result.target}`);
-      writeLine(streams.stdout, `status: ${result.updated ? "updated" : "installed"}`);
-      writeLine(streams.stdout, "next: restart or reload your Agent, then send `入库 <url>`.");
+    if (command === "agent" && subcommand === "install") {
+      const result = await installAgentSkill({
+        agentId: flagString(args, "agent"),
+        yes: flagBool(args, "yes"),
+        force: flagBool(args, "force"),
+        streams
+      });
+      if (result) {
+        writeLine(streams.stdout, `installed: ${result.name}`);
+        writeLine(streams.stdout, `target: ${result.target}`);
+        writeLine(streams.stdout, `next: restart or reload ${result.name}, then send \`入库 <url>\`.`);
+      }
+      return 0;
+    }
+
+    if (command === "agent" && (subcommand === "list" || !subcommand)) {
+      printAgentList(streams.stdout, await discoverAgentTargets());
       return 0;
     }
 
@@ -83,6 +98,8 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `AIWiki initialized: ${result.root}`);
       writeLine(streams.stdout, `config: ${result.createdConfig ? "created" : "kept"}`);
       writeLine(streams.stdout, `directories created: ${result.createdDirs.length}`);
+      writeLine(streams.stdout, `database files created: ${result.seededFiles.filter((file) => file.created).length}`);
+      writeLine(streams.stdout, "obsidian_entry: dashboards/AIWiki Home.md");
       if (flagBool(args, "set-default")) {
         const defaultConfig = await setDefaultWorkspace(result.root);
         writeLine(streams.stdout, `default_path: ${defaultConfig.defaultPath}`);
@@ -209,7 +226,9 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "Usage:");
   writeLine(stream, "  aiwiki setup");
   writeLine(stream, "  aiwiki setup --path <path> --yes");
-  writeLine(stream, "  aiwiki skill install");
+  writeLine(stream, "  aiwiki agent list");
+  writeLine(stream, "  aiwiki agent install");
+  writeLine(stream, "  aiwiki agent install --agent codex --yes");
   writeLine(stream, "  aiwiki prompt agent");
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
@@ -221,34 +240,166 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki ingest-url <url> --content-file <file>");
 }
 
-async function installCodexSkill(force: boolean) {
+type AgentTarget = {
+  id: string;
+  name: string;
+  detected: boolean;
+  installable: boolean;
+  kind: "skill" | "command" | "prompt";
+  source?: string;
+  target?: string;
+  note: string;
+};
+
+async function discoverAgentTargets(): Promise<AgentTarget[]> {
   const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-  const source = path.join(packageRoot, "skill", "SKILL.md");
+  const skillSource = path.join(packageRoot, "skill", "SKILL.md");
+  const promptSource = path.join(packageRoot, "docs", "AGENT_HANDOFF.md");
   const codexHome = process.env.CODEX_HOME ? path.resolve(process.env.CODEX_HOME) : path.join(os.homedir(), ".codex");
-  const targetDir = path.join(codexHome, "skills", "aiwiki");
-  const target = path.join(targetDir, "SKILL.md");
+  const qclawHome = process.env.QCLAW_HOME ? path.resolve(process.env.QCLAW_HOME) : path.join(os.homedir(), ".qclaw");
+  const openclawHome = process.env.OPENCLAW_HOME ? path.resolve(process.env.OPENCLAW_HOME) : path.join(os.homedir(), ".openclaw");
+  const claudeHome = process.env.CLAUDE_HOME ? path.resolve(process.env.CLAUDE_HOME) : path.join(os.homedir(), ".claude");
+  const opencodeHome = process.env.OPENCODE_HOME ? path.resolve(process.env.OPENCODE_HOME) : path.join(os.homedir(), ".opencode");
+  const hermesHome = process.env.HERMES_HOME ? path.resolve(process.env.HERMES_HOME) : path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), "AppData", "Local"), "hermes");
 
+  return [
+    {
+      id: "codex",
+      name: "Codex",
+      detected: await exists(codexHome),
+      installable: true,
+      kind: "skill",
+      source: skillSource,
+      target: path.join(codexHome, "skills", "aiwiki", "SKILL.md"),
+      note: "Installs user skill under CODEX_HOME."
+    },
+    {
+      id: "qclaw",
+      name: "QClaw",
+      detected: await exists(qclawHome),
+      installable: true,
+      kind: "skill",
+      source: skillSource,
+      target: path.join(qclawHome, "skills", "aiwiki", "SKILL.md"),
+      note: "Installs into the local QClaw skills directory."
+    },
+    {
+      id: "openclaw",
+      name: "OpenClaw",
+      detected: await exists(openclawHome),
+      installable: true,
+      kind: "skill",
+      source: skillSource,
+      target: path.join(openclawHome, "workspace", "skills", "aiwiki", "SKILL.md"),
+      note: "Installs into the workspace skills directory."
+    },
+    {
+      id: "claude",
+      name: "Claude Code",
+      detected: await exists(claudeHome),
+      installable: true,
+      kind: "command",
+      source: promptSource,
+      target: path.join(claudeHome, "commands", "aiwiki.md"),
+      note: "Installs a slash-command prompt file."
+    },
+    {
+      id: "opencode",
+      name: "opencode",
+      detected: await exists(opencodeHome),
+      installable: false,
+      kind: "prompt",
+      note: "Detected, but no stable user prompt directory is configured yet. Use aiwiki prompt agent."
+    },
+    {
+      id: "hermes",
+      name: "Hermes",
+      detected: await exists(hermesHome),
+      installable: false,
+      kind: "prompt",
+      note: "Detected, but no stable skill directory is configured yet. Use aiwiki prompt agent."
+    }
+  ];
+}
+
+function printAgentList(stream: NodeJS.WritableStream, targets: AgentTarget[]): void {
+  writeLine(stream, "AIWiki host Agent targets");
+  for (const target of targets) {
+    writeLine(stream, `${target.id}: ${target.name} | detected=${target.detected ? "yes" : "no"} | installable=${target.installable ? "yes" : "no"} | ${target.note}`);
+    if (target.target) {
+      writeLine(stream, `  target: ${target.target}`);
+    }
+  }
+}
+
+async function installAgentSkill(options: { agentId?: string; yes: boolean; force: boolean; streams: CliStreams }) {
+  const targets = await discoverAgentTargets();
+  const installable = targets.filter((target) => target.detected && target.installable);
+  let selected = options.agentId ? targets.find((target) => target.id === options.agentId) : undefined;
+
+  if (!selected && options.agentId) {
+    throw new CliError(`Unknown host Agent: ${options.agentId}`);
+  }
+
+  if (!selected) {
+    if (installable.length === 0) {
+      printAgentList(options.streams.stdout, targets);
+      throw new CliError("No installable host Agent was detected. Run aiwiki prompt agent and paste the protocol manually.");
+    }
+
+    printAgentList(options.streams.stdout, targets);
+    const answer = await askQuestion(options.streams, "Choose an install target by id or number: ");
+    const trimmed = answer.trim();
+    const byNumber = /^\d+$/.test(trimmed) ? installable[Number(trimmed) - 1] : undefined;
+    selected = byNumber ?? targets.find((target) => target.id === trimmed);
+  }
+
+  if (!selected) {
+    writeLine(options.streams.stdout, "cancelled");
+    return undefined;
+  }
+
+  if (!selected.installable) {
+    throw new CliError(`${selected.name} is detected, but automatic installation is not configured yet. Run aiwiki prompt agent.`);
+  }
+  if (!selected.source || !selected.target) {
+    throw new CliError(`${selected.name} has no install target.`);
+  }
+
+  if (!options.yes) {
+    writeLine(options.streams.stdout, `Install AIWiki into ${selected.name}:`);
+    writeLine(options.streams.stdout, `  source: ${selected.source}`);
+    writeLine(options.streams.stdout, `  target: ${selected.target}`);
+    const answer = await askQuestion(options.streams, "Confirm install? Type y to continue: ");
+    if (answer.trim().toLowerCase() !== "y") {
+      writeLine(options.streams.stdout, "cancelled");
+      return undefined;
+    }
+  }
+
+  await copyInstallFile(selected.source, selected.target, options.force);
+  return selected;
+}
+
+async function askQuestion(streams: CliStreams, question: string) {
+  if (!process.stdin.isTTY) {
+    throw new CliError("Interactive Agent install requires a terminal. Use --agent <id> --yes for scripts.");
+  }
+  const rl = createInterface({ input: process.stdin, output: streams.stdout });
   try {
-    await fs.access(source);
-  } catch {
-    throw new CliError(`AIWiki skill source not found: ${source}`);
+    return await rl.question(question);
+  } finally {
+    rl.close();
   }
+}
 
-  let existed = false;
-  try {
-    await fs.access(target);
-    existed = true;
-  } catch {
-    existed = false;
+async function copyInstallFile(source: string, target: string, force: boolean) {
+  await fs.access(source);
+  if (!force && (await exists(target))) {
+    throw new CliError(`Target already exists: ${target}. Use --force to overwrite.`);
   }
-
-  if (existed && !force) {
-    throw new CliError(`AIWiki skill already exists: ${target}. Use --force to overwrite.`);
-  }
-
-  await fs.mkdir(targetDir, { recursive: true });
+  await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.copyFile(source, target);
-  return { target, updated: existed };
 }
 
 function printAgentPrompt(stream: NodeJS.WritableStream): void {
@@ -262,7 +413,8 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "");
   writeLine(stream, "如果当前会话被用户明确设定为 AIWiki 入库助手，则用户只发送 URL 也默认触发入库。普通会话中不要把所有 URL 都自动入库。");
   writeLine(stream, "");
-  writeLine(stream, "流程：读取网页正文；生成 aiwiki.agent_payload.v1；通过 stdin 调用 `aiwiki ingest-agent --stdin`；读取 CLI 输出；只向用户汇报 ingested、recorded、fit_score、fit_level、summary、run_dir、processing_summary。");
+  writeLine(stream, "流程：读取网页正文；生成 aiwiki.agent_payload.v1；通过 stdin 调用 `aiwiki ingest-agent --stdin`；读取 CLI 输出；只向用户汇报 ingested、recorded、fit_score、fit_level、summary、run_dir、processing_summary、source_card、dashboard、review_queue。");
+  writeLine(stream, "回复措辞：成功时说“已加入 Obsidian 审阅队列”，并给出资料卡、处理记录、Obsidian 入口和待审队列。Dataview 是可选增强，不要替用户安装插件或修改 .obsidian。");
   writeLine(stream, "");
   writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取。");
 }
@@ -288,6 +440,8 @@ function printIngestResult(stream: NodeJS.WritableStream, result: Awaited<Return
   if (result.agentReport.keyFiles.draftOutline) {
     writeLine(stream, `draft_outline: ${result.agentReport.keyFiles.draftOutline}`);
   }
+  writeLine(stream, `dashboard: ${result.agentReport.keyFiles.dashboard}`);
+  writeLine(stream, `review_queue: ${result.agentReport.keyFiles.reviewQueue}`);
   writeLine(stream, `warnings: ${result.warnings.length}`);
 }
 

@@ -1,8 +1,18 @@
 {
   "required_fields": [
     "title",
+    "aiwiki_id",
+    "type",
+    "status",
+    "slug",
     "source_type",
+    "source_url",
+    "created_at",
     "captured_at",
-    "run_id"
+    "run_id",
+    "source_card",
+    "raw_note",
+    "run_summary",
+    "tags"
   ]
 }

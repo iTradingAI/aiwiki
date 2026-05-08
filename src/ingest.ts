@@ -27,7 +27,31 @@ export type AgentReport = {
     processingSummary: string;
     sourceCard?: string;
     draftOutline?: string;
+    dashboard: string;
+    reviewQueue: string;
   };
+};
+
+type ArtifactLinks = {
+  slug: string;
+  runId: string;
+  createdAt: string;
+  raw: string;
+  sourceCard: string;
+  claims: string;
+  assets: string;
+  topics: string;
+  outline: string;
+  runSummary: string;
+};
+
+type LongTermTargets = {
+  raw: string;
+  sourceCard: string;
+  claims: string;
+  assets: string;
+  topics: string;
+  outline: string;
 };
 
 export async function ingestPayload(rootPath: string, rawPayload: unknown) {
@@ -53,23 +77,25 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
 
   const slug = slugify(payload.source.title ?? payload.source.url);
   const content = payload.source.content ?? "";
-
-  await writeFile(path.join(runDir, "raw.md"), contentFile(payload, content), generatedFiles);
-  await writeFile(path.join(runDir, "source-card.md"), sourceCard(payload, runDirName), generatedFiles);
-  await writeFile(path.join(runDir, "creative-assets.md"), creativeAssets(payload), generatedFiles);
-  await writeFile(path.join(runDir, "topics.md"), topics(payload), generatedFiles);
-  await writeFile(path.join(runDir, "draft-outline.md"), outline(payload), generatedFiles);
-
   const collisionWarnings: string[] = [];
-  await writeLongTerm(root, "02-raw/articles", `${slug}.md`, contentFile(payload, content), runId, generatedFiles, collisionWarnings);
-  await writeLongTerm(root, "03-sources/article-cards", `${slug}.md`, sourceCard(payload, runDirName), runId, generatedFiles, collisionWarnings);
-  await writeLongTerm(root, "04-claims/_suggestions", `${slug}-claims.md`, claims(payload), runId, generatedFiles, collisionWarnings);
-  await writeLongTerm(root, "06-assets/_suggestions", `${slug}-assets.md`, creativeAssets(payload), runId, generatedFiles, collisionWarnings);
-  await writeLongTerm(root, "07-topics/ready", `${slug}-topics.md`, topics(payload), runId, generatedFiles, collisionWarnings);
-  await writeLongTerm(root, "08-outputs/outlines", `${slug}-outline.md`, outline(payload), runId, generatedFiles, collisionWarnings);
+  const longTermTargets = await chooseLongTermTargets(root, slug, runId, collisionWarnings);
+  const links = buildArtifactLinks(root, slug, runDirName, runStartedAt, longTermTargets);
+
+  await writeFile(path.join(runDir, "raw.md"), contentFile(payload, content, links), generatedFiles);
+  await writeFile(path.join(runDir, "source-card.md"), sourceCard(payload, runDirName, links), generatedFiles);
+  await writeFile(path.join(runDir, "creative-assets.md"), creativeAssets(payload, links), generatedFiles);
+  await writeFile(path.join(runDir, "topics.md"), topics(payload, links), generatedFiles);
+  await writeFile(path.join(runDir, "draft-outline.md"), outline(payload, links), generatedFiles);
+
+  await writeFile(longTermTargets.raw, contentFile(payload, content, links), generatedFiles);
+  await writeFile(longTermTargets.sourceCard, sourceCard(payload, runDirName, links), generatedFiles);
+  await writeFile(longTermTargets.claims, claims(payload, links), generatedFiles);
+  await writeFile(longTermTargets.assets, creativeAssets(payload, links), generatedFiles);
+  await writeFile(longTermTargets.topics, topics(payload, links), generatedFiles);
+  await writeFile(longTermTargets.outline, outline(payload, links), generatedFiles);
 
   const warnings = [...payload.warnings, ...collisionWarnings];
-  await writeSummary(root, runDir, payload, generatedFiles, warnings);
+  await writeSummary(root, runDir, payload, generatedFiles, warnings, links);
   return { runId, runDir, generatedFiles, warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
 }
 
@@ -97,32 +123,42 @@ export async function ingestFile(rootPath: string, filePath: string) {
   });
 }
 
-async function writeLongTerm(
-  root: string,
-  dir: string,
-  fileName: string,
-  content: string,
-  runId: string,
-  generatedFiles: string[],
-  warnings: string[]
-) {
-  let target = safeJoin(root, dir, fileName);
+async function chooseLongTermTargets(root: string, slug: string, runId: string, warnings: string[]): Promise<LongTermTargets> {
+  return {
+    raw: await chooseLongTermTarget(root, "02-raw/articles", `${slug}.md`, runId, warnings),
+    sourceCard: await chooseLongTermTarget(root, "03-sources/article-cards", `${slug}.md`, runId, warnings),
+    claims: await chooseLongTermTarget(root, "04-claims/_suggestions", `${slug}-claims.md`, runId, warnings),
+    assets: await chooseLongTermTarget(root, "06-assets/_suggestions", `${slug}-assets.md`, runId, warnings),
+    topics: await chooseLongTermTarget(root, "07-topics/ready", `${slug}-topics.md`, runId, warnings),
+    outline: await chooseLongTermTarget(root, "08-outputs/outlines", `${slug}-outline.md`, runId, warnings)
+  };
+}
+
+async function chooseLongTermTarget(root: string, dir: string, fileName: string, runId: string, warnings: string[]) {
+  const target = safeJoin(root, dir, fileName);
   try {
-    await fs.writeFile(target, content, { encoding: "utf8", flag: "wx" });
+    await fs.access(target);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
-      throw error;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return target;
     }
-    const renamed = appendRunIdBeforeExt(fileName, runId);
-    target = safeJoin(root, dir, renamed);
-    await fs.writeFile(target, content, { encoding: "utf8", flag: "wx" });
-    warnings.push(`collision renamed: ${relativePath(root, safeJoin(root, dir, fileName))} -> ${relativePath(root, target)}`);
+    throw error;
   }
-  generatedFiles.push(target);
+  const renamed = appendRunIdBeforeExt(fileName, runId);
+  const renamedTarget = safeJoin(root, dir, renamed);
+  warnings.push(`collision renamed: ${relativePath(root, target)} -> ${relativePath(root, renamedTarget)}`);
+  return renamedTarget;
 }
 
 async function writeFile(target: string, content: string, generatedFiles: string[]) {
-  await fs.writeFile(target, content, { encoding: "utf8", flag: "wx" });
+  try {
+    await fs.writeFile(target, content, { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(`target file already exists: ${target}`);
+    }
+    throw error;
+  }
   generatedFiles.push(target);
 }
 
@@ -131,11 +167,30 @@ async function writeSummary(
   runDir: string,
   payload: NormalizedPayload,
   generatedFiles: string[],
-  warnings: string[]
+  warnings: string[],
+  links?: ArtifactLinks
 ) {
   const summaryPath = path.join(runDir, "processing-summary.md");
   const files = [...generatedFiles, summaryPath];
+  const runId = path.basename(runDir);
+  const slug = links?.slug ?? slugify(payload.source.title ?? payload.source.url);
+  const createdAt = links?.createdAt ?? new Date().toISOString();
   const lines = [
+    "---",
+    `aiwiki_id: "${escapeYaml(`${slug}:run:${runId}`)}"`,
+    `type: "processing_summary"`,
+    `status: "${payload.source.fetch_status === "failed" ? "fetch-failed" : "to-review"}"`,
+    `slug: "${escapeYaml(slug)}"`,
+    `title: "${escapeYaml(payload.source.title ?? "Untitled")}"`,
+    `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
+    `source_type: "${escapeYaml(payload.source.kind)}"`,
+    `created_at: "${escapeYaml(createdAt)}"`,
+    `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
+    `run_id: "${escapeYaml(runId)}"`,
+    ...(links ? relationshipFrontmatter(links) : []),
+    `tags: ["aiwiki/run"]`,
+    "---",
+    "",
     "# processing-summary",
     "",
     `Input source: ${payload.source.kind}`,
@@ -143,7 +198,7 @@ async function writeSummary(
     `Host fetcher: ${payload.source.fetcher ?? "unknown"}`,
     "",
     "Generated files:",
-    ...files.map((file) => `- ${relativePath(root, file)}`),
+    ...files.map((file) => `- ${obsidianFileReference(root, file)}`),
     "",
     "Warnings:",
     ...(warnings.length ? warnings.map((warning) => `- ${warning}`) : ["- none"]),
@@ -156,22 +211,65 @@ async function writeSummary(
   generatedFiles.push(summaryPath);
 }
 
-function contentFile(payload: NormalizedPayload, content: string): string {
-  return [`# ${payload.source.title ?? "Untitled"}`, "", content, ""].join("\n");
-}
-
-function sourceCard(payload: NormalizedPayload, runId: string): string {
+function contentFile(payload: NormalizedPayload, content: string, links: ArtifactLinks): string {
   return [
     "---",
+    `aiwiki_id: "${escapeYaml(`${links.slug}:raw`)}"`,
     `title: "${escapeYaml(payload.source.title ?? "Untitled")}"`,
+    `type: "raw_article"`,
+    `status: "to-review"`,
+    `slug: "${escapeYaml(links.slug)}"`,
     `source_type: "${escapeYaml(payload.source.kind)}"`,
-    `url: "${escapeYaml(payload.source.url ?? "")}"`,
-    `fetcher: "${escapeYaml(payload.source.fetcher ?? "unknown")}"`,
+    `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
+    `created_at: "${escapeYaml(links.createdAt)}"`,
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
-    `run_id: "${escapeYaml(runId)}"`,
+    `run_id: "${escapeYaml(links.runId)}"`,
+    ...relationshipFrontmatter(links),
+    `tags: ["aiwiki/raw"]`,
     "---",
     "",
     `# ${payload.source.title ?? "Untitled"}`,
+    "",
+    "## AIWiki Links",
+    "",
+    `- Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
+    `- Run Summary: ${obsidianLink(links.runSummary, "处理记录")}`,
+    "",
+    content,
+    ""
+  ].join("\n");
+}
+
+function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLinks): string {
+  return [
+    "---",
+    `aiwiki_id: "${escapeYaml(`${links.slug}:source-card`)}"`,
+    `title: "${escapeYaml(payload.source.title ?? "Untitled")}"`,
+    `type: "source_card"`,
+    `status: "to-review"`,
+    `slug: "${escapeYaml(links.slug)}"`,
+    `source_type: "${escapeYaml(payload.source.kind)}"`,
+    `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
+    `url: "${escapeYaml(payload.source.url ?? "")}"`,
+    `fetcher: "${escapeYaml(payload.source.fetcher ?? "unknown")}"`,
+    `created_at: "${escapeYaml(links.createdAt)}"`,
+    `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
+    `run_id: "${escapeYaml(runId)}"`,
+    ...relationshipFrontmatter(links),
+    `aliases: ["${escapeYaml(payload.source.title ?? "Untitled")}"]`,
+    `tags: ["aiwiki/source-card"]`,
+    "---",
+    "",
+    `# ${payload.source.title ?? "Untitled"}`,
+    "",
+    "## Obsidian Links",
+    "",
+    `- Raw: ${obsidianLink(links.raw, "原文")}`,
+    `- Claims: ${obsidianLink(links.claims, "Claim 建议")}`,
+    `- Assets: ${obsidianLink(links.assets, "素材建议")}`,
+    `- Topics: ${obsidianLink(links.topics, "选题")}`,
+    `- Outline: ${obsidianLink(links.outline, "大纲")}`,
+    `- Run Summary: ${obsidianLink(links.runSummary, "处理记录")}`,
     "",
     "## 摘要",
     "",
@@ -180,20 +278,112 @@ function sourceCard(payload: NormalizedPayload, runId: string): string {
   ].join("\n");
 }
 
-function claims(payload: NormalizedPayload): string {
-  return [`# Claim Suggestions`, "", `- 待人工审阅：${payload.source.title ?? "Untitled"}`, ""].join("\n");
+function claims(payload: NormalizedPayload, links: ArtifactLinks): string {
+  return [
+    "---",
+    `aiwiki_id: "${escapeYaml(`${links.slug}:claims`)}"`,
+    `title: "${escapeYaml(payload.source.title ?? "Untitled")} Claims"`,
+    `type: "claim_suggestions"`,
+    `status: "to-review"`,
+    `slug: "${escapeYaml(links.slug)}"`,
+    `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
+    `source_type: "${escapeYaml(payload.source.kind)}"`,
+    `created_at: "${escapeYaml(links.createdAt)}"`,
+    `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
+    `run_id: "${escapeYaml(links.runId)}"`,
+    ...relationshipFrontmatter(links),
+    `tags: ["aiwiki/claims"]`,
+    "---",
+    "",
+    "# Claim Suggestions",
+    "",
+    `- Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
+    `- Raw: ${obsidianLink(links.raw, "原文")}`,
+    `- 待人工审阅：${payload.source.title ?? "Untitled"}`,
+    ""
+  ].join("\n");
 }
 
-function creativeAssets(payload: NormalizedPayload): string {
-  return [`# Creative Assets`, "", `- 可复用素材：${payload.source.title ?? "Untitled"}`, ""].join("\n");
+function creativeAssets(payload: NormalizedPayload, links: ArtifactLinks): string {
+  return [
+    "---",
+    `aiwiki_id: "${escapeYaml(`${links.slug}:assets`)}"`,
+    `title: "${escapeYaml(payload.source.title ?? "Untitled")} Assets"`,
+    `type: "asset_suggestions"`,
+    `status: "to-review"`,
+    `slug: "${escapeYaml(links.slug)}"`,
+    `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
+    `source_type: "${escapeYaml(payload.source.kind)}"`,
+    `created_at: "${escapeYaml(links.createdAt)}"`,
+    `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
+    `run_id: "${escapeYaml(links.runId)}"`,
+    ...relationshipFrontmatter(links),
+    `tags: ["aiwiki/assets"]`,
+    "---",
+    "",
+    "# Creative Assets",
+    "",
+    `- Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
+    `- Raw: ${obsidianLink(links.raw, "原文")}`,
+    `- 可复用素材：${payload.source.title ?? "Untitled"}`,
+    ""
+  ].join("\n");
 }
 
-function topics(payload: NormalizedPayload): string {
-  return [`# Topic Candidates`, "", `- ${payload.source.title ?? "Untitled"}`, ""].join("\n");
+function topics(payload: NormalizedPayload, links: ArtifactLinks): string {
+  return [
+    "---",
+    `aiwiki_id: "${escapeYaml(`${links.slug}:topics`)}"`,
+    `title: "${escapeYaml(payload.source.title ?? "Untitled")} Topics"`,
+    `type: "topic_candidates"`,
+    `status: "ready"`,
+    `slug: "${escapeYaml(links.slug)}"`,
+    `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
+    `source_type: "${escapeYaml(payload.source.kind)}"`,
+    `created_at: "${escapeYaml(links.createdAt)}"`,
+    `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
+    `run_id: "${escapeYaml(links.runId)}"`,
+    ...relationshipFrontmatter(links),
+    `tags: ["aiwiki/topics"]`,
+    "---",
+    "",
+    "# Topic Candidates",
+    "",
+    `- Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
+    `- Outline: ${obsidianLink(links.outline, "大纲")}`,
+    `- ${payload.source.title ?? "Untitled"}`,
+    ""
+  ].join("\n");
 }
 
-function outline(payload: NormalizedPayload): string {
-  return [`# Draft Outline`, "", "1. 背景", "2. 关键观点", "3. 可复用方法", `4. 来源：${payload.source.title ?? "Untitled"}`, ""].join("\n");
+function outline(payload: NormalizedPayload, links: ArtifactLinks): string {
+  return [
+    "---",
+    `aiwiki_id: "${escapeYaml(`${links.slug}:outline`)}"`,
+    `title: "${escapeYaml(payload.source.title ?? "Untitled")} Outline"`,
+    `type: "draft_outline"`,
+    `status: "draft"`,
+    `slug: "${escapeYaml(links.slug)}"`,
+    `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
+    `source_type: "${escapeYaml(payload.source.kind)}"`,
+    `created_at: "${escapeYaml(links.createdAt)}"`,
+    `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
+    `run_id: "${escapeYaml(links.runId)}"`,
+    ...relationshipFrontmatter(links),
+    `tags: ["aiwiki/outline"]`,
+    "---",
+    "",
+    "# Draft Outline",
+    "",
+    `Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
+    `Raw: ${obsidianLink(links.raw, "原文")}`,
+    "",
+    "1. 背景",
+    "2. 关键观点",
+    "3. 可复用方法",
+    `4. 来源：${payload.source.title ?? "Untitled"}`,
+    ""
+  ].join("\n");
 }
 
 function trimPreview(value: string): string {
@@ -215,8 +405,10 @@ function buildAgentReport(root: string, runDir: string, payload: NormalizedPaylo
     summary: fetchFailed ? (payload.source.fetch_notes ?? "Host Agent did not provide readable content.") : summarizeContent(content),
     keyFiles: {
       processingSummary: relativePath(root, path.join(runDir, "processing-summary.md")),
-      sourceCard: findGeneratedFile(root, generatedFiles, "source-card.md"),
-      draftOutline: findGeneratedFile(root, generatedFiles, "draft-outline.md")
+      sourceCard: findGeneratedFileInDir(root, generatedFiles, "03-sources/article-cards"),
+      draftOutline: findGeneratedFile(root, generatedFiles, "draft-outline.md"),
+      dashboard: "dashboards/AIWiki Home.md",
+      reviewQueue: "dashboards/Review Queue.md"
     }
   };
 }
@@ -264,6 +456,50 @@ function summarizeContent(content: string) {
 function findGeneratedFile(root: string, files: string[], basename: string) {
   const match = files.find((file) => path.basename(file) === basename);
   return match ? relativePath(root, match) : undefined;
+}
+
+function findGeneratedFileInDir(root: string, files: string[], dir: string) {
+  const match = files.find((file) => relativePath(root, file).startsWith(`${dir}/`));
+  return match ? relativePath(root, match) : undefined;
+}
+
+function buildArtifactLinks(root: string, slug: string, runDirName: string, createdAt: string, longTermTargets: LongTermTargets): ArtifactLinks {
+  return {
+    slug,
+    runId: runDirName,
+    createdAt,
+    raw: relativePath(root, longTermTargets.raw),
+    sourceCard: relativePath(root, longTermTargets.sourceCard),
+    claims: relativePath(root, longTermTargets.claims),
+    assets: relativePath(root, longTermTargets.assets),
+    topics: relativePath(root, longTermTargets.topics),
+    outline: relativePath(root, longTermTargets.outline),
+    runSummary: `09-runs/${runDirName}/processing-summary.md`
+  };
+}
+
+function relationshipFrontmatter(links: ArtifactLinks): string[] {
+  return [
+    `source_card: "${escapeYaml(obsidianLink(links.sourceCard, "资料卡"))}"`,
+    `raw_note: "${escapeYaml(obsidianLink(links.raw, "原文"))}"`,
+    `claims_note: "${escapeYaml(obsidianLink(links.claims, "Claim 建议"))}"`,
+    `assets_note: "${escapeYaml(obsidianLink(links.assets, "素材建议"))}"`,
+    `topics_note: "${escapeYaml(obsidianLink(links.topics, "选题"))}"`,
+    `outline_note: "${escapeYaml(obsidianLink(links.outline, "大纲"))}"`,
+    `run_summary: "${escapeYaml(obsidianLink(links.runSummary, "处理记录"))}"`
+  ];
+}
+
+function obsidianFileReference(root: string, file: string) {
+  const vaultPath = relativePath(root, file);
+  if (!vaultPath.toLowerCase().endsWith(".md")) {
+    return vaultPath;
+  }
+  return `${obsidianLink(vaultPath, path.basename(vaultPath, ".md"))} (${vaultPath})`;
+}
+
+function obsidianLink(vaultPath: string, label: string) {
+  return `[[${vaultPath.replace(/\\/g, "/").replace(/\.md$/i, "")}|${label}]]`;
 }
 
 function escapeYaml(value: string): string {

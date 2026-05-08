@@ -23,6 +23,11 @@ export const REQUIRED_DIRS = [
   "_system/logs"
 ] as const;
 
+export type SeedFile = {
+  path: string;
+  created: boolean;
+};
+
 export type WorkspaceConfig = {
   product: string;
   schemaVersion: string;
@@ -39,6 +44,168 @@ export type DoctorCheck = {
   status: "ok" | "missing" | "permission error";
   detail: string;
 };
+
+const WORKSPACE_SEEDS: Array<{ path: string; content: string }> = [
+  {
+    path: "dashboards/AIWiki Home.md",
+    content: `# AIWiki Home
+
+AIWiki 的 Obsidian 入口。Dataview 是可选增强；未安装时仍可使用下方普通链接、Properties、Backlinks 和 Graph View。
+
+## Native Links
+
+- [[dashboards/Review Queue|Review Queue]]
+- [[dashboards/Recent Runs|Recent Runs]]
+- [[dashboards/Topic Pipeline|Topic Pipeline]]
+- [[_system/schemas/aiwiki-frontmatter|Frontmatter Schema]]
+
+## Recent Sources
+
+\`\`\`dataview
+TABLE status, source_url, captured_at, run_summary
+FROM "03-sources/article-cards"
+WHERE type = "source_card"
+SORT captured_at DESC
+\`\`\`
+
+## Review Queue
+
+\`\`\`dataview
+TABLE type, status, source_card, raw_note, run_summary
+FROM "03-sources/article-cards" or "04-claims/_suggestions" or "06-assets/_suggestions" or "08-outputs/outlines"
+WHERE status = "to-review"
+SORT created_at DESC
+\`\`\`
+`
+  },
+  {
+    path: "dashboards/Review Queue.md",
+    content: `# Review Queue
+
+未安装 Dataview 时，可直接打开 [[03-sources/article-cards]]、[[04-claims/_suggestions]]、[[06-assets/_suggestions]] 和 [[08-outputs/outlines]] 手工审阅。
+
+## To Review
+
+\`\`\`dataview
+TABLE type, source_url, source_card, raw_note, claims_note, assets_note, outline_note
+FROM "03-sources/article-cards" or "04-claims/_suggestions" or "06-assets/_suggestions" or "08-outputs/outlines"
+WHERE status = "to-review"
+SORT captured_at DESC
+\`\`\`
+`
+  },
+  {
+    path: "dashboards/Recent Runs.md",
+    content: `# Recent Runs
+
+处理记录用于追溯每次宿主 Agent 入库的 payload、产物和告警。
+
+\`\`\`dataview
+TABLE status, source_url, source_card, raw_note, created_at
+FROM "09-runs"
+WHERE type = "processing_summary"
+SORT created_at DESC
+\`\`\`
+`
+  },
+  {
+    path: "dashboards/Topic Pipeline.md",
+    content: `# Topic Pipeline
+
+选题和大纲是从资料卡继续写作的入口。
+
+\`\`\`dataview
+TABLE status, source_card, outline_note, source_url, created_at
+FROM "07-topics/ready" or "08-outputs/outlines"
+WHERE type = "topic_candidates" or type = "draft_outline"
+SORT created_at DESC
+\`\`\`
+`
+  },
+  {
+    path: "_system/schemas/aiwiki-frontmatter.md",
+    content: `# AIWiki Frontmatter Schema
+
+AIWiki 使用 Obsidian 原生 Properties 作为基础数据库层，Dataview 只作为可选增强。
+
+## Shared Fields
+
+- \`aiwiki_id\`: AIWiki 内部稳定标识。
+- \`type\`: \`source_card\`, \`raw_article\`, \`claim_suggestions\`, \`asset_suggestions\`, \`topic_candidates\`, \`draft_outline\`, \`processing_summary\`。
+- \`status\`: \`to-review\`, \`ready\`, \`draft\`, \`reviewed\`, \`archived\`, \`fetch-failed\`。
+- \`slug\`: 来源标题或 URL 生成的 slug。
+- \`source_url\`: 原始 URL，若没有则为空。
+- \`source_type\`: \`url\`, \`file\`, \`text\` 等来源类型。
+- \`created_at\`: AIWiki 写入时间。
+- \`captured_at\`: 宿主 Agent 读取来源的时间。
+- \`run_id\`: 本次处理记录目录名。
+- \`source_card\`, \`raw_note\`, \`claims_note\`, \`assets_note\`, \`topics_note\`, \`outline_note\`, \`run_summary\`: Obsidian 内部链接字符串。
+- \`tags\`: AIWiki 类型标签。
+
+## Rule
+
+正文中的 wikilink 用于人工阅读；frontmatter 字段是 Dataview 查询和数据库筛选的来源。
+`
+  },
+  {
+    path: "_system/templates/source-card.md",
+    content: `---
+aiwiki_id: ""
+type: "source_card"
+status: "to-review"
+slug: ""
+title: ""
+source_url: ""
+source_type: ""
+created_at: ""
+captured_at: ""
+run_id: ""
+source_card: ""
+raw_note: ""
+claims_note: ""
+assets_note: ""
+topics_note: ""
+outline_note: ""
+run_summary: ""
+tags: ["aiwiki/source-card"]
+---
+
+# Source Card
+
+## Obsidian Links
+
+- Raw:
+- Claims:
+- Assets:
+- Topics:
+- Outline:
+- Run Summary:
+
+## 摘要
+
+`
+  },
+  {
+    path: "_system/templates/review-note.md",
+    content: `---
+type: "review_note"
+status: "draft"
+source_card: ""
+created_at: ""
+tags: ["aiwiki/review"]
+---
+
+# Review Note
+
+## 判断
+
+## 可复用结论
+
+## 后续动作
+
+`
+  }
+];
 
 export function resolveRoot(rootPath: string): string {
   return path.resolve(rootPath);
@@ -117,7 +284,22 @@ export async function initWorkspace(rootPath: string) {
     await fs.writeFile(configPath, defaultConfig(), "utf8");
   }
 
-  return { root, createdConfig, createdDirs };
+  const seededFiles = await seedWorkspaceFiles(root);
+  return { root, createdConfig, createdDirs, seededFiles };
+}
+
+async function seedWorkspaceFiles(root: string): Promise<SeedFile[]> {
+  const files: SeedFile[] = [];
+  for (const seed of WORKSPACE_SEEDS) {
+    const target = path.join(root, seed.path);
+    const alreadyExists = await exists(target);
+    if (!alreadyExists) {
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, seed.content, "utf8");
+    }
+    files.push({ path: seed.path, created: !alreadyExists });
+  }
+  return files;
 }
 
 export async function resolveWorkspace(optionalPath?: string, startDir = process.cwd()) {

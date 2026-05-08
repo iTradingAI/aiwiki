@@ -37,6 +37,30 @@ After the CLI runs, read the command output and report these fields to the user:
 - `fit_score` and `fit_level`: lightweight fit feedback for review priority.
 - `summary`: short content summary or fetch-failure note.
 - `run_dir` and `processing_summary`: local result entry points.
+- `source_card`: Obsidian source-card entry when ingestion succeeded.
+- `dashboard` and `review_queue`: Obsidian review database entry points.
+
+Recommended reply shape:
+
+```text
+已加入 Obsidian 审阅队列。
+契合度：<fit_score> / <fit_level>
+摘要：<summary>
+资料卡：<source_card>
+处理记录：<processing_summary>
+Obsidian 入口：<dashboard>
+待审队列：<review_queue>
+```
+
+If `fetch_status` is `failed`, say that AIWiki recorded the failure reason but did not ingest readable content.
+
+## Obsidian + Dataview Boundary
+
+- AIWiki works with Obsidian native Markdown, Properties, Backlinks, Search, and Graph View.
+- Dataview is optional. It only enhances the generated dashboards.
+- Do not install Dataview for the user.
+- Do not edit `.obsidian`, `community-plugins.json`, or Obsidian plugin settings.
+- If the user asks about Dataview, explain that they can install it manually from Obsidian Community plugins, then open `dashboards/AIWiki Home.md`.
 
 ## Minimal Payload
 
