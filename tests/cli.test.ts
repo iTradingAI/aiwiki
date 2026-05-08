@@ -55,16 +55,16 @@ test("CLI init config doctor and status", async () => {
 
     const configOut = new MemoryWritable();
     assert.equal(await runCli(["config", "show", "--path", root], { stdout: configOut, stderr: new MemoryWritable() }), 0);
-    assert.match(configOut.text(), /product: aiwiki/);
-    assert.match(configOut.text(), /created_at:/);
+    assert.match(configOut.text(), /产品: aiwiki/);
+    assert.match(configOut.text(), /创建时间:/);
 
     const doctorOut = new MemoryWritable();
     assert.equal(await runCli(["doctor", "--path", root], { stdout: doctorOut, stderr: new MemoryWritable() }), 0);
-    assert.match(doctorOut.text(), /ok: aiwiki.yaml/);
+    assert.match(doctorOut.text(), /正常: aiwiki.yaml/);
 
     const statusOut = new MemoryWritable();
     assert.equal(await runCli(["status", "--path", root], { stdout: statusOut, stderr: new MemoryWritable() }), 0);
-    assert.match(statusOut.text(), /run_count: 0/);
+    assert.match(statusOut.text(), /处理次数: 0/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -78,20 +78,20 @@ test("CLI setup stores default workspace for no-path commands", async () => {
   try {
     const setupOut = new MemoryWritable();
     assert.equal(await runCli(["setup", "--path", root, "--yes"], { stdout: setupOut, stderr: new MemoryWritable() }), 0);
-    assert.match(setupOut.text(), /default_path:/);
-    assert.match(setupOut.text(), /user_config:/);
-    assert.match(setupOut.text(), /database files created: 7/);
-    assert.match(setupOut.text(), /obsidian_entry: dashboards\/AIWiki Home\.md/);
+    assert.match(setupOut.text(), /默认知识库:/);
+    assert.match(setupOut.text(), /用户配置:/);
+    assert.match(setupOut.text(), /新建数据库文件数: 7/);
+    assert.match(setupOut.text(), /Obsidian 入口: dashboards\/AIWiki Home\.md/);
     assert.match(setupOut.text(), /aiwiki agent install/);
-    assert.match(setupOut.text(), /after Agent setup/);
+    assert.match(setupOut.text(), /Agent 设置完成后/);
 
     const doctorOut = new MemoryWritable();
     assert.equal(await runCli(["doctor"], { stdout: doctorOut, stderr: new MemoryWritable() }), 0);
-    assert.match(doctorOut.text(), /ok: aiwiki.yaml/);
+    assert.match(doctorOut.text(), /正常: aiwiki.yaml/);
 
     const statusOut = new MemoryWritable();
     assert.equal(await runCli(["status"], { stdout: statusOut, stderr: new MemoryWritable() }), 0);
-    assert.match(statusOut.text(), new RegExp(`path: ${escapeRegExp(path.resolve(root))}`));
+    assert.match(statusOut.text(), new RegExp(`知识库路径: ${escapeRegExp(path.resolve(root))}`));
 
     const ingestOut = new MemoryWritable();
     assert.equal(await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json")], { stdout: ingestOut, stderr: new MemoryWritable() }), 0);
@@ -122,10 +122,10 @@ test("CLI agent list prints detected and unsupported hosts", async () => {
   try {
     const out = new MemoryWritable();
     assert.equal(await runCli(["agent", "list"], { stdout: out, stderr: new MemoryWritable() }), 0);
-    assert.match(out.text(), /codex: Codex \| detected=yes \| installable=yes/);
-    assert.match(out.text(), /qclaw: QClaw \| detected=yes \| installable=yes/);
-    assert.match(out.text(), /openclaw: OpenClaw \| detected=yes \| installable=yes/);
-    assert.match(out.text(), /opencode: opencode \| detected=no \| installable=no/);
+    assert.match(out.text(), /codex: Codex \| 已检测=是 \| 可安装=是/);
+    assert.match(out.text(), /qclaw: QClaw \| 已检测=是 \| 可安装=是/);
+    assert.match(out.text(), /openclaw: OpenClaw \| 已检测=是 \| 可安装=是/);
+    assert.match(out.text(), /opencode: opencode \| 已检测=否 \| 可安装=否/);
   } finally {
     restoreEnv("CODEX_HOME", previousCodexHome);
     restoreEnv("QCLAW_HOME", previousQclawHome);
@@ -145,8 +145,8 @@ test("CLI agent install copies bundled skill to selected host", async () => {
     const out = new MemoryWritable();
     assert.equal(await runCli(["agent", "install", "--agent", "codex", "--yes"], { stdout: out, stderr: new MemoryWritable() }), 0);
     const target = path.join(codexHome, "skills", "aiwiki", "SKILL.md");
-    assert.match(out.text(), /installed: Codex/);
-    assert.match(out.text(), new RegExp(`target: ${escapeRegExp(target)}`));
+    assert.match(out.text(), /已安装: Codex/);
+    assert.match(out.text(), new RegExp(`目标路径: ${escapeRegExp(target)}`));
 
     const installed = await readFile(target, "utf8");
     assert.match(installed, /name: aiwiki/);
@@ -154,11 +154,11 @@ test("CLI agent install copies bundled skill to selected host", async () => {
 
     const duplicateErr = new MemoryWritable();
     assert.equal(await runCli(["agent", "install", "--agent", "codex", "--yes"], { stdout: new MemoryWritable(), stderr: duplicateErr }), 1);
-    assert.match(duplicateErr.text(), /Target already exists/);
+    assert.match(duplicateErr.text(), /目标文件已存在/);
 
     const forceOut = new MemoryWritable();
     assert.equal(await runCli(["agent", "install", "--agent", "codex", "--yes", "--force"], { stdout: forceOut, stderr: new MemoryWritable() }), 0);
-    assert.match(forceOut.text(), /installed: Codex/);
+    assert.match(forceOut.text(), /已安装: Codex/);
   } finally {
     restoreEnv("CODEX_HOME", previousCodexHome);
     await rm(codexHome, { recursive: true, force: true });
@@ -174,7 +174,7 @@ test("CLI agent install writes Claude prompt command", async () => {
     const out = new MemoryWritable();
     assert.equal(await runCli(["agent", "install", "--agent", "claude", "--yes"], { stdout: out, stderr: new MemoryWritable() }), 0);
     const target = path.join(claudeHome, "commands", "aiwiki.md");
-    assert.match(out.text(), /installed: Claude Code/);
+    assert.match(out.text(), /已安装: Claude Code/);
 
     const installed = await readFile(target, "utf8");
     assert.match(installed, /AIWiki Agent 对接说明/);
@@ -196,7 +196,7 @@ test("CLI agent install rejects unsupported detected hosts", async () => {
   try {
     const err = new MemoryWritable();
     assert.equal(await runCli(["agent", "install", "--agent", "opencode", "--yes"], { stdout: new MemoryWritable(), stderr: err }), 1);
-    assert.match(err.text(), /automatic installation is not configured/);
+    assert.match(err.text(), /暂未配置自动安装/);
   } finally {
     restoreEnv("OPENCODE_HOME", previousOpencodeHome);
     await rm(opencodeHome, { recursive: true, force: true });
@@ -214,7 +214,7 @@ test("CLI setup refuses silent non-interactive defaults", async () => {
     });
 
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /Interactive setup requires a terminal/);
+    assert.match(result.stderr, /Interactive setup requires a terminal|交互式 setup 需要终端环境/);
     await assert.rejects(access(path.join(configHome, "config.json")));
   } finally {
     await rm(configHome, { recursive: true, force: true });

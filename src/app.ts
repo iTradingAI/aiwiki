@@ -45,15 +45,15 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       }
       const result = await initWorkspace(setup.rootPath);
       const defaultConfig = await setDefaultWorkspace(result.root);
-      writeLine(streams.stdout, `AIWiki initialized: ${result.root}`);
-      writeLine(streams.stdout, `config: ${result.createdConfig ? "created" : "kept"}`);
-      writeLine(streams.stdout, `directories created: ${result.createdDirs.length}`);
-      writeLine(streams.stdout, `database files created: ${result.seededFiles.filter((file) => file.created).length}`);
-      writeLine(streams.stdout, `default_path: ${defaultConfig.defaultPath}`);
-      writeLine(streams.stdout, `user_config: ${defaultConfig.configPath}`);
-      writeLine(streams.stdout, "obsidian_entry: dashboards/AIWiki Home.md");
-      writeLine(streams.stdout, "next: run `aiwiki agent install` to install the AIWiki skill into a host Agent.");
-      writeLine(streams.stdout, "after Agent setup: send `入库 <url>` to your Agent");
+      writeLine(streams.stdout, `AIWiki 已初始化: ${result.root}`);
+      writeLine(streams.stdout, `配置: ${result.createdConfig ? "已创建" : "已保留"}`);
+      writeLine(streams.stdout, `新建目录数: ${result.createdDirs.length}`);
+      writeLine(streams.stdout, `新建数据库文件数: ${result.seededFiles.filter((file) => file.created).length}`);
+      writeLine(streams.stdout, `默认知识库: ${defaultConfig.defaultPath}`);
+      writeLine(streams.stdout, `用户配置: ${defaultConfig.configPath}`);
+      writeLine(streams.stdout, "Obsidian 入口: dashboards/AIWiki Home.md");
+      writeLine(streams.stdout, "下一步: 运行 `aiwiki agent install`，把 AIWiki 安装到宿主 Agent。");
+      writeLine(streams.stdout, "Agent 设置完成后: 向 Agent 发送 `入库 <url>`");
       return 0;
     }
 
@@ -65,9 +65,9 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
         streams
       });
       if (result) {
-        writeLine(streams.stdout, `installed: ${result.name}`);
-        writeLine(streams.stdout, `target: ${result.target}`);
-        writeLine(streams.stdout, `next: restart or reload ${result.name}, then send \`入库 <url>\`.`);
+        writeLine(streams.stdout, `已安装: ${result.name}`);
+        writeLine(streams.stdout, `目标路径: ${result.target}`);
+        writeLine(streams.stdout, `下一步: 重启或重新加载 ${result.name}，然后发送 \`入库 <url>\`。`);
       }
       return 0;
     }
@@ -95,15 +95,15 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
         }
       }
       const result = await initWorkspace(rootPath);
-      writeLine(streams.stdout, `AIWiki initialized: ${result.root}`);
-      writeLine(streams.stdout, `config: ${result.createdConfig ? "created" : "kept"}`);
-      writeLine(streams.stdout, `directories created: ${result.createdDirs.length}`);
-      writeLine(streams.stdout, `database files created: ${result.seededFiles.filter((file) => file.created).length}`);
-      writeLine(streams.stdout, "obsidian_entry: dashboards/AIWiki Home.md");
+      writeLine(streams.stdout, `AIWiki 已初始化: ${result.root}`);
+      writeLine(streams.stdout, `配置: ${result.createdConfig ? "已创建" : "已保留"}`);
+      writeLine(streams.stdout, `新建目录数: ${result.createdDirs.length}`);
+      writeLine(streams.stdout, `新建数据库文件数: ${result.seededFiles.filter((file) => file.created).length}`);
+      writeLine(streams.stdout, "Obsidian 入口: dashboards/AIWiki Home.md");
       if (flagBool(args, "set-default")) {
         const defaultConfig = await setDefaultWorkspace(result.root);
-        writeLine(streams.stdout, `default_path: ${defaultConfig.defaultPath}`);
-        writeLine(streams.stdout, `user_config: ${defaultConfig.configPath}`);
+        writeLine(streams.stdout, `默认知识库: ${defaultConfig.defaultPath}`);
+        writeLine(streams.stdout, `用户配置: ${defaultConfig.configPath}`);
       }
       return 0;
     }
@@ -112,13 +112,13 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       const root = await resolveWorkspace(flagString(args, "path"));
       const config = await readConfig(root);
       const summary = await directorySummary(root);
-      writeLine(streams.stdout, `path: ${root}`);
-      writeLine(streams.stdout, `product: ${config.product}`);
-      writeLine(streams.stdout, `schema_version: ${config.schemaVersion}`);
-      writeLine(streams.stdout, `created_at: ${config.createdAt}`);
-      writeLine(streams.stdout, `directories: ${summary.present} ok, ${summary.missing.length} missing`);
+      writeLine(streams.stdout, `知识库路径: ${root}`);
+      writeLine(streams.stdout, `产品: ${config.product}`);
+      writeLine(streams.stdout, `配置版本: ${config.schemaVersion}`);
+      writeLine(streams.stdout, `创建时间: ${config.createdAt}`);
+      writeLine(streams.stdout, `目录状态: ${summary.present} 个正常，${summary.missing.length} 个缺失`);
       if (summary.missing.length) {
-        writeLine(streams.stdout, `missing: ${summary.missing.join(", ")}`);
+        writeLine(streams.stdout, `缺失目录: ${summary.missing.join(", ")}`);
       }
       return 0;
     }
@@ -128,13 +128,13 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       const checks = await doctor(root);
       let failed = false;
       for (const check of checks) {
-        writeLine(streams.stdout, `${check.status}: ${check.name}`);
+        writeLine(streams.stdout, `${doctorStatusText(check.status)}: ${check.name}`);
         if (check.status !== "ok") {
           failed = true;
         }
       }
       if (failed) {
-        writeLine(streams.stdout, `repair: aiwiki setup --path "${root}" --yes`);
+        writeLine(streams.stdout, `修复命令: aiwiki setup --path "${root}" --yes`);
         return 1;
       }
       return 0;
@@ -143,10 +143,10 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
     if (command === "status") {
       const root = await resolveWorkspace(flagString(args, "path"));
       const summary = await statusSummary(root);
-      writeLine(streams.stdout, `path: ${summary.root}`);
-      writeLine(streams.stdout, `run_count: ${summary.runCount}`);
-      writeLine(streams.stdout, `failed_count: ${summary.failedCount}`);
-      writeLine(streams.stdout, `last_run: ${summary.lastRunId ?? "none"}`);
+      writeLine(streams.stdout, `知识库路径: ${summary.root}`);
+      writeLine(streams.stdout, `处理次数: ${summary.runCount}`);
+      writeLine(streams.stdout, `失败次数: ${summary.failedCount}`);
+      writeLine(streams.stdout, `最近处理: ${summary.lastRunId ?? "无"}`);
       return 0;
     }
 
@@ -211,11 +211,11 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
     throw new CliError(`未知命令: ${command}`);
   } catch (error) {
     if (error instanceof CliError) {
-      writeLine(streams.stderr, `error: ${error.message}`);
+      writeLine(streams.stderr, `错误: ${error.message}`);
       return error.exitCode;
     }
     const message = error instanceof Error ? error.message : String(error);
-    writeLine(streams.stderr, `error: ${message}`);
+    writeLine(streams.stderr, `错误: ${message}`);
     return 1;
   }
 }
@@ -223,7 +223,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
 function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "AIWiki");
   writeLine(stream, "");
-  writeLine(stream, "Usage:");
+  writeLine(stream, "用法:");
   writeLine(stream, "  aiwiki setup");
   writeLine(stream, "  aiwiki setup --path <path> --yes");
   writeLine(stream, "  aiwiki agent list");
@@ -323,11 +323,11 @@ async function discoverAgentTargets(): Promise<AgentTarget[]> {
 }
 
 function printAgentList(stream: NodeJS.WritableStream, targets: AgentTarget[]): void {
-  writeLine(stream, "AIWiki host Agent targets");
+  writeLine(stream, "AIWiki 宿主 Agent 目标");
   for (const target of targets) {
-    writeLine(stream, `${target.id}: ${target.name} | detected=${target.detected ? "yes" : "no"} | installable=${target.installable ? "yes" : "no"} | ${target.note}`);
+    writeLine(stream, `${target.id}: ${target.name} | 已检测=${target.detected ? "是" : "否"} | 可安装=${target.installable ? "是" : "否"} | ${target.note}`);
     if (target.target) {
-      writeLine(stream, `  target: ${target.target}`);
+      writeLine(stream, `  目标路径: ${target.target}`);
     }
   }
 }
@@ -338,41 +338,41 @@ async function installAgentSkill(options: { agentId?: string; yes: boolean; forc
   let selected = options.agentId ? targets.find((target) => target.id === options.agentId) : undefined;
 
   if (!selected && options.agentId) {
-    throw new CliError(`Unknown host Agent: ${options.agentId}`);
+      throw new CliError(`未知宿主 Agent: ${options.agentId}`);
   }
 
   if (!selected) {
     if (installable.length === 0) {
       printAgentList(options.streams.stdout, targets);
-      throw new CliError("No installable host Agent was detected. Run aiwiki prompt agent and paste the protocol manually.");
+      throw new CliError("未检测到可自动安装的宿主 Agent。请运行 aiwiki prompt agent，并手动粘贴对接协议。");
     }
 
     printAgentList(options.streams.stdout, targets);
-    const answer = await askQuestion(options.streams, "Choose an install target by id or number: ");
+    const answer = await askQuestion(options.streams, "请输入要安装的目标 id 或序号: ");
     const trimmed = answer.trim();
     const byNumber = /^\d+$/.test(trimmed) ? installable[Number(trimmed) - 1] : undefined;
     selected = byNumber ?? targets.find((target) => target.id === trimmed);
   }
 
   if (!selected) {
-    writeLine(options.streams.stdout, "cancelled");
+    writeLine(options.streams.stdout, "已取消。");
     return undefined;
   }
 
   if (!selected.installable) {
-    throw new CliError(`${selected.name} is detected, but automatic installation is not configured yet. Run aiwiki prompt agent.`);
+    throw new CliError(`已检测到 ${selected.name}，但暂未配置自动安装。请运行 aiwiki prompt agent。`);
   }
   if (!selected.source || !selected.target) {
-    throw new CliError(`${selected.name} has no install target.`);
+    throw new CliError(`${selected.name} 没有可用安装目标。`);
   }
 
   if (!options.yes) {
-    writeLine(options.streams.stdout, `Install AIWiki into ${selected.name}:`);
-    writeLine(options.streams.stdout, `  source: ${selected.source}`);
-    writeLine(options.streams.stdout, `  target: ${selected.target}`);
-    const answer = await askQuestion(options.streams, "Confirm install? Type y to continue: ");
+    writeLine(options.streams.stdout, `将 AIWiki 安装到 ${selected.name}:`);
+    writeLine(options.streams.stdout, `  来源: ${selected.source}`);
+    writeLine(options.streams.stdout, `  目标路径: ${selected.target}`);
+    const answer = await askQuestion(options.streams, "确认安装？输入 y 继续: ");
     if (answer.trim().toLowerCase() !== "y") {
-      writeLine(options.streams.stdout, "cancelled");
+      writeLine(options.streams.stdout, "已取消。");
       return undefined;
     }
   }
@@ -383,7 +383,7 @@ async function installAgentSkill(options: { agentId?: string; yes: boolean; forc
 
 async function askQuestion(streams: CliStreams, question: string) {
   if (!process.stdin.isTTY) {
-    throw new CliError("Interactive Agent install requires a terminal. Use --agent <id> --yes for scripts.");
+    throw new CliError("交互式 Agent 安装需要终端环境。脚本中请使用 --agent <id> --yes。");
   }
   const rl = createInterface({ input: process.stdin, output: streams.stdout });
   try {
@@ -396,7 +396,7 @@ async function askQuestion(streams: CliStreams, question: string) {
 async function copyInstallFile(source: string, target: string, force: boolean) {
   await fs.access(source);
   if (!force && (await exists(target))) {
-    throw new CliError(`Target already exists: ${target}. Use --force to overwrite.`);
+    throw new CliError(`目标文件已存在: ${target}。如需覆盖，请加 --force。`);
   }
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.copyFile(source, target);
@@ -417,6 +417,16 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "回复措辞：成功时说“已加入 Obsidian 审阅队列”，并给出资料卡、处理记录、Obsidian 入口和待审队列。Dataview 是可选增强，不要替用户安装插件或修改 .obsidian。");
   writeLine(stream, "");
   writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取。");
+}
+
+function doctorStatusText(status: "ok" | "missing" | "permission error") {
+  if (status === "ok") {
+    return "正常";
+  }
+  if (status === "missing") {
+    return "缺失";
+  }
+  return "权限错误";
 }
 
 function printIngestResult(stream: NodeJS.WritableStream, result: Awaited<ReturnType<typeof ingestPayload>>): void {
