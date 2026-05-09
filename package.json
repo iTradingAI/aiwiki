@@ -22,7 +22,8 @@
   "files": [
     "dist/src",
     "README.md",
-    "docs",
+    "docs/*.md",
+    "docs/architecture.svg",
     "skill"
   ],
   "bin": {
@@ -32,6 +33,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test \"dist/tests/*.test.js\"",
     "check": "npm run test",
+    "release:check": "npm test && node scripts/release-check.mjs",
     "prepack": "npm run build"
   },
   "devDependencies": {

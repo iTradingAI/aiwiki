@@ -21,15 +21,13 @@ import {
   statusSummary
 } from "./workspace.js";
 
-export const VERSION = "0.2.7";
-
 export async function runCli(argv: string[], streams: CliStreams = { stdout: process.stdout, stderr: process.stderr }) {
   try {
     const args = parseArgs(argv);
     const [command, subcommand] = args.positional;
 
     if (args.flags.has("version") || command === "version" || command === "-v") {
-      writeLine(streams.stdout, `aiwiki ${VERSION}`);
+      writeLine(streams.stdout, `aiwiki ${await packageVersion()}`);
       return 0;
     }
     if (args.flags.has("help") || !command || command === "help" || command === "-h") {
@@ -469,4 +467,14 @@ function parseJson(text: string): unknown {
   } catch {
     throw new CliError("payload must be valid JSON");
   }
+}
+
+async function packageVersion(): Promise<string> {
+  const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const text = await fs.readFile(path.join(packageRoot, "package.json"), "utf8");
+  const parsed = JSON.parse(text) as { version?: unknown };
+  if (typeof parsed.version !== "string") {
+    throw new CliError("package.json is missing version");
+  }
+  return parsed.version;
 }
