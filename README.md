@@ -45,6 +45,34 @@ npm install -g @itradingai/aiwiki@latest
 
 要求 Node.js `>=20`。
 
+## 直接发给 AI 帮你安装
+
+如果你希望让 Codex、Claude Code、QClaw、OpenClaw 等 AI 直接帮你完成安装和配置，可以把下面这段话原样发给它，注意修改下你的知识库路径：
+
+```text
+请帮我安装并配置 AIWiki。
+
+要求：
+1. 先检查本机 Node.js 是否满足 >=20。
+2. 如果还没安装 AIWiki，就安装最新版 `@itradingai/aiwiki`。
+3. 执行 `aiwiki setup`，帮我完成知识库初始化；把知识库路径设为 `F:\knowledge_data\aiwiki`。
+4. 执行 `aiwiki agent list` 检查当前环境支持哪些宿主 Agent。
+5. 优先为当前 AI/Agent 安装 AIWiki 对接；如果能自动安装，就执行 `aiwiki agent install` 或对应的 `--agent` 命令。
+6. 如果当前 Agent 不支持自动安装，就执行 `aiwiki prompt agent`，然后把生成的对接协议整理好，告诉我应该粘贴到哪里。
+7. 完成后，再执行 `aiwiki doctor` 和 `aiwiki status`，确认安装和配置是否正常。
+8. 最后告诉我：
+   - 实际执行了哪些命令
+   - 知识库路径是什么
+   - Agent 对接是否完成
+   - 如果还差手动步骤，明确告诉我下一步怎么做
+```
+
+如果你已经确定知识库路径，也可以把上面第 3 步改成直接执行：
+
+```bash
+aiwiki setup --path "F:\knowledge_data\aiwiki" --yes
+```
+
 ## 让宿主 Agent 学会 AIWiki
 
 初始化知识库后，先扫描本机支持的宿主 Agent：

@@ -34,6 +34,34 @@ test("fills missing captured time with run start", async () => {
   assert.equal(payload.warnings.some((warning) => warning.includes("缺少 captured_at")), true);
 });
 
+test("repairs common UTF-8 mojibake from host agents", () => {
+  const payload = normalizePayload(
+    {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: Buffer.from("别再只让 Codex 写代码了", "utf8").toString("latin1"),
+        content_format: "markdown",
+        content: Buffer.from("这是一段中文内容，用来验证宿主 Agent 传入乱码时 AIWiki 会修复。", "utf8").toString("latin1"),
+        fetcher: "host-agent",
+        fetch_status: "ok",
+        captured_at: "2026-05-09T08:00:00.000Z"
+      },
+      request: {
+        mode: "ingest",
+        outputs: ["source_card"],
+        language: "zh-CN"
+      }
+    },
+    "2026-05-09T08:00:00.000Z"
+  );
+
+  assert.equal(payload.source.title, "别再只让 Codex 写代码了");
+  assert.match(payload.source.content ?? "", /这是一段中文内容/);
+  assert.match(payload.warnings.join("\n"), /source.content 检测到疑似 UTF-8 mojibake/);
+  assert.match(payload.warnings.join("\n"), /source.title 检测到疑似 UTF-8 mojibake/);
+});
+
 test("rejects missing source and URL without content", async () => {
   assert.throws(() => normalizePayload({ schema_version: "aiwiki.agent_payload.v1" }, "now"), /source is required/);
   await assert.rejects(async () => {
