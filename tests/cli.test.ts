@@ -41,8 +41,9 @@ test("prompt agent prints neutral Agent handoff instructions", async () => {
 test("version flag prints CLI version", async () => {
   const stdout = new MemoryWritable();
   const code = await runCli(["--version"], { stdout, stderr: new MemoryWritable() });
+  const packageJson = JSON.parse(await readFile("package.json", "utf8")) as { version: string };
   assert.equal(code, 0);
-  assert.match(stdout.text(), /^aiwiki 0\.2\.2/);
+  assert.equal(stdout.text().trim(), `aiwiki ${packageJson.version}`);
 });
 
 test("CLI init config doctor and status", async () => {
