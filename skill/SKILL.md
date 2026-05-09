@@ -21,6 +21,12 @@ The host Agent reads the webpage or user-provided body, then passes structured c
 aiwiki ingest-agent --stdin
 ```
 
+If the current shell or Agent bridge cannot guarantee UTF-8 stdin, write the payload as a UTF-8 JSON file and call:
+
+```bash
+aiwiki ingest-agent --payload <utf8-json-file>
+```
+
 For local files, call:
 
 ```bash

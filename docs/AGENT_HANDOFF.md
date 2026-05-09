@@ -35,7 +35,19 @@ AIWiki CLI 不做通用网页抓取。网页读取失败时，Agent 仍然要调
 aiwiki ingest-agent --stdin
 ```
 
-7. 读取 CLI 输出，向用户回复入库状态、契合度、摘要、资料卡、处理记录和 Obsidian 审阅入口。
+7. 如果当前 shell、终端或宿主环境无法保证 stdin 是 UTF-8，先把 payload 写成 UTF-8 JSON 文件，再调用：
+
+```bash
+aiwiki ingest-agent --payload <utf8-json-file>
+```
+
+8. 读取 CLI 输出，向用户回复入库状态、契合度、摘要、资料卡、处理记录和 Obsidian 审阅入口。
+
+## 编码要求
+
+payload 必须是 UTF-8 JSON。Windows PowerShell、批处理、第三方 Agent shell bridge 可能会把中文 JSON 管道按非 UTF-8 编码传递；遇到中文乱码、`payload must be valid JSON` 或无法确认管道编码时，使用 `--payload <utf8-json-file>`。
+
+AIWiki 会修复常见 UTF-8 mojibake，但这只是兜底；宿主 Agent 仍应尽量传入干净 UTF-8。
 
 ## 成功 payload
 
