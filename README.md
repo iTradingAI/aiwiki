@@ -1,28 +1,43 @@
 # AIWiki
 
-AIWiki 是一个 Agent-first 的本地知识库工具。用户把文章链接或正文发给任意宿主 Agent，并加上入库触发词；宿主 Agent 负责读取网页，AIWiki CLI 负责写入本地知识库文件，后续可在 Obsidian 中审阅和沉淀。
+AIWiki 是一个面向宿主 Agent 的本地知识库生产 CLI。用户把文章链接或正文发给 Codex、QClaw、OpenClaw、Claude Code 等 Agent，并使用“入库”触发词；宿主 Agent 负责读取网页或上下文，AIWiki 负责把内容写入本地知识库，并生成适合 Obsidian + Dataview 审阅的资料结构。
 
-完整使用说明见：[docs/USAGE.md](docs/USAGE.md)。
-Obsidian + Dataview 方案见：[docs/OBSIDIAN_DATAVIEW_PLAN.md](docs/OBSIDIAN_DATAVIEW_PLAN.md)。
-架构图见：[docs/architecture.svg](docs/architecture.svg)。
+AIWiki 的重点不是替代 Agent 抓网页，而是把 Agent 已经读到的内容稳定沉淀为可追踪、可复盘、可继续写作的本地知识库。
 
-## 最短使用路径
+## 安装与初始化
 
-一次性设置默认知识库。普通用户推荐直接运行交互式 setup：
+一次性运行交互式 setup：
 
 ```bash
-npx aiwiki setup
+npx @itradingai/aiwiki@latest setup
 ```
 
-CLI 会询问知识库路径；直接回车会使用默认目录。确认后会创建目录并设置为默认知识库。
+CLI 会询问知识库路径。直接回车会使用默认目录，确认后会创建或补齐 AIWiki 目录，并写入默认知识库配置。
 
-自动化安装可以使用：
+自动化初始化可以使用：
 
 ```bash
-npx aiwiki setup --path "F:\knowledge_data\aiwiki" --yes
+npx @itradingai/aiwiki@latest setup --path "F:\knowledge_data\aiwiki" --yes
 ```
 
-然后先让宿主 Agent 学会 AIWiki。可以先扫描本机支持的宿主 Agent：
+如果希望长期使用全局命令：
+
+```bash
+npm install -g @itradingai/aiwiki@latest
+aiwiki setup
+```
+
+升级到最新版本：
+
+```bash
+npm install -g @itradingai/aiwiki@latest
+```
+
+要求 Node.js `>=20`。
+
+## 让宿主 Agent 学会 AIWiki
+
+初始化知识库后，先扫描本机支持的宿主 Agent：
 
 ```bash
 aiwiki agent list
@@ -43,42 +58,40 @@ aiwiki agent install --agent openclaw --yes
 aiwiki agent install --agent claude --yes
 ```
 
-如果你的宿主 Agent 暂不支持自动安装，则输出通用对接协议：
+如果当前宿主 Agent 暂不支持自动安装，可以输出通用对接协议：
 
 ```bash
 aiwiki prompt agent
 ```
 
-把输出内容安装成宿主 Agent 的 skill，或粘贴到宿主 Agent 的项目/会话说明里。完成这一步后，再对宿主 Agent 说：
+把输出内容安装成宿主 Agent 的 skill，或粘贴到宿主 Agent 的项目/会话说明里。
+
+## 入库流程
+
+完成 setup 和 Agent 安装后，对宿主 Agent 发送：
 
 ```text
 入库 https://example.com/article
 ```
 
-Agent 读取网页后，通过 `aiwiki ingest-agent --stdin` 把内容交给 CLI。用户不需要手动保存 payload，也不需要每次输入 `--path`。
+宿主 Agent 读取网页后，通过 `aiwiki ingest-agent --stdin` 把结构化内容交给 AIWiki CLI。用户不需要手动保存 payload，也不需要每次输入 `--path`。
 
-## 本地开发测试
+典型流程：
 
-```bash
-npm install
-npm run build
-npm link
-aiwiki setup --path "F:\knowledge_data\aiwiki-test" --yes
-aiwiki prompt agent
-aiwiki doctor
+```text
+用户发送链接 -> 宿主 Agent 读取内容 -> Agent 调用 AIWiki -> AIWiki 写入本地知识库 -> Obsidian 审阅和沉淀
 ```
 
-## 当前范围
+## Obsidian 与 Dataview
 
-- 单知识库
-- 单次处理一条输入
-- 宿主 Agent 读取网页或正文
-- CLI 只负责本地文件写入
-- 生成资料卡、素材建议、主题候选、草稿大纲、处理摘要
+AIWiki 初始化时会创建面向 Obsidian 的目录、Dashboard、Dataview 查询和 frontmatter 约定。核心入口包括：
 
-## Agent 边界
+- `dashboards/AIWiki Home.md`
+- `dashboards/Review Queue.md`
+- `dashboards/Claims Review.md`
+- `_system/schemas/aiwiki-frontmatter.md`
 
-AIWiki CLI 不做通用网页抓取。网页读取、附件读取、消息读取属于宿主 Agent；AIWiki 接收内容，并写入结构化本地文件。
+完整方案见：[docs/OBSIDIAN_DATAVIEW_PLAN.md](docs/OBSIDIAN_DATAVIEW_PLAN.md)。
 
 ## 常用命令
 
@@ -103,15 +116,60 @@ aiwiki ingest-agent --payload <file>
 aiwiki ingest-url <url> --content-file <file>
 ```
 
+## 当前范围
+
+- 单知识库
+- 单次处理一条输入
+- 宿主 Agent 读取网页、附件或正文
+- CLI 写入本地文件和 Obsidian 友好的结构
+- 生成资料卡、素材建议、主题候选、草稿大纲、处理摘要
+
 ## 当前不包含
 
+- CLI 内置通用网页抓取
 - 跨主题自动路由
 - 批处理
 - 定时或指定采集
 - 长流程状态机
 - 技术支持流程
-- CLI 内置通用网页抓取
+
+## 文档
+
+- 使用说明：[docs/USAGE.md](docs/USAGE.md)
+- Agent 对接协议：[docs/AGENT_HANDOFF.md](docs/AGENT_HANDOFF.md)
+- Obsidian + Dataview 方案：[docs/OBSIDIAN_DATAVIEW_PLAN.md](docs/OBSIDIAN_DATAVIEW_PLAN.md)
+- 架构图：[docs/architecture.svg](docs/architecture.svg)
+
+## 联系与交流
+
+项目专题介绍：[maxking.cc](https://maxking.cc/aiwiki)
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/assets/join-group.png" alt="扫码进群交流" width="360">
+      <br>
+      <strong>扫码进群</strong>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/assets/wechat-official-account.png" alt="扫码关注公众号" width="360">
+      <br>
+      <strong>关注公众号</strong>
+    </td>
+  </tr>
+</table>
+
+## 本地开发
+
+```bash
+npm install
+npm run build
+npm link
+aiwiki setup --path "F:\knowledge_data\aiwiki-test" --yes
+aiwiki prompt agent
+aiwiki doctor
+```
 
 ## License
 
-License will be finalized before the first public release.
+MIT. See [LICENSE](LICENSE).

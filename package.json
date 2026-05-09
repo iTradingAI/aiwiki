@@ -1,9 +1,24 @@
 {
-  "name": "aiwiki",
-  "version": "0.2.2",
+  "name": "@itradingai/aiwiki",
+  "version": "0.2.5",
   "type": "module",
   "description": "Agent-first local knowledge production CLI for a single knowledge base.",
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "keywords": [
+    "aiwiki",
+    "agent",
+    "knowledge-base",
+    "obsidian",
+    "dataview"
+  ],
+  "homepage": "https://maxking.cc/aiwiki",
+  "bugs": {
+    "url": "https://github.com/iTradingAI/aiwiki/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iTradingAI/aiwiki.git"
+  },
   "files": [
     "dist/src",
     "README.md",
@@ -11,7 +26,7 @@
     "skill"
   ],
   "bin": {
-    "aiwiki": "./dist/src/cli.js"
+    "aiwiki": "dist/src/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
