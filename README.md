@@ -1,8 +1,18 @@
+![AIWiki 宣传图](docs/assets/aiwiki-hero.png)
+
 # AIWiki
 
 AIWiki 是一个面向宿主 Agent 的本地知识库生产 CLI。用户把文章链接或正文发给 Codex、QClaw、OpenClaw、Claude Code 等 Agent，并使用“入库”触发词；宿主 Agent 负责读取网页或上下文，AIWiki 负责把内容写入本地知识库，并生成适合 Obsidian + Dataview 审阅的资料结构。
 
 AIWiki 的重点不是替代 Agent 抓网页，而是把 Agent 已经读到的内容稳定沉淀为可追踪、可复盘、可继续写作的本地知识库。
+
+## 最新动态
+
+- `2026-05-09`：完成 npm 公开发布准备，补齐发布前的 README 与交付信息，并让 CLI 版本号与 `package.json` / 发布包保持一致，便于安装、排查与版本确认。
+- `2026-05-08`：完成中文化体验收口，包括默认生成中文 prompt、中文状态输出、中文目标描述，以及 README 和使用文档的中文本地化。
+- `2026-05-08`：强化 Obsidian 工作流，把 Review Queue、Claims Review 等审阅队列提升为一等入口，方便在知识库里持续审阅和回看入库内容。
+- `2026-05-07`：新增 Codex skill 安装能力，并补上 Agent 协议安装引导，让宿主 Agent 在正式入库前更容易完成对接。
+- `2026-05-07`：持续打磨初始化体验，修复 setup 提示问题，避免静默套用默认值，并把首次使用流程改成交互式引导。
 
 ## 安装与初始化
 
