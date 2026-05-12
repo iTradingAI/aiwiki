@@ -1,11 +1,14 @@
 # AIWiki Docs
 
-AIWiki 是一个 Agent-first 的本地知识库工具，用来把宿主 Agent 已经读取到的文章、网页正文或本地文本写入单知识库。
+AIWiki 是一个 Agent-first 的本地知识库工具，用来把宿主 Agent 已经读取到的文章、网页正文或本地文本写入当前配置的知识库。
 
 - 用户使用说明：[USAGE.md](USAGE.md)
 - Agent 对接协议：[AGENT_HANDOFF.md](AGENT_HANDOFF.md)
 - Obsidian + Dataview 方案：[OBSIDIAN_DATAVIEW_PLAN.md](OBSIDIAN_DATAVIEW_PLAN.md)
 - 架构图：[architecture.svg](architecture.svg)
+- 示例展示：[SHOWCASE.md](SHOWCASE.md)
+- 常见问题：[FAQ.md](FAQ.md)
+- 路线图：[ROADMAP.md](ROADMAP.md)
 
 ## Quick Start
 

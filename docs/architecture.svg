@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="820" viewBox="0 0 1280 820" role="img" aria-labelledby="title desc">
-  <title id="title">AIWiki Base Architecture</title>
-  <desc id="desc">AIWiki base edition architecture showing setup, host Agent installation, ingestion, CLI processing, and local knowledge base outputs.</desc>
+  <title id="title">AIWiki Architecture</title>
+  <desc id="desc">AIWiki architecture showing setup, host Agent installation, ingestion, CLI processing, and local knowledge base outputs.</desc>
   <defs>
     <style>
       .bg { fill: #fbfaf7; }
@@ -25,7 +25,7 @@
   </defs>
 
   <rect class="bg" x="0" y="0" width="1280" height="820"/>
-  <text class="title" x="54" y="58">AIWiki 基础版架构图</text>
+  <text class="title" x="54" y="58">AIWiki 架构图</text>
   <text class="small" x="56" y="86">目标：宿主 Agent 负责读取与理解，AIWiki CLI 负责校验与本地确定性写入。</text>
 
   <rect class="band" x="48" y="118" width="1184" height="118" rx="8"/>
@@ -98,6 +98,6 @@
 
   <rect class="panel" x="772" y="650" width="460" height="102" rx="8"/>
   <text class="h2" x="798" y="684">边界</text>
-  <text class="small" x="798" y="714">基础版不抓网页、不做多知识库、不做状态机、不做批量队列。</text>
+  <text class="small" x="798" y="714">AIWiki 不抓网页、不做多知识库、不做状态机、不做批量队列。</text>
   <text class="small" x="798" y="738">所有写入必须限制在目标知识库根目录内。</text>
 </svg>

@@ -6,7 +6,7 @@
 用户只做一次 setup -> 之后只把链接发给 Agent -> Agent 自动调用 AIWiki 入库
 ```
 
-AIWiki CLI 不负责网页抓取。Qclaw、Codex、Claude Code、Cursor、Gemini CLI 等都只是宿主 Agent 的例子；基础版面向的是通用宿主 Agent 协作。
+AIWiki CLI 不负责网页抓取。Qclaw、Codex、Claude Code、Cursor、Gemini CLI 等都只是宿主 Agent 的例子；这份文档面向的是通用宿主 Agent 协作。
 
 ## 1. 一次性设置
 
@@ -78,13 +78,13 @@ aiwiki agent install --agent claude --yes
 - `openclaw`：复制到 OpenClaw workspace skills 目录。
 - `claude`：复制为 Claude Code slash-command 提示文件。
 
-`opencode` 和 `hermes` 会被扫描出来，但基础版暂不自动写入它们的配置。确认官方用户提示/skill 目录后再开放自动安装。现在可先输出通用对接协议：
+`opencode` 和 `hermes` 会被扫描出来，但 AIWiki 暂不自动写入它们的配置。确认官方用户提示/skill 目录后再开放自动安装。现在可先输出通用对接协议：
 
 ```bash
 aiwiki prompt agent
 ```
 
-把输出内容安装成宿主 Agent 的 skill，或粘贴到宿主 Agent 的项目/会话说明里。不同 Agent 的安装入口不同，所以基础版提供自动安装向导和通用协议两条路径。
+把输出内容安装成宿主 Agent 的 skill，或粘贴到宿主 Agent 的项目/会话说明里。不同 Agent 的安装入口不同，所以 AIWiki 提供自动安装向导和通用协议两条路径。
 
 ## 3. 日常使用
 
