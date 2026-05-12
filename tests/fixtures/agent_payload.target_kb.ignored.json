@@ -7,7 +7,7 @@
     "title": "Career Note",
     "platform": "example.com",
     "content_format": "markdown",
-    "content": "这条资料带有 target_kb 字段。基础版应接受该字段，但永远写入当前单知识库，并在 summary 中说明该字段被忽略。",
+    "content": "这条资料带有 target_kb 字段。AIWiki 应接受该字段，但永远写入当前知识库，并在 summary 中说明该字段被忽略。",
     "fetcher": "host-agent",
     "fetch_status": "ok",
     "captured_at": "2026-05-06T10:10:00+08:00",

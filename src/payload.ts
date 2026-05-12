@@ -76,10 +76,10 @@ export function normalizePayload(raw: unknown, runStartedAt: string): Normalized
 
   const outputs = ["source_card", "creative_assets", "topics", "draft_outline", "processing_summary"];
   if (fetchStatus !== "failed" && requestedOutputs.length && requestedOutputs.length !== outputs.length) {
-    warnings.push("基础版会生成完整单条资料产物，request.outputs 已按全量输出处理。");
+    warnings.push("AIWiki 会为每条输入生成完整资料产物，request.outputs 已按全量输出处理。");
   }
   if (typeof raw.target_kb === "string" && raw.target_kb.trim()) {
-    warnings.push(`target_kb=${raw.target_kb} 已被单知识库流程忽略。`);
+    warnings.push(`target_kb=${raw.target_kb} 已被当前知识库流程忽略。`);
   }
   if (contentRepair.repaired) {
     warnings.push("source.content 检测到疑似 UTF-8 mojibake，已自动修复。");
