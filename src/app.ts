@@ -5,7 +5,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
 import { flagBool, flagString, parseArgs } from "./args.js";
-import { ingestFile, ingestPayload } from "./ingest.js";
+import { deriveFileTitle, ingestFile, ingestPayload } from "./ingest.js";
 import { CliError, CliStreams, writeLine } from "./output.js";
 import {
   confirmInit,
@@ -189,7 +189,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
         source: {
           kind: "url",
           url,
-          title: path.basename(contentFile),
+          title: deriveFileTitle(contentFile),
           content_format: "markdown",
           content,
           fetcher: "content-file",

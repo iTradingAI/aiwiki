@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, readdir, rm, stat } from "node:fs/promises";
+import { readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -79,12 +79,31 @@ test("long-term collisions append run id before extension", async () => {
   }
 });
 
-test("ingest file creates a run from local markdown", async () => {
+test("ingest file uses the file title instead of content headings", async () => {
   const root = await tempRoot("aiwiki-ingest-file");
   try {
-    const result = await ingestFile(root, fixturePath("article.zh.md"));
-    const payload = JSON.parse(await readFile(path.join(result.runDir, "payload.json"), "utf8")) as { source: { kind: string } };
+    const inputFile = path.join(root, "2025-12-31-cursor-dev-log.md");
+    await writeFile(
+      inputFile,
+      [
+        "# Totally Different Title",
+        "",
+        "This body intentionally uses a different heading so we can verify the file name wins.",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await ingestFile(root, inputFile);
+    const payload = JSON.parse(await readFile(path.join(result.runDir, "payload.json"), "utf8")) as {
+      source: { kind: string; title: string };
+    };
     assert.equal(payload.source.kind, "file");
+    assert.equal(payload.source.title, "2025-12-31-cursor-dev-log");
+
+    const expectedSlug = "2025-12-31-cursor-dev-log";
+    await stat(path.join(root, "02-raw", "articles", `${expectedSlug}.md`));
+    await stat(path.join(root, "03-sources", "article-cards", `${expectedSlug}.md`));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -146,3 +165,4 @@ async function assertObsidianLinks(root: string, runDir: string) {
   assert.match(summary, /\[\[09-runs\/.+\/source-card\|source-card\]\]/);
   assert.match(summary, /\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|ai-agent-workflow-notes\]\]/);
 }
+

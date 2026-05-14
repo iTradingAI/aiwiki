@@ -20,14 +20,16 @@ export function relativePath(root: string, target: string): string {
 
 export function slugify(value: string | undefined): string {
   const source = value?.trim() || "item";
-  const ascii = source
+  const normalized = source
     .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
+    .replace(/\p{M}/gu, "");
+  const slug = normalized
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
     .trim()
     .toLowerCase()
     .replace(/[-\s_]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return ascii || "item";
+  return slug || "item";
 }
 
 export function appendRunIdBeforeExt(fileName: string, runId: string): string {

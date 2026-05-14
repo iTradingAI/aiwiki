@@ -108,7 +108,7 @@ export async function ingestFile(rootPath: string, filePath: string) {
     schema_version: "aiwiki.agent_payload.v1",
     source: {
       kind: "file",
-      title: path.basename(filePath),
+      title: deriveFileTitle(filePath),
       content_format: "markdown",
       content,
       fetcher: "local-file",
@@ -121,6 +121,10 @@ export async function ingestFile(rootPath: string, filePath: string) {
       language: "zh-CN"
     }
   });
+}
+
+export function deriveFileTitle(filePath: string): string {
+  return path.basename(filePath, path.extname(filePath));
 }
 
 async function chooseLongTermTargets(root: string, slug: string, runId: string, warnings: string[]): Promise<LongTermTargets> {

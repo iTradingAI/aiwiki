@@ -272,6 +272,11 @@ type "F:\knowledge_data\payload.json" | aiwiki ingest-agent --stdin
 aiwiki ingest-file --file "F:\knowledge_data\article.md"
 ```
 
+命名规则：
+- 本地 `md` 导入时，AIWiki 优先使用文件标题或文件名生成外部文件名。
+- 不会优先从正文内容里的 `# 一级标题` 反推文件名，避免整理后的文件名失去来源可追踪性。
+- 如果文件名本身没有语义，才会继续回退到更弱的兜底命名。
+
 链接加正文文件：
 
 ```bash
