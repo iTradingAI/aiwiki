@@ -45,3 +45,5 @@ env/
 .env.*
 local.config.*
 aiwiki-runtime/
+omx/
+.omx/
