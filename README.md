@@ -2,199 +2,233 @@
 
 # AIWiki
 
-AIWiki 是一个开源的 Agent-first AI 知识库 CLI。你把文章链接、网页正文或本地文本交给宿主 Agent，宿主 Agent 负责读取内容，AIWiki 负责把结果稳定写进本地知识库，并生成适合 Obsidian 审阅的资料卡、主题、大纲和处理记录。
+AIWiki 是一个开源的 Agent-first 本地 LLM-wiki CLI。
 
-对外只有一个 AIWiki，公开页面不做软件分层。商业服务放在部署、陪跑和团队集成里，不放在软件版本层。
+你把文章链接、网页正文或本地文本交给宿主 Agent；宿主 Agent 负责读取和理解内容；AIWiki 负责把结果稳定写进本地 Markdown 知识库，并生成可追踪、可查询、可持续整理的 Wiki 条目。
+
+一句话说：AIWiki 不是网页抓取器，而是宿主 Agent 的本地 LLM-wiki 后端。
 
 ## 它解决什么
 
-- 收藏了很多链接，但最后都散在聊天记录里
-- 想用 AI 总结内容，却很难继续写作或复用
-- 想做选题、资料卡和大纲，但每次都得重新整理
-- 想让 Agent 帮忙收资料，但缺一个稳定的本地入库出口
+- 链接和资料散在聊天记录里，后续很难复用。
+- AI 总结过一次内容，但没有沉淀成可查询的知识条目。
+- 想把资料卡、选题、大纲、Wiki 条目放进同一个本地知识库。
+- 想让 Agent 负责理解内容，让 CLI 负责稳定落盘和追踪。
 
-## 它会生成什么
+## 工作流
 
-- 原文记录
-- Source Card 资料卡
-- Claim 建议
-- 创意素材
-- 选题候选
-- 草稿大纲
-- 处理摘要
-- Obsidian 审阅入口
+### Ingest：把资料写入本地 Wiki
 
-## 直接发给 AI 帮你安装
+```text
+用户给 URL / 正文 / 文件
+  -> 宿主 Agent 读取内容并尽量生成 analysis / wiki_entry
+  -> aiwiki ingest-agent --stdin
+  -> AIWiki 写入 Raw / Source Card / Wiki Entry / Claim / Topic / Outline / Run Log
+```
 
-如果你希望让 Codex、Claude Code、QClaw、OpenClaw 等 AI 直接帮你完成安装和配置，可以把下面这段话原样发给它，记得改成你自己的知识库路径：
+### Query：从 Wiki 调度知识
+
+```bash
+aiwiki context "AI Agent 出海机会"
+```
+
+`context` 返回 JSON，主要给宿主 Agent 用。第一版是本地关键词检索，不是向量检索。
+
+### Lint：检查知识库结构
+
+```bash
+aiwiki lint
+```
+
+`lint` 会检查缺失链接、重复来源、fallback Wiki 条目、enriched 条目缺字段等问题，并写入 `dashboards/Lint Report.md`。
+
+## 快速开始
+
+### 第一步：安装 AIWiki CLI
+
+让 AI 帮你安装时，可以把下面这段交给当前 Agent，改成自己的知识库路径：
 
 ```text
 请帮我安装并配置 AIWiki。
 安装命令：npm install -g @itradingai/aiwiki@latest
 我的知识库路径：F:\knowledges
 
-要求：
-1. 先检查本机 Node.js 是否满足 >=20。
-2. 如果还没安装 AIWiki，就安装最新版 `@itradingai/aiwiki`。
-3. 执行 `aiwiki setup --path "我的知识库路径" --yes`，帮我完成知识库初始化。
-4. 执行 `aiwiki agent list` 检查当前环境支持哪些宿主 Agent。
-5. 优先为当前 AI/Agent 安装 AIWiki 对接；如果能自动安装，就执行 `aiwiki agent install` 或对应的 `--agent` 命令。
-6. 如果当前 Agent 不支持自动安装，就执行 `aiwiki prompt agent`，然后把生成的对接协议整理好，告诉我应该粘贴到哪里。
-7. 完成后，再执行 `aiwiki doctor` 和 `aiwiki status`，确认安装和配置是否正常。
-8. 最后告诉我：
-   - 实际执行了哪些命令
-   - 知识库路径是什么
-   - Agent 对接是否完成
-   - 如果还差手动步骤，明确告诉我下一步怎么做
+请检查 Node.js >=20，执行 aiwiki setup --path "我的知识库路径" --yes，
+然后运行 aiwiki agent list / aiwiki agent install 完成宿主 Agent 对接。
+最后执行 aiwiki doctor 和 aiwiki status，告诉我实际执行了哪些命令和还差什么手动步骤。
 ```
 
-## 手动安装
+手动安装：
 
 ```bash
 npx @itradingai/aiwiki@latest setup
 aiwiki agent list
 aiwiki agent install
-aiwiki prompt agent
 ```
 
-然后把 `入库 <url>` 发给宿主 Agent。
-
-## 让宿主 Agent 直接安装 AIWiki
-
-初始化知识库后，先扫一遍本机支持的宿主 Agent：
+### 第二步：接入宿主 Agent
 
 ```bash
 aiwiki agent list
-```
-
-再启动安装向导：
-
-```bash
 aiwiki agent install
 ```
 
-也可以直接指定目标：
-
-```bash
-aiwiki agent install --agent codex --yes
-aiwiki agent install --agent qclaw --yes
-aiwiki agent install --agent openclaw --yes
-aiwiki agent install --agent claude --yes
-```
-
-如果当前宿主 Agent 暂不支持自动安装，可以输出通用对接协议：
+也可以直接输出通用协议：
 
 ```bash
 aiwiki prompt agent
 ```
 
-把输出内容安装成宿主 Agent 的 skill，或者粘贴到宿主 Agent 的项目说明里。
+### 第三步：第一次入库
 
-## 日常入库
-
-完成 setup 和 Agent 安装后，对宿主 Agent 发送：
+对宿主 Agent 发送：
 
 ```text
-入库 https://mp.weixin.qq.com/s/5i9UJdBOhCB2a1EVp0lVXQ
+入库 https://example.com/article
 ```
 
-宿主 Agent 读取网页后，通过 `aiwiki ingest-agent --stdin` 把结构化内容交给 AIWiki CLI。用户不需要手动保存 payload，也不需要每次输入 `--path`。
+宿主 Agent 读取正文后调用 `aiwiki ingest-agent --stdin`。用户不需要手动保存 payload，也不需要每次输入 `--path`。
 
-典型流程：
+### 第四步：从知识库提问
+
+对宿主 Agent 说：
 
 ```text
-用户发送链接 -> 宿主 Agent 读取内容 -> Agent 调用 AIWiki -> AIWiki 写入本地知识库 -> Obsidian 审阅和沉淀
+从 AIWiki 里帮我了解 xxx
 ```
+
+宿主 Agent 应优先调用：
+
+```bash
+aiwiki context "xxx"
+```
+
+## AIWiki 会生成什么
+
+成功入库会生成：
+
+```text
+02-raw/articles/
+03-sources/article-cards/
+04-claims/_suggestions/
+05-wiki/source-knowledge/
+06-assets/_suggestions/
+07-topics/ready/
+08-outputs/outlines/
+09-runs/<run-id>/
+```
+
+其中 `05-wiki/source-knowledge/<slug>.md` 是默认 Wiki Entry。
+
+### Agent-Enriched Wiki Entry
+
+如果宿主 Agent 在 payload 中提供了 `analysis` 或 `wiki_entry`，AIWiki 会把这些总结、核心观点、知识点、概念、选题等内容写入 Wiki Entry。
+
+frontmatter 会标记：
+
+```yaml
+generation_mode: "agent_enriched"
+quality: "enriched"
+generated_by: "host_agent"
+llm_enriched: true
+```
+
+### Deterministic Fallback Wiki Entry
+
+如果宿主 Agent 只提供原文，AIWiki 仍会创建 Wiki Entry，但它只是可追溯脚手架，包含标题、来源、正文预览、反链和待补全区。
+
+frontmatter 会标记：
+
+```yaml
+generation_mode: "deterministic_fallback"
+quality: "scaffold"
+generated_by: "aiwiki_cli"
+llm_enriched: false
+```
+
+AIWiki CLI 本身不调用 LLM，所以不会在没有 Agent 分析字段时承诺高质量提炼。
 
 ## 设计边界
 
-AIWiki 不是通用网页抓取器。网页读取主要交给宿主 Agent，AIWiki 专注于把 Agent 已经读到的内容写成稳定、可追踪、可复用的本地知识资产。
+AIWiki 做：
 
-AIWiki 生成的 Markdown 和 frontmatter 默认面向 Obsidian + Dataview 审阅；如果你不装 Dataview，普通 Markdown、Properties、Backlinks、Search 和 Graph View 也能用。
+- 接收宿主 Agent payload。
+- 写入本地 Markdown。
+- 生成 frontmatter、wikilink、处理记录。
+- 生成 Wiki Entry 容器。
+- 支持 `context` 和 `lint`。
 
-当前范围：
+AIWiki 不做：
 
-- 只写入当前配置的知识库
-- 单次处理一条输入
-- 宿主 Agent 读取网页、附件或正文
-- CLI 写入本地文件和 Obsidian 友好的结构
-- 生成资料卡、素材建议、主题候选、草稿大纲、处理摘要
+- 通用网页抓取。
+- 微信公众号读取。
+- 伪造浏览器头。
+- 浏览器插件。
+- CLI 内置 LLM。
+- 自动高质量总结。
+- 默认人工审核流程。
+- 企业级 RBAC。
+- 多知识库。
+- 批量采集 / 定时采集 / RSS。
 
-当前不包含：
+## Obsidian / Dataview
 
-- CLI 内置通用网页抓取
-- 跨主题自动路由
-- 批处理
-- 定时或指定采集
-- 长流程状态机
-- 技术支持流程
+AIWiki 生成的是标准 Markdown 和 frontmatter，不强依赖 Obsidian。
 
-## 示例展示
+Obsidian 是推荐查看界面；Dataview 只是可选 dashboard 增强。AIWiki 不会自动安装 Dataview，也不会修改 `.obsidian`。
 
-想先看一次完整跑完会生成什么，可以看：
+Review Queue 可以保留为回看入口，但不是 AIWiki 的主流程。
 
-- [docs/SHOWCASE.md](docs/SHOWCASE.md)
+## 常见问题
+
+### AIWiki 会自己抓网页吗？
+
+不会。网页读取由宿主 Agent 完成，AIWiki 负责把 Agent 已经读到的内容写入本地知识库。
+
+### 为什么会生成 05-wiki？
+
+因为 AIWiki 的目标不是只保存资料，而是让资料进入可查询、可维护的 Wiki 知识层。
+
+### 05-wiki 是否代表我的观点？
+
+不一定。外部资料生成的 Wiki 条目默认代表“外部资料的结构化整理”，不代表你的个人观点。
+
+### 什么内容才代表我的观点？
+
+后续 `source_role=output` 会用于标记用户已发布文章、演讲稿、公众号文章等个人输出。本阶段外部资料默认是 `source_role: input`、`represents_user_view: false`。
+
+### Dataview 必须安装吗？
+
+不必须。没有 Dataview，也可以用普通 Markdown、Properties、Backlinks、Search 和 Graph View。
+
+### Review Queue 还需要吗？
+
+不是必需流程。它只适合低置信度、来源缺失、内容冲突、个人观点把关等回看场景。
 
 ## 文档
 
 - [docs/USAGE.md](docs/USAGE.md)
 - [docs/AGENT_HANDOFF.md](docs/AGENT_HANDOFF.md)
-- [docs/OBSIDIAN_DATAVIEW_PLAN.md](docs/OBSIDIAN_DATAVIEW_PLAN.md)
 - [docs/FAQ.md](docs/FAQ.md)
+- [docs/SHOWCASE.md](docs/SHOWCASE.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md)
 - [docs/RELEASE.md](docs/RELEASE.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [SECURITY.md](SECURITY.md)
-- [docs/architecture.svg](docs/architecture.svg)
-
-## 参与与反馈
-
-如果你想提 bug、提需求，或者反馈宿主 Agent 对接问题，直接看：
-
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-- [.github/ISSUE_TEMPLATE/bug_report.md](.github/ISSUE_TEMPLATE/bug_report.md)
-- [.github/ISSUE_TEMPLATE/feature_request.md](.github/ISSUE_TEMPLATE/feature_request.md)
-- [.github/ISSUE_TEMPLATE/agent_integration.md](.github/ISSUE_TEMPLATE/agent_integration.md)
-
-## 联系与交流
-
-项目专题介绍：[maxking.cc](https://maxking.cc/aiwiki)
-
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="https://raw.githubusercontent.com/iTradingAI/aiwiki/refs/heads/main/docs/assets/join-group.png" alt="扫码进群交流" width="360">
-      <br>
-      <strong>扫码进群</strong>
-    </td>
-    <td align="center" width="50%">
-      <img src="https://raw.githubusercontent.com/iTradingAI/aiwiki/refs/heads/main/docs/assets/wechat-official-account.png" alt="扫码关注公众号" width="360">
-      <br>
-      <strong>关注公众号</strong>
-    </td>
-  </tr>
-</table>
 
 ## 本地开发
 
 ```bash
 npm install
 npm run build
+npm test
 npm link
 aiwiki setup --path "F:\knowledge_data\aiwiki-test" --yes
-aiwiki prompt agent
 aiwiki doctor
+aiwiki ingest-agent --payload tests/fixtures/agent_payload.url.valid.json --path "F:\knowledge_data\aiwiki-test"
+aiwiki context "AI Agent" --path "F:\knowledge_data\aiwiki-test"
+aiwiki lint --path "F:\knowledge_data\aiwiki-test"
 ```
-
-## 最新动态
-
-- `2026-05-13`：更新了本地 Markdown 导入的命名规则，明确优先使用文件标题或文件名生成外部文件名，不优先从正文反推标题，并调整了 README 中的入口顺序和手动安装说明。
-- `2026-05-12`：公开前口径收口，统一 README、npm 元数据和公开文档入口。
-- `2026-05-09`：完成 npm 公开发布准备，补齐发布前的 README 与交付信息，并让 CLI 版本号与 `package.json` / 发布包保持一致，便于安装、排查与版本确认。
-- `2026-05-08`：完成中文化体验收口，包括默认生成中文 prompt、中文状态输出、中文目标描述，以及 README 和使用文档的中文本地化。
-- `2026-05-08`：强化 Obsidian 工作流，把 Review Queue、Claims Review 等审阅队列提升为一等入口，方便在知识库里持续审阅和回看入库内容。
-- `2026-05-07`：新增 Codex skill 安装能力，并补上 Agent 协议安装引导，让宿主 Agent 在正式入库前更容易完成对接。
-- `2026-05-07`：持续打磨初始化体验，修复 setup 提示问题，避免静默套用默认值，并把首次使用流程改成交互式引导。
 
 ## License
 
