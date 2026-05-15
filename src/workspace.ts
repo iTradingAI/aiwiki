@@ -13,6 +13,7 @@ export const REQUIRED_DIRS = [
   "03-sources/article-cards",
   "04-claims/_suggestions",
   "05-wiki",
+  "05-wiki/source-knowledge",
   "06-assets/_suggestions",
   "07-topics/ready",
   "08-outputs/outlines",

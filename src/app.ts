@@ -5,7 +5,9 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
 import { flagBool, flagString, parseArgs } from "./args.js";
+import { buildContext } from "./context.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "./ingest.js";
+import { lintWorkspace, renderLintReport, writeLintReport } from "./lint.js";
 import { CliError, CliStreams, writeLine } from "./output.js";
 import {
   confirmInit,
@@ -148,6 +150,25 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       return 0;
     }
 
+    if (command === "context") {
+      const root = await resolveWorkspace(flagString(args, "path"));
+      const query = args.positional.slice(1).join(" ").trim();
+      if (!query) {
+        throw new CliError("请提供查询主题。");
+      }
+      writeLine(streams.stdout, JSON.stringify(await buildContext(root, query), null, 2));
+      return 0;
+    }
+
+    if (command === "lint") {
+      const root = await resolveWorkspace(flagString(args, "path"));
+      const report = await lintWorkspace(root);
+      const reportPath = await writeLintReport(root, report);
+      writeLine(streams.stdout, renderLintReport(report));
+      writeLine(streams.stdout, `report: ${reportPath}`);
+      return 0;
+    }
+
     if (command === "ingest-agent") {
       const root = await resolveWorkspace(flagString(args, "path"));
       const payloadPath = flagString(args, "payload");
@@ -230,6 +251,8 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki prompt agent");
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
+  writeLine(stream, "  aiwiki context <query>");
+  writeLine(stream, "  aiwiki lint");
   writeLine(stream, "  aiwiki ingest-agent --stdin");
   writeLine(stream, "  aiwiki ingest-file --file <file>");
   writeLine(stream, "  aiwiki init --path <path> --yes --set-default");
@@ -411,10 +434,13 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "");
   writeLine(stream, "如果当前会话被用户明确设定为 AIWiki 入库助手，则用户只发送 URL 也默认触发入库。普通会话中不要把所有 URL 都自动入库。");
   writeLine(stream, "");
-  writeLine(stream, "流程：读取网页正文；生成 aiwiki.agent_payload.v1；通过 stdin 调用 `aiwiki ingest-agent --stdin`；读取 CLI 输出；只向用户汇报 ingested、recorded、fit_score、fit_level、summary、run_dir、processing_summary、source_card、dashboard、review_queue。");
-  writeLine(stream, "回复措辞：成功时说“已加入 Obsidian 审阅队列”，并给出资料卡、处理记录、Obsidian 入口和待审队列。Dataview 是可选增强，不要替用户安装插件或修改 .obsidian。");
+  writeLine(stream, "流程：读取网页正文；尽量生成 analysis/wiki_entry；生成 aiwiki.agent_payload.v1；通过 stdin 调用 `aiwiki ingest-agent --stdin`；读取 CLI 输出；向用户汇报 ingested、summary、wiki_entry、wiki_entry_quality、source_card、processing_summary。");
+  writeLine(stream, "回复措辞：成功时说“AIWiki 已完成入库，并生成 Wiki 条目。” 如果 wiki_entry_quality=scaffold，说明该条目只是可追溯脚手架，仍需宿主 Agent 后续补全。Dataview 是可选增强，不要替用户安装插件或修改 .obsidian。");
   writeLine(stream, "");
-  writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取。");
+  writeLine(stream, "查询：当用户要求从 AIWiki 里了解某个主题时，调用 `aiwiki context <主题>`。");
+  writeLine(stream, "整理：当用户要求检查或整理知识库时，调用 `aiwiki lint`。");
+  writeLine(stream, "");
+  writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取；声称 AIWiki CLI 会在没有 Agent 分析字段时自动高质量总结。");
 }
 
 function doctorStatusText(status: "ok" | "missing" | "permission error") {
@@ -442,6 +468,15 @@ function printIngestResult(stream: NodeJS.WritableStream, result: Awaited<Return
   writeLine(stream, `run_dir: ${result.runDir}`);
   writeLine(stream, `files: ${result.generatedFiles.length}`);
   writeLine(stream, `processing_summary: ${result.agentReport.keyFiles.processingSummary}`);
+  if (result.agentReport.keyFiles.wikiEntry) {
+    writeLine(stream, `wiki_entry: ${result.agentReport.keyFiles.wikiEntry}`);
+  }
+  if (result.agentReport.wikiEntryGenerationMode) {
+    writeLine(stream, `wiki_entry_generation_mode: ${result.agentReport.wikiEntryGenerationMode}`);
+  }
+  if (result.agentReport.wikiEntryQuality) {
+    writeLine(stream, `wiki_entry_quality: ${result.agentReport.wikiEntryQuality}`);
+  }
   if (result.agentReport.keyFiles.sourceCard) {
     writeLine(stream, `source_card: ${result.agentReport.keyFiles.sourceCard}`);
   }

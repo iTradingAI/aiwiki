@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import { NormalizedPayload, normalizePayload } from "./payload.js";
 import { appendRunIdBeforeExt, relativePath, safeJoin, slugify } from "./paths.js";
 import { initWorkspace } from "./workspace.js";
+import { renderWikiEntry, WikiEntryMode, WikiEntryQuality } from "./wiki-entry.js";
 
 export type IngestResult = {
   runId: string;
@@ -25,11 +26,14 @@ export type AgentReport = {
   summary: string;
   keyFiles: {
     processingSummary: string;
+    wikiEntry?: string;
     sourceCard?: string;
     draftOutline?: string;
     dashboard: string;
     reviewQueue: string;
   };
+  wikiEntryGenerationMode?: WikiEntryMode;
+  wikiEntryQuality?: WikiEntryQuality;
 };
 
 type ArtifactLinks = {
@@ -38,6 +42,7 @@ type ArtifactLinks = {
   createdAt: string;
   raw: string;
   sourceCard: string;
+  wikiEntry: string;
   claims: string;
   assets: string;
   topics: string;
@@ -48,6 +53,7 @@ type ArtifactLinks = {
 type LongTermTargets = {
   raw: string;
   sourceCard: string;
+  wikiEntry: string;
   claims: string;
   assets: string;
   topics: string;
@@ -83,12 +89,15 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
 
   await writeFile(path.join(runDir, "raw.md"), contentFile(payload, content, links), generatedFiles);
   await writeFile(path.join(runDir, "source-card.md"), sourceCard(payload, runDirName, links), generatedFiles);
+  const wikiEntryResult = renderWikiEntry(payload, links);
+  await writeFile(path.join(runDir, "wiki-entry.md"), wikiEntryResult.markdown, generatedFiles);
   await writeFile(path.join(runDir, "creative-assets.md"), creativeAssets(payload, links), generatedFiles);
   await writeFile(path.join(runDir, "topics.md"), topics(payload, links), generatedFiles);
   await writeFile(path.join(runDir, "draft-outline.md"), outline(payload, links), generatedFiles);
 
   await writeFile(longTermTargets.raw, contentFile(payload, content, links), generatedFiles);
   await writeFile(longTermTargets.sourceCard, sourceCard(payload, runDirName, links), generatedFiles);
+  await writeFile(longTermTargets.wikiEntry, wikiEntryResult.markdown, generatedFiles);
   await writeFile(longTermTargets.claims, claims(payload, links), generatedFiles);
   await writeFile(longTermTargets.assets, creativeAssets(payload, links), generatedFiles);
   await writeFile(longTermTargets.topics, topics(payload, links), generatedFiles);
@@ -131,6 +140,7 @@ async function chooseLongTermTargets(root: string, slug: string, runId: string, 
   return {
     raw: await chooseLongTermTarget(root, "02-raw/articles", `${slug}.md`, runId, warnings),
     sourceCard: await chooseLongTermTarget(root, "03-sources/article-cards", `${slug}.md`, runId, warnings),
+    wikiEntry: await chooseLongTermTarget(root, "05-wiki/source-knowledge", `${slug}.md`, runId, warnings),
     claims: await chooseLongTermTarget(root, "04-claims/_suggestions", `${slug}-claims.md`, runId, warnings),
     assets: await chooseLongTermTarget(root, "06-assets/_suggestions", `${slug}-assets.md`, runId, warnings),
     topics: await chooseLongTermTarget(root, "07-topics/ready", `${slug}-topics.md`, runId, warnings),
@@ -236,6 +246,7 @@ function contentFile(payload: NormalizedPayload, content: string, links: Artifac
     "",
     "## AIWiki 链接",
     "",
+    `- Wiki 条目：${obsidianLink(links.wikiEntry, "Wiki 条目")}`,
     `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
     `- 处理记录：${obsidianLink(links.runSummary, "处理记录")}`,
     "",
@@ -268,6 +279,7 @@ function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLi
     "",
     "## Obsidian 链接",
     "",
+    `- Wiki 条目：${obsidianLink(links.wikiEntry, "Wiki 条目")}`,
     `- 原文：${obsidianLink(links.raw, "原文")}`,
     `- Claim 建议：${obsidianLink(links.claims, "Claim 建议")}`,
     `- 素材建议：${obsidianLink(links.assets, "素材建议")}`,
@@ -301,6 +313,7 @@ function claims(payload: NormalizedPayload, links: ArtifactLinks): string {
     "",
     "# Claim 建议",
     "",
+    `- Wiki 条目：${obsidianLink(links.wikiEntry, "Wiki 条目")}`,
     `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
     `- 原文：${obsidianLink(links.raw, "原文")}`,
     `- 待人工审阅：${payload.source.title ?? "Untitled"}`,
@@ -327,6 +340,7 @@ function creativeAssets(payload: NormalizedPayload, links: ArtifactLinks): strin
     "",
     "# 素材建议",
     "",
+    `- Wiki 条目：${obsidianLink(links.wikiEntry, "Wiki 条目")}`,
     `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
     `- 原文：${obsidianLink(links.raw, "原文")}`,
     `- 可复用素材：${payload.source.title ?? "Untitled"}`,
@@ -353,6 +367,7 @@ function topics(payload: NormalizedPayload, links: ArtifactLinks): string {
     "",
     "# 选题候选",
     "",
+    `- Wiki 条目：${obsidianLink(links.wikiEntry, "Wiki 条目")}`,
     `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
     `- 大纲：${obsidianLink(links.outline, "大纲")}`,
     `- ${payload.source.title ?? "Untitled"}`,
@@ -379,6 +394,7 @@ function outline(payload: NormalizedPayload, links: ArtifactLinks): string {
     "",
     "# 草稿大纲",
     "",
+    `Wiki 条目：${obsidianLink(links.wikiEntry, "Wiki 条目")}`,
     `资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
     `原文：${obsidianLink(links.raw, "原文")}`,
     "",
@@ -409,11 +425,14 @@ function buildAgentReport(root: string, runDir: string, payload: NormalizedPaylo
     summary: fetchFailed ? (payload.source.fetch_notes ?? "宿主 Agent 没有提供可读正文。") : summarizeContent(content),
     keyFiles: {
       processingSummary: relativePath(root, path.join(runDir, "processing-summary.md")),
+      wikiEntry: findGeneratedFileInDir(root, generatedFiles, "05-wiki/source-knowledge"),
       sourceCard: findGeneratedFileInDir(root, generatedFiles, "03-sources/article-cards"),
       draftOutline: findGeneratedFile(root, generatedFiles, "draft-outline.md"),
       dashboard: "dashboards/AIWiki Home.md",
       reviewQueue: "dashboards/Review Queue.md"
-    }
+    },
+    wikiEntryGenerationMode: fetchFailed ? undefined : (payload.wiki_entry || payload.analysis ? "agent_enriched" : "deterministic_fallback"),
+    wikiEntryQuality: fetchFailed ? undefined : (payload.wiki_entry || payload.analysis ? "enriched" : "scaffold")
   };
 }
 
@@ -474,6 +493,7 @@ function buildArtifactLinks(root: string, slug: string, runDirName: string, crea
     createdAt,
     raw: relativePath(root, longTermTargets.raw),
     sourceCard: relativePath(root, longTermTargets.sourceCard),
+    wikiEntry: relativePath(root, longTermTargets.wikiEntry),
     claims: relativePath(root, longTermTargets.claims),
     assets: relativePath(root, longTermTargets.assets),
     topics: relativePath(root, longTermTargets.topics),
@@ -484,6 +504,7 @@ function buildArtifactLinks(root: string, slug: string, runDirName: string, crea
 
 function relationshipFrontmatter(links: ArtifactLinks): string[] {
   return [
+    `wiki_entry: "${escapeYaml(obsidianLink(links.wikiEntry, "Wiki 条目"))}"`,
     `source_card: "${escapeYaml(obsidianLink(links.sourceCard, "资料卡"))}"`,
     `raw_note: "${escapeYaml(obsidianLink(links.raw, "原文"))}"`,
     `claims_note: "${escapeYaml(obsidianLink(links.claims, "Claim 建议"))}"`,
