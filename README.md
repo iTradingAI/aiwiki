@@ -1,4 +1,4 @@
-![AIWiki 宣传图](https://raw.githubusercontent.com/iTradingAI/aiwiki/refs/heads/main/docs/assets/aiwiki-hero.png)
+![AIWiki 宣传图](https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/aiwiki-hero.png)
 
 # AIWiki
 
