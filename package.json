@@ -1,6 +1,6 @@
 {
   "name": "@itradingai/aiwiki",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "type": "module",
   "description": "Agent-first AI knowledge base CLI for turning articles, links and notes into Obsidian-ready source cards, topics, outlines and reusable knowledge assets.",
   "license": "MIT",
