@@ -1,0 +1,45 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "url",
+    "url": "https://example.com/llm-wiki",
+    "title": "LLM Wiki Notes",
+    "content_format": "markdown",
+    "content": "这是一篇关于 LLM Wiki 的文章，讨论了 Agent-first 本地知识库、结构化条目和持续整理。",
+    "fetcher": "host-agent",
+    "fetch_status": "ok",
+    "captured_at": "2026-05-14T10:00:00+08:00",
+    "language": "zh-CN"
+  },
+  "analysis": {
+    "summary": "LLM Wiki 把资料整理成可持续维护的本地知识层。",
+    "key_points": [
+      "Wiki Entry 是入库后的默认知识容器",
+      "宿主 Agent 负责理解原文"
+    ],
+    "reusable_knowledge": [
+      {
+        "title": "Agent-first 边界",
+        "content": "CLI 负责落盘，Agent 负责理解。"
+      }
+    ],
+    "related_concepts": ["LLM Wiki", "Agent-first"],
+    "use_cases": ["研究", "写作"],
+    "topic_candidates": ["为什么 Agent 需要本地 Wiki"],
+    "claims": [
+      {
+        "claim": "高质量知识提炼应由宿主 Agent 提供",
+        "confidence": "high"
+      }
+    ],
+    "outline": {
+      "title": "LLM Wiki 文章大纲",
+      "sections": ["背景", "实现方式"]
+    }
+  },
+  "request": {
+    "mode": "ingest",
+    "outputs": ["source_card", "wiki_entry", "creative_assets", "topics", "draft_outline", "processing_summary"],
+    "language": "zh-CN"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "text",
+    "title": "Agent Enriched Entry",
+    "content_format": "markdown",
+    "content": "宿主 Agent 已经读取并理解了这段文本，因此会提供完整 Wiki Entry。",
+    "fetcher": "host-agent",
+    "fetch_status": "ok",
+    "captured_at": "2026-05-14T11:00:00+08:00",
+    "language": "zh-CN"
+  },
+  "wiki_entry": {
+    "title": "Agent Enriched Entry",
+    "summary": "宿主 Agent 提供了完整条目。",
+    "sections": [
+      {
+        "heading": "核心观点",
+        "items": ["完整 Wiki Entry 可以由宿主 Agent 传入"]
+      }
+    ],
+    "markdown": "## Agent 生成正文\n\n这段正文由宿主 Agent 提供，AIWiki 只负责落盘和追踪。"
+  },
+  "request": {
+    "mode": "ingest",
+    "outputs": ["source_card", "wiki_entry", "processing_summary"],
+    "language": "zh-CN"
+  }
+}

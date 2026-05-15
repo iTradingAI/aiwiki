@@ -14,6 +14,24 @@ test("normalizes valid payload", async () => {
   assert.equal(payload.source.fetch_status, "ok");
   assert.equal(payload.source.content?.includes("AI Agent"), true);
   assert.equal(payload.request.mode, "ingest");
+  assert.equal(payload.request.outputs.includes("wiki_entry"), true);
+  assert.equal(payload.analysis, undefined);
+  assert.equal(payload.wiki_entry, undefined);
+});
+
+test("normalizes optional analysis payload", async () => {
+  const payload = normalizePayload(await readFixture("agent_payload.analysis.valid.json"), "2026-05-14T00:00:00.000Z");
+  assert.equal(payload.analysis?.summary, "LLM Wiki 把资料整理成可持续维护的本地知识层。");
+  assert.equal(payload.analysis?.key_points.length, 2);
+  assert.equal(payload.analysis?.reusable_knowledge[0]?.title, "Agent-first 边界");
+  assert.equal(payload.analysis?.claims[0]?.confidence, "high");
+});
+
+test("normalizes optional wiki_entry payload", async () => {
+  const payload = normalizePayload(await readFixture("agent_payload.wiki_entry.valid.json"), "2026-05-14T00:00:00.000Z");
+  assert.equal(payload.wiki_entry?.title, "Agent Enriched Entry");
+  assert.match(payload.wiki_entry?.markdown ?? "", /Agent 生成正文/);
+  assert.equal(payload.wiki_entry?.sections[0]?.heading, "核心观点");
 });
 
 test("normalizes legacy metadata payload", async () => {

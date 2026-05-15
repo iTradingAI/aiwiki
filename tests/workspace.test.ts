@@ -11,7 +11,7 @@ test("init creates layout and keeps existing config", async () => {
   try {
     const first = await initWorkspace(root);
     assert.equal(first.createdConfig, true);
-    assert.equal(first.createdDirs.length, 12);
+    assert.equal(first.createdDirs.length, 13);
     assert.equal(first.seededFiles.filter((file) => file.created).length, 7);
 
     const configPath = path.join(root, "aiwiki.yaml");

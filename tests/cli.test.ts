@@ -18,6 +18,8 @@ test("help exposes only base commands", async () => {
   assert.match(text, /aiwiki agent list/);
   assert.match(text, /aiwiki agent install/);
   assert.match(text, /aiwiki prompt agent/);
+  assert.match(text, /aiwiki context <query>/);
+  assert.match(text, /aiwiki lint/);
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
   assert.equal(stderr.text(), "");
@@ -32,7 +34,9 @@ test("prompt agent prints neutral Agent handoff instructions", async () => {
   assert.match(text, /入库 <url>/);
   assert.match(text, /aiwiki ingest-agent --stdin/);
   assert.match(text, /普通会话中不要把所有 URL 都自动入库/);
-  assert.match(text, /已加入 Obsidian 审阅队列/);
+  assert.match(text, /AIWiki 已完成入库，并生成 Wiki 条目/);
+  assert.match(text, /aiwiki context/);
+  assert.match(text, /aiwiki lint/);
   assert.match(text, /Dataview 是可选增强/);
   assert.doesNotMatch(text, /qclaw/i);
   assert.equal(stderr.text(), "");
@@ -182,8 +186,9 @@ test("CLI agent install writes Claude prompt command", async () => {
     const installed = await readFile(target, "utf8");
     assert.match(installed, /AIWiki Agent 对接说明/);
     assert.match(installed, /aiwiki ingest-agent --stdin/);
-    assert.match(installed, /dashboard/);
-    assert.match(installed, /review_queue/);
+    assert.match(installed, /wiki_entry/);
+    assert.match(installed, /aiwiki context/);
+    assert.match(installed, /aiwiki lint/);
     assert.match(installed, /不要替用户安装 Dataview/);
     assert.match(installed, /不要修改 `\.obsidian`/);
   } finally {
@@ -282,6 +287,10 @@ test("CLI ingest-agent payload and ingest-url boundary", async () => {
     assert.match(out.text(), /summary:/);
     assert.match(out.text(), /run_id:/);
     assert.match(out.text(), /processing_summary:/);
+    assert.match(out.text(), /wiki_entry:/);
+    assert.match(out.text(), /wiki_entry: 05-wiki\/source-knowledge\/ai-agent-workflow-notes\.md/);
+    assert.match(out.text(), /wiki_entry_generation_mode: deterministic_fallback/);
+    assert.match(out.text(), /wiki_entry_quality: scaffold/);
     assert.match(out.text(), /source_card:/);
     assert.match(out.text(), /source_card: 03-sources\/article-cards\/ai-agent-workflow-notes\.md/);
     assert.match(out.text(), /draft_outline:/);
@@ -314,10 +323,50 @@ test("CLI ingest-agent reports fetch failure without claiming ingestion success"
     assert.match(out.text(), /fit_score: 0/);
     assert.match(out.text(), /fit_level: fetch_failed/);
     assert.match(out.text(), /processing_summary:/);
+    assert.doesNotMatch(out.text(), /wiki_entry:/);
     assert.doesNotMatch(out.text(), /source_card:/);
     assert.match(out.text(), /dashboard: dashboards\/AIWiki Home\.md/);
     assert.match(out.text(), /review_queue: dashboards\/Review Queue\.md/);
     assert.equal(err.text(), "");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI context returns JSON matches with wiki quality", async () => {
+  const root = await tempRoot("aiwiki-cli-context");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const out = new MemoryWritable();
+    assert.equal(await runCli(["context", "AI Agent", "--path", root], { stdout: out, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(out.text()) as {
+      schema_version: string;
+      matches: {
+        wiki_entries: Array<{ path: string; quality: string; warnings: string[] }>;
+        raw_refs: unknown[];
+      };
+    };
+    assert.equal(parsed.schema_version, "aiwiki.context.v1");
+    assert.equal(parsed.matches.wiki_entries[0]?.path, "05-wiki/source-knowledge/ai-agent-workflow-notes.md");
+    assert.equal(parsed.matches.wiki_entries[0]?.quality, "scaffold");
+    assert.match(parsed.matches.wiki_entries[0]?.warnings.join("\n") ?? "", /deterministic fallback/);
+    assert.equal(parsed.matches.raw_refs.length, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI lint writes dashboard report", async () => {
+  const root = await tempRoot("aiwiki-cli-lint");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const out = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--path", root], { stdout: out, stderr: new MemoryWritable() }), 0);
+    assert.match(out.text(), /AIWiki Lint Report/);
+    assert.match(out.text(), /report: dashboards\/Lint Report\.md/);
+    assert.match(await readFile(path.join(root, "dashboards", "Lint Report.md"), "utf8"), /deterministic fallback/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

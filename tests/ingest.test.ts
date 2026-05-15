@@ -26,11 +26,14 @@ test("ingests agent payload into run and long-term files", async () => {
       "processing-summary.md",
       "raw.md",
       "source-card.md",
+      "wiki-entry.md",
       "topics.md"
     ].sort());
 
     await stat(path.join(root, "03-sources", "article-cards", "ai-agent-workflow-notes.md"));
+    await stat(path.join(root, "05-wiki", "source-knowledge", "ai-agent-workflow-notes.md"));
     await assertSourceCardFrontmatter(path.join(result.runDir, "source-card.md"));
+    await assertFallbackWikiEntry(path.join(root, "05-wiki", "source-knowledge", "ai-agent-workflow-notes.md"));
     await assertSummaryContains(path.join(result.runDir, "processing-summary.md"));
     await assertObsidianLinks(root, result.runDir);
   } finally {
@@ -109,6 +112,38 @@ test("ingest file uses the file title instead of content headings", async () => 
   }
 });
 
+test("ingests analysis into enriched wiki entry", async () => {
+  const root = await tempRoot("aiwiki-enriched");
+  try {
+    const result = await ingestPayload(root, await readFixture("agent_payload.analysis.valid.json"));
+    const wikiEntry = await readFile(path.join(root, "05-wiki", "source-knowledge", "llm-wiki-notes.md"), "utf8");
+    assert.match(wikiEntry, /^generation_mode: "agent_enriched"$/m);
+    assert.match(wikiEntry, /^quality: "enriched"$/m);
+    assert.match(wikiEntry, /LLM Wiki 把资料整理成可持续维护的本地知识层/);
+    assert.match(wikiEntry, /Wiki Entry 是入库后的默认知识容器/);
+    assert.equal(result.agentReport.wikiEntryQuality, "enriched");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("preserves wiki_entry summary and sections when markdown is provided", async () => {
+  const root = await tempRoot("aiwiki-wiki-entry-markdown");
+  try {
+    const result = await ingestPayload(root, await readFixture("agent_payload.wiki_entry.valid.json"));
+    const wikiEntry = await readFile(path.join(root, "05-wiki", "source-knowledge", "agent-enriched-entry.md"), "utf8");
+    assert.match(wikiEntry, /^summary: "宿主 Agent 提供了完整条目。"$/m);
+    assert.match(wikiEntry, /## 一句话总结/);
+    assert.match(wikiEntry, /宿主 Agent 提供了完整条目。/);
+    assert.match(wikiEntry, /## Agent 生成正文/);
+    assert.match(wikiEntry, /## 核心观点/);
+    assert.match(wikiEntry, /完整 Wiki Entry 可以由宿主 Agent 传入/);
+    assert.equal(result.agentReport.wikiEntryQuality, "enriched");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 async function assertGeneratedFilesExist(files: string[]) {
   for (const file of files) {
     await stat(file);
@@ -133,6 +168,15 @@ async function assertSourceCardFrontmatter(file: string) {
   }
 }
 
+async function assertFallbackWikiEntry(file: string) {
+  const text = await readFile(file, "utf8");
+  assert.match(text, /^type: "wiki_entry"$/m);
+  assert.match(text, /^generation_mode: "deterministic_fallback"$/m);
+  assert.match(text, /^quality: "scaffold"$/m);
+  assert.match(text, /未经过宿主 Agent 的深度分析/);
+  assert.doesNotMatch(text, /## 核心观点/);
+}
+
 async function assertSummaryContains(file: string) {
   const expected = await readFile(fixturePath("expected", "processing_summary_contains.txt"), "utf8");
   const text = (await readFile(file, "utf8")).toLowerCase();
@@ -143,12 +187,14 @@ async function assertSummaryContains(file: string) {
 
 async function assertObsidianLinks(root: string, runDir: string) {
   const sourceCard = await readFile(path.join(root, "03-sources", "article-cards", "ai-agent-workflow-notes.md"), "utf8");
+  assert.match(sourceCard, /\[\[05-wiki\/source-knowledge\/ai-agent-workflow-notes\|Wiki 条目\]\]/);
   assert.match(sourceCard, /\[\[02-raw\/articles\/ai-agent-workflow-notes\|原文\]\]/);
   assert.match(sourceCard, /\[\[04-claims\/_suggestions\/ai-agent-workflow-notes-claims\|Claim 建议\]\]/);
   assert.match(sourceCard, /\[\[08-outputs\/outlines\/ai-agent-workflow-notes-outline\|大纲\]\]/);
   assert.match(sourceCard, /^aiwiki_id: "ai-agent-workflow-notes:source-card"$/m);
   assert.match(sourceCard, /^slug: "ai-agent-workflow-notes"$/m);
   assert.match(sourceCard, /^source_card: "\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|资料卡\]\]"$/m);
+  assert.match(sourceCard, /^wiki_entry: "\[\[05-wiki\/source-knowledge\/ai-agent-workflow-notes\|Wiki 条目\]\]"$/m);
   assert.match(sourceCard, /^run_summary: "\[\[09-runs\/.+\/processing-summary\|处理记录\]\]"$/m);
 
   const claims = await readFile(path.join(root, "04-claims", "_suggestions", "ai-agent-workflow-notes-claims.md"), "utf8");
@@ -156,12 +202,14 @@ async function assertObsidianLinks(root: string, runDir: string) {
   assert.match(claims, /^raw_note: "\[\[02-raw\/articles\/ai-agent-workflow-notes\|原文\]\]"$/m);
 
   const raw = await readFile(path.join(root, "02-raw", "articles", "ai-agent-workflow-notes.md"), "utf8");
+  assert.match(raw, /\[\[05-wiki\/source-knowledge\/ai-agent-workflow-notes\|Wiki 条目\]\]/);
   assert.match(raw, /\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|资料卡\]\]/);
   assert.match(raw, /^type: "raw_article"$/m);
 
   const summary = await readFile(path.join(runDir, "processing-summary.md"), "utf8");
   assert.match(summary, /^type: "processing_summary"$/m);
   assert.match(summary, /^status: "to-review"$/m);
+  assert.match(summary, /\[\[05-wiki\/source-knowledge\/ai-agent-workflow-notes\|ai-agent-workflow-notes\]\]/);
   assert.match(summary, /\[\[09-runs\/.+\/source-card\|source-card\]\]/);
   assert.match(summary, /\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|ai-agent-workflow-notes\]\]/);
 }
