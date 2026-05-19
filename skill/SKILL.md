@@ -74,7 +74,9 @@ Because AIWiki CLI does not call an LLM, high-quality summary and knowledge extr
     "content": "Article body read by the host Agent.",
     "fetcher": "host-agent",
     "fetch_status": "ok",
-    "captured_at": "2026-05-07T10:00:00+08:00"
+    "captured_at": "2026-05-07T10:00:00+08:00",
+    "source_role": "input",
+    "represents_user_view": false
   },
   "analysis": {
     "summary": "One-sentence summary.",
@@ -130,6 +132,14 @@ aiwiki context "<topic>"
 
 Use the returned JSON to answer. Prefer Wiki Entries first. Do not scan `02-raw` by default unless the Wiki result is insufficient, the user asks to verify the original text, or sources conflict.
 
+For direct human terminal output, use:
+
+```bash
+aiwiki query "<topic>"
+```
+
+`query` renders the same retrieval basis as `context`; do not treat it as a separate search system.
+
 ## Lint Protocol
 
 When the user asks to整理 / 检查 / lint the knowledge base, call:
@@ -139,6 +149,17 @@ aiwiki lint
 ```
 
 Explain warnings and errors as structure-health feedback. Do not frame lint as a requirement that the user manually review every item.
+
+## Source Role
+
+Use the default source role for external material:
+
+```json
+"source_role": "input",
+"represents_user_view": false
+```
+
+Only use `source_role: "output"` with `represents_user_view: true` when the user is importing their own published writing, talk transcript, newsletter, or similar authored output. Do not mark external material as the user's view.
 
 ## Obsidian + Dataview Boundary
 

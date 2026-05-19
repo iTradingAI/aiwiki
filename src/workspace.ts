@@ -55,9 +55,12 @@ AIWiki 的 Obsidian 入口。Dataview 是可选增强；未安装时仍可使用
 
 ## 原生链接入口
 
+- [[dashboards/Wiki Entries|Wiki 条目]]
+- [[dashboards/Source Cards|资料卡]]
 - [[dashboards/Review Queue|待审队列]]
 - [[dashboards/Recent Runs|最近处理]]
 - [[dashboards/Topic Pipeline|选题管线]]
+- [[dashboards/Lint Report|结构检查]]
 - [[_system/schemas/aiwiki-frontmatter|字段说明]]
 
 ## 最近收录
@@ -76,6 +79,34 @@ TABLE type, status, source_card, raw_note, run_summary
 FROM "03-sources/article-cards" or "04-claims/_suggestions" or "06-assets/_suggestions" or "08-outputs/outlines"
 WHERE status = "to-review"
 SORT created_at DESC
+\`\`\`
+`
+  },
+  {
+    path: "dashboards/Wiki Entries.md",
+    content: `# Wiki 条目
+
+AIWiki 每次成功入库都会生成 Wiki Entry。这里是知识层入口，不要求先经过 Review Queue 才能查询。
+
+\`\`\`dataview
+TABLE wiki_type, source_role, represents_user_view, quality, source_card, raw_file, updated_at
+FROM "05-wiki"
+WHERE type = "wiki_entry"
+SORT updated_at DESC
+\`\`\`
+`
+  },
+  {
+    path: "dashboards/Source Cards.md",
+    content: `# 资料卡
+
+资料卡用于追踪来源、原文、Claim 建议、素材建议、选题和大纲。
+
+\`\`\`dataview
+TABLE status, source_url, wiki_entry, raw_note, captured_at
+FROM "03-sources/article-cards"
+WHERE type = "source_card"
+SORT captured_at DESC
 \`\`\`
 `
   },

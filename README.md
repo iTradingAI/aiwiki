@@ -30,9 +30,10 @@ AIWiki 是一个开源的 Agent-first 本地 LLM-wiki CLI。
 
 ```bash
 aiwiki context "AI Agent 出海机会"
+aiwiki query "AI Agent 出海机会"
 ```
 
-`context` 返回 JSON，主要给宿主 Agent 用。第一版是本地关键词检索，不是向量检索。
+`context` 返回 JSON，主要给宿主 Agent 用；`query` 使用同一套检索结果，输出给人看的摘要。第一版是本地关键词检索，不是向量检索。
 
 ### Lint：检查知识库结构
 
@@ -71,6 +72,7 @@ aiwiki agent install
 ```bash
 aiwiki agent list
 aiwiki agent install
+aiwiki agent check
 ```
 
 也可以直接输出通用协议：
@@ -103,6 +105,12 @@ aiwiki prompt agent
 aiwiki context "xxx"
 ```
 
+人直接查询时可以运行：
+
+```bash
+aiwiki query "xxx"
+```
+
 ## AIWiki 会生成什么
 
 成功入库会生成：
@@ -131,6 +139,8 @@ generation_mode: "agent_enriched"
 quality: "enriched"
 generated_by: "host_agent"
 llm_enriched: true
+source_role: "input"
+represents_user_view: false
 ```
 
 ### Deterministic Fallback Wiki Entry
@@ -144,6 +154,8 @@ generation_mode: "deterministic_fallback"
 quality: "scaffold"
 generated_by: "aiwiki_cli"
 llm_enriched: false
+source_role: "input"
+represents_user_view: false
 ```
 
 AIWiki CLI 本身不调用 LLM，所以不会在没有 Agent 分析字段时承诺高质量提炼。
@@ -156,7 +168,7 @@ AIWiki 做：
 - 写入本地 Markdown。
 - 生成 frontmatter、wikilink、处理记录。
 - 生成 Wiki Entry 容器。
-- 支持 `context` 和 `lint`。
+- 支持 `context`、`query`、`next` 和 `lint`。
 
 AIWiki 不做：
 
@@ -195,7 +207,7 @@ Review Queue 可以保留为回看入口，但不是 AIWiki 的主流程。
 
 ### 什么内容才代表我的观点？
 
-后续 `source_role=output` 会用于标记用户已发布文章、演讲稿、公众号文章等个人输出。本阶段外部资料默认是 `source_role: input`、`represents_user_view: false`。
+`source_role=output` 用于标记用户已发布文章、演讲稿、公众号文章等个人输出，并可配合 `represents_user_view: true`。外部资料默认是 `source_role: input`、`represents_user_view: false`。
 
 ### Dataview 必须安装吗？
 
@@ -227,6 +239,8 @@ aiwiki setup --path "F:\knowledge_data\aiwiki-test" --yes
 aiwiki doctor
 aiwiki ingest-agent --payload tests/fixtures/agent_payload.url.valid.json --path "F:\knowledge_data\aiwiki-test"
 aiwiki context "AI Agent" --path "F:\knowledge_data\aiwiki-test"
+aiwiki query "AI Agent" --path "F:\knowledge_data\aiwiki-test"
+aiwiki next --path "F:\knowledge_data\aiwiki-test"
 aiwiki lint --path "F:\knowledge_data\aiwiki-test"
 ```
 
