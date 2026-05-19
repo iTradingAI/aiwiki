@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmatter.js";
+import { frontmatterArray, frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmatter.js";
 import { relativePath, safeJoin } from "./paths.js";
 import { exists } from "./workspace.js";
 
@@ -87,8 +87,17 @@ export async function lintWorkspace(rootPath: string, now = new Date().toISOStri
         issues.push({ severity: "warning", path: entry.path, message: "agent_enriched Wiki Entry 缺少 key_points。", suggestion: "让宿主 Agent 提供 analysis.key_points。" });
       }
     }
-    if (frontmatterBoolean(entry.frontmatter, "represents_user_view") === true && frontmatterString(entry.frontmatter, "source_role") === "input") {
-      issues.push({ severity: "warning", path: entry.path, message: "外部 input 被标记为代表用户观点。", suggestion: "将 represents_user_view 改为 false，或在 P1 使用 source_role=output。" });
+    if (frontmatterBoolean(entry.frontmatter, "grounding_needs_review") === true) {
+      const markers = frontmatterArray(entry.frontmatter, "grounding_markers");
+      issues.push({
+        severity: "warning",
+        path: entry.path,
+        message: `Wiki Entry 需要 grounding 复核${markers.length ? `: ${markers.join(", ")}` : "。"}`,
+        suggestion: "检查 source_quote 是否能在 Raw 中找到；coverage_suspected_incomplete 仅代表启发式疑似风险。"
+      });
+    }
+    if (frontmatterBoolean(entry.frontmatter, "represents_user_view") === true && frontmatterString(entry.frontmatter, "source_role") !== "output") {
+      issues.push({ severity: "warning", path: entry.path, message: "只有 output 角色应标记为代表用户观点。", suggestion: "将 represents_user_view 改为 false，或将 source_role 改为 output。" });
     }
   }
 

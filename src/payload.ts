@@ -5,6 +5,8 @@ export type NormalizedPayload = {
   target_kb?: string;
   source: {
     kind: string;
+    source_role: SourceRole;
+    represents_user_view: boolean;
     url?: string;
     title?: string;
     author?: string;
@@ -29,10 +31,12 @@ export type NormalizedPayload = {
 
 type RawRecord = Record<string, unknown>;
 
+export type SourceRole = "input" | "processing" | "output";
+
 export type PayloadAnalysis = {
   summary?: string;
   key_points: string[];
-  reusable_knowledge: Array<{ title?: string; content: string }>;
+  reusable_knowledge: Array<{ title?: string; content: string; source_quote?: string }>;
   related_concepts: string[];
   use_cases: string[];
   topic_candidates: string[];
@@ -91,6 +95,8 @@ export function normalizePayload(raw: unknown, runStartedAt: string): Normalized
   if (!kind) {
     throw new Error("source.kind is required");
   }
+  const sourceRole = normalizeSourceRole(stringValue(sourceRaw.source_role) ?? stringValue(sourceRaw.role), warnings);
+  const representsUserView = booleanValue(sourceRaw.represents_user_view) ?? sourceRole === "output";
 
   const requestRaw = isRecord(raw.request) ? raw.request : {};
   const requestedOutputs = Array.isArray(requestRaw.outputs)
@@ -126,6 +132,8 @@ export function normalizePayload(raw: unknown, runStartedAt: string): Normalized
     target_kb: stringValue(raw.target_kb),
     source: {
       kind,
+      source_role: sourceRole,
+      represents_user_view: representsUserView,
       url: stringValue(sourceRaw.url),
       title: titleRepair.value,
       author: stringValue(sourceRaw.author),
@@ -147,6 +155,17 @@ export function normalizePayload(raw: unknown, runStartedAt: string): Normalized
     wiki_entry: wikiEntry,
     warnings
   };
+}
+
+function normalizeSourceRole(value: string | undefined, warnings: string[]): SourceRole {
+  if (!value) {
+    return "input";
+  }
+  if (value === "input" || value === "processing" || value === "output") {
+    return value;
+  }
+  warnings.push(`source_role 已忽略：${value} 不是 input、processing 或 output。`);
+  return "input";
 }
 
 function normalizeFetchStatus(value: string | undefined, content: string | undefined): "ok" | "failed" {
@@ -173,6 +192,10 @@ function rejectWriteControlFields(raw: RawRecord): void {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+function booleanValue(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function isRecord(value: unknown): value is RawRecord {
@@ -245,7 +268,7 @@ function reusableKnowledgeArray(value: unknown, warnings: string[]): PayloadAnal
       return [{ content: item.trim() }];
     }
     if (isRecord(item) && typeof item.content === "string" && item.content.trim()) {
-      return [{ title: stringValue(item.title), content: item.content.trim() }];
+      return [{ title: stringValue(item.title), content: item.content.trim(), source_quote: stringValue(item.source_quote) }];
     }
     return [];
   });

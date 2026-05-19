@@ -4,6 +4,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { ingestFile, ingestPayload } from "../src/ingest.js";
+import { lintWorkspace } from "../src/lint.js";
 import { fixturePath, tempRoot } from "./helpers.js";
 
 async function readFixture(name: string) {
@@ -124,6 +125,189 @@ test("ingests analysis into enriched wiki entry", async () => {
     assert.equal(result.agentReport.wikiEntryQuality, "enriched");
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("records grounding review without moving enrichment into source cards", async () => {
+  const root = await tempRoot("aiwiki-grounding-review");
+  try {
+    const result = await ingestPayload(root, await readFixture("agent_payload.analysis.valid.json"));
+    const wikiEntry = await readFile(path.join(root, "05-wiki", "source-knowledge", "llm-wiki-notes.md"), "utf8");
+    const sourceCard = await readFile(path.join(root, "03-sources", "article-cards", "llm-wiki-notes.md"), "utf8");
+    const claims = await readFile(path.join(root, "04-claims", "_suggestions", "llm-wiki-notes-claims.md"), "utf8");
+    const summary = await readFile(path.join(result.runDir, "processing-summary.md"), "utf8");
+
+    assert.match(wikiEntry, /^grounding_needs_review: true$/m);
+    assert.match(wikiEntry, /^grounding_markers: \["unsupported_claims"\]$/m);
+    assert.match(wikiEntry, /## Grounding 复核/);
+    assert.match(claims, /evidence_status: needs_review/);
+    assert.match(summary, /unsupported_claims/);
+    assert.match(sourceCard, /## 摘要/);
+    assert.match(sourceCard, /## Grounding 状态/);
+    assert.doesNotMatch(sourceCard, /## 核心观点/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("records host supplied evidence as grounding without review markers", async () => {
+  const root = await tempRoot("aiwiki-grounded-evidence");
+  try {
+    const result = await ingestPayload(root, await readFixture("agent_payload.analysis.grounded.json"));
+    const wikiEntry = await readFile(path.join(root, "05-wiki", "source-knowledge", "grounded-notes.md"), "utf8");
+    const claims = await readFile(path.join(root, "04-claims", "_suggestions", "grounded-notes-claims.md"), "utf8");
+
+    assert.match(wikiEntry, /^grounding_evidence_available: true$/m);
+    assert.match(wikiEntry, /^grounding_evidence_channel: "host_supplied"$/m);
+    assert.match(wikiEntry, /^grounding_needs_review: false$/m);
+    assert.doesNotMatch(wikiEntry, /## Grounding 复核/);
+    assert.match(claims, /evidence_status: host_quote_found/);
+    assert.equal(result.agentReport.grounding.evidence_available, true);
+    assert.equal(result.agentReport.grounding.needs_review, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("counts reusable knowledge source quotes as host supplied evidence", async () => {
+  const root = await tempRoot("aiwiki-reusable-grounding");
+  try {
+    await ingestPayload(root, {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "Reusable Quote Only",
+        content_format: "markdown",
+        content: "CLI 负责落盘，Agent 负责理解。这个边界能降低入库时的漂移风险。",
+        fetch_status: "ok",
+        captured_at: "2026-05-19T00:00:00.000Z"
+      },
+      analysis: {
+        summary: "AIWiki 通过职责边界降低漂移。",
+        key_points: ["职责边界能降低入库时的漂移风险。"],
+        reusable_knowledge: [
+          {
+            title: "Agent-first 边界",
+            content: "理解与落盘分工。",
+            source_quote: "CLI 负责落盘，Agent 负责理解。"
+          }
+        ],
+        claims: []
+      },
+      request: { mode: "ingest", outputs: ["wiki_entry"], language: "zh-CN" }
+    });
+
+    const wikiEntry = await readFile(path.join(root, "05-wiki", "source-knowledge", "reusable-quote-only.md"), "utf8");
+    assert.match(wikiEntry, /^grounding_evidence_available: true$/m);
+    assert.match(wikiEntry, /^grounding_evidence_channel: "host_supplied"$/m);
+    assert.match(wikiEntry, /^grounding_needs_review: false$/m);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("marks sparse analysis coverage as heuristic suspicion only", async () => {
+  const root = await tempRoot("aiwiki-grounding-sparse");
+  try {
+    const longContent = Array.from({ length: 80 }, (_, index) => `段落${index} 这是一段关于 Agent 工作流、资料整理、证据边界和复核策略的正文。`).join("\n");
+    const result = await ingestPayload(root, {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "Sparse Long Article",
+        content_format: "markdown",
+        content: longContent,
+        fetch_status: "ok",
+        captured_at: "2026-05-19T00:00:00.000Z"
+      },
+      analysis: {
+        summary: "这是一篇长文。",
+        key_points: ["只提取了一个点。"]
+      },
+      request: { mode: "ingest", outputs: ["wiki_entry"], language: "zh-CN" }
+    });
+
+    const wikiEntry = await readFile(path.join(root, "05-wiki", "source-knowledge", "sparse-long-article.md"), "utf8");
+    const summary = await readFile(path.join(result.runDir, "processing-summary.md"), "utf8");
+    assert.match(wikiEntry, /^coverage_suspected_incomplete: true$/m);
+    assert.match(wikiEntry, /coverage_suspected_incomplete/);
+    assert.match(summary, /coverage_suspected_incomplete/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("renders source role frontmatter for user-authored output", async () => {
+  const root = await tempRoot("aiwiki-source-role-output");
+  try {
+    await ingestPayload(root, {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "My Published Essay",
+        source_role: "output",
+        represents_user_view: true,
+        content_format: "markdown",
+        content: "This is a user-authored published essay.",
+        fetch_status: "ok",
+        captured_at: "2026-05-19T00:00:00.000Z"
+      },
+      request: {
+        mode: "ingest",
+        outputs: ["wiki_entry"],
+        language: "zh-CN"
+      }
+    });
+
+    const wikiEntry = await readFile(path.join(root, "05-wiki", "source-knowledge", "my-published-essay.md"), "utf8");
+    assert.match(wikiEntry, /^source_role: "output"$/m);
+    assert.match(wikiEntry, /^represents_user_view: true$/m);
+    assert.match(wikiEntry, /^wiki_type: "personal_knowledge"$/m);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("lint accepts output user-view entries and warns on non-output user-view entries", async () => {
+  const validRoot = await tempRoot("aiwiki-lint-output-user-view");
+  const invalidRoot = await tempRoot("aiwiki-lint-input-user-view");
+  try {
+    await ingestPayload(validRoot, {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "My Published Essay",
+        source_role: "output",
+        represents_user_view: true,
+        content_format: "markdown",
+        content: "This is a user-authored published essay.",
+        fetch_status: "ok",
+        captured_at: "2026-05-19T00:00:00.000Z"
+      },
+      request: { mode: "ingest", outputs: ["wiki_entry"], language: "zh-CN" }
+    });
+    const validReport = await lintWorkspace(validRoot, "2026-05-19T00:00:00.000Z");
+    assert.equal(validReport.issues.some((issue) => issue.message.includes("只有 output")), false);
+
+    await ingestPayload(invalidRoot, {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "External Article",
+        source_role: "input",
+        represents_user_view: true,
+        content_format: "markdown",
+        content: "This external article should not represent the user's view.",
+        fetch_status: "ok",
+        captured_at: "2026-05-19T00:00:00.000Z"
+      },
+      request: { mode: "ingest", outputs: ["wiki_entry"], language: "zh-CN" }
+    });
+    const invalidReport = await lintWorkspace(invalidRoot, "2026-05-19T00:00:00.000Z");
+    assert.equal(invalidReport.issues.some((issue) => issue.message.includes("只有 output")), true);
+  } finally {
+    await rm(validRoot, { recursive: true, force: true });
+    await rm(invalidRoot, { recursive: true, force: true });
   }
 });
 

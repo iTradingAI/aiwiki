@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomBytes } from "node:crypto";
 
 import { NormalizedPayload, normalizePayload } from "./payload.js";
+import { buildGroundingReport, groundingFrontmatterLines, groundingWarnings, GroundingReport } from "./grounding.js";
 import { appendRunIdBeforeExt, relativePath, safeJoin, slugify } from "./paths.js";
 import { initWorkspace } from "./workspace.js";
 import { renderWikiEntry, WikiEntryMode, WikiEntryQuality } from "./wiki-entry.js";
@@ -34,6 +35,7 @@ export type AgentReport = {
   };
   wikiEntryGenerationMode?: WikiEntryMode;
   wikiEntryQuality?: WikiEntryQuality;
+  grounding: GroundingReport;
 };
 
 type ArtifactLinks = {
@@ -74,10 +76,11 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
   await writeFile(path.join(runDir, "payload.json"), `${JSON.stringify(payload, null, 2)}\n`, generatedFiles);
 
   if (payload.source.fetch_status === "failed") {
+    const grounding = buildGroundingReport(payload);
     await writeSummary(root, runDir, payload, generatedFiles, [
       ...payload.warnings,
       "宿主 Agent 未能提供正文，AIWiki CLI 没有自行抓取网页。"
-    ]);
+    ], undefined, grounding);
     return { runId: runDirName, runDir, generatedFiles, warnings: payload.warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
   }
 
@@ -86,9 +89,10 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
   const collisionWarnings: string[] = [];
   const longTermTargets = await chooseLongTermTargets(root, slug, runId, collisionWarnings);
   const links = buildArtifactLinks(root, slug, runDirName, runStartedAt, longTermTargets);
+  const grounding = buildGroundingReport(payload);
 
   await writeFile(path.join(runDir, "raw.md"), contentFile(payload, content, links), generatedFiles);
-  await writeFile(path.join(runDir, "source-card.md"), sourceCard(payload, runDirName, links), generatedFiles);
+  await writeFile(path.join(runDir, "source-card.md"), sourceCard(payload, runDirName, links, grounding), generatedFiles);
   const wikiEntryResult = renderWikiEntry(payload, links);
   await writeFile(path.join(runDir, "wiki-entry.md"), wikiEntryResult.markdown, generatedFiles);
   await writeFile(path.join(runDir, "creative-assets.md"), creativeAssets(payload, links), generatedFiles);
@@ -96,15 +100,15 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
   await writeFile(path.join(runDir, "draft-outline.md"), outline(payload, links), generatedFiles);
 
   await writeFile(longTermTargets.raw, contentFile(payload, content, links), generatedFiles);
-  await writeFile(longTermTargets.sourceCard, sourceCard(payload, runDirName, links), generatedFiles);
+  await writeFile(longTermTargets.sourceCard, sourceCard(payload, runDirName, links, grounding), generatedFiles);
   await writeFile(longTermTargets.wikiEntry, wikiEntryResult.markdown, generatedFiles);
-  await writeFile(longTermTargets.claims, claims(payload, links), generatedFiles);
+  await writeFile(longTermTargets.claims, claims(payload, links, grounding), generatedFiles);
   await writeFile(longTermTargets.assets, creativeAssets(payload, links), generatedFiles);
   await writeFile(longTermTargets.topics, topics(payload, links), generatedFiles);
   await writeFile(longTermTargets.outline, outline(payload, links), generatedFiles);
 
-  const warnings = [...payload.warnings, ...collisionWarnings];
-  await writeSummary(root, runDir, payload, generatedFiles, warnings, links);
+  const warnings = [...payload.warnings, ...groundingWarnings(grounding), ...collisionWarnings];
+  await writeSummary(root, runDir, payload, generatedFiles, warnings, links, grounding);
   return { runId, runDir, generatedFiles, warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
 }
 
@@ -182,7 +186,8 @@ async function writeSummary(
   payload: NormalizedPayload,
   generatedFiles: string[],
   warnings: string[],
-  links?: ArtifactLinks
+  links?: ArtifactLinks,
+  grounding = buildGroundingReport(payload)
 ) {
   const summaryPath = path.join(runDir, "processing-summary.md");
   const files = [...generatedFiles, summaryPath];
@@ -202,6 +207,7 @@ async function writeSummary(
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(runId)}"`,
     ...(links ? relationshipFrontmatter(links) : []),
+    ...groundingFrontmatterLines(grounding),
     `tags: ["aiwiki/run"]`,
     "---",
     "",
@@ -216,6 +222,13 @@ async function writeSummary(
     "",
     "告警：",
     ...(warnings.length ? warnings.map((warning) => `- ${warning}`) : ["- none"]),
+    "",
+    "Grounding：",
+    `- evidence_available: ${grounding.evidence_available ? "yes" : "no"}`,
+    `- evidence_channel: ${grounding.evidence_channel}`,
+    `- needs_review: ${grounding.needs_review ? "yes" : "no"}`,
+    `- suspicion_markers: ${grounding.suspicion_markers.length ? grounding.suspicion_markers.join(", ") : "none"}`,
+    `- claims_with_quotes: ${grounding.claim_quote_count}/${grounding.claim_count}`,
     "",
     "下一步审阅：",
     "- 请在 Obsidian 中人工审阅资料卡、Claim 建议、素材建议、选题和大纲。",
@@ -255,7 +268,7 @@ function contentFile(payload: NormalizedPayload, content: string, links: Artifac
   ].join("\n");
 }
 
-function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLinks): string {
+function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLinks, grounding: GroundingReport): string {
   return [
     "---",
     `aiwiki_id: "${escapeYaml(`${links.slug}:source-card`)}"`,
@@ -271,6 +284,7 @@ function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLi
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(runId)}"`,
     ...relationshipFrontmatter(links),
+    ...groundingFrontmatterLines(grounding),
     `aliases: ["${escapeYaml(payload.source.title ?? "Untitled")}"]`,
     `tags: ["aiwiki/source-card"]`,
     "---",
@@ -290,11 +304,20 @@ function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLi
     "## 摘要",
     "",
     trimPreview(payload.source.content ?? payload.source.fetch_notes ?? ""),
+    "",
+    "## Grounding 状态",
+    "",
+    `- 证据通道：${grounding.evidence_channel}`,
+    `- 需要复核：${grounding.needs_review ? "yes" : "no"}`,
+    `- 疑似标记：${grounding.suspicion_markers.length ? grounding.suspicion_markers.join(", ") : "none"}`,
     ""
   ].join("\n");
 }
 
-function claims(payload: NormalizedPayload, links: ArtifactLinks): string {
+function claims(payload: NormalizedPayload, links: ArtifactLinks, grounding: GroundingReport): string {
+  const claimLines = payload.analysis?.claims.length
+    ? payload.analysis.claims.flatMap((item, index) => claimSuggestionLines(index + 1, item.claim, item.confidence, item.source_quote, payload.source.content ?? ""))
+    : ["- 暂无宿主 Agent 提供的 Claim。"];
   return [
     "---",
     `aiwiki_id: "${escapeYaml(`${links.slug}:claims`)}"`,
@@ -308,6 +331,7 @@ function claims(payload: NormalizedPayload, links: ArtifactLinks): string {
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(links.runId)}"`,
     ...relationshipFrontmatter(links),
+    ...groundingFrontmatterLines(grounding),
     `tags: ["aiwiki/claims"]`,
     "---",
     "",
@@ -317,6 +341,16 @@ function claims(payload: NormalizedPayload, links: ArtifactLinks): string {
     `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
     `- 原文：${obsidianLink(links.raw, "原文")}`,
     `- 待人工审阅：${payload.source.title ?? "Untitled"}`,
+    "",
+    "## Grounding",
+    "",
+    `- evidence_channel: ${grounding.evidence_channel}`,
+    `- needs_review: ${grounding.needs_review ? "yes" : "no"}`,
+    `- suspicion_markers: ${grounding.suspicion_markers.length ? grounding.suspicion_markers.join(", ") : "none"}`,
+    "",
+    "## 建议",
+    "",
+    ...claimLines,
     ""
   ].join("\n");
 }
@@ -406,6 +440,20 @@ function outline(payload: NormalizedPayload, links: ArtifactLinks): string {
   ].join("\n");
 }
 
+function claimSuggestionLines(index: number, claim: string, confidence: string | undefined, sourceQuote: string | undefined, content: string): string[] {
+  const quote = sourceQuote?.trim();
+  const supported = Boolean(quote && content.includes(quote));
+  return [
+    `### Claim ${index}`,
+    "",
+    `- claim: ${claim}`,
+    `- confidence: ${confidence ?? "unknown"}`,
+    `- evidence_status: ${supported ? "host_quote_found" : "needs_review"}`,
+    ...(quote ? [`- source_quote: ${quote}`] : ["- source_quote: missing"]),
+    ""
+  ];
+}
+
 function trimPreview(value: string): string {
   return value.trim().slice(0, 500) || "待人工补充。";
 }
@@ -432,7 +480,8 @@ function buildAgentReport(root: string, runDir: string, payload: NormalizedPaylo
       reviewQueue: "dashboards/Review Queue.md"
     },
     wikiEntryGenerationMode: fetchFailed ? undefined : (payload.wiki_entry || payload.analysis ? "agent_enriched" : "deterministic_fallback"),
-    wikiEntryQuality: fetchFailed ? undefined : (payload.wiki_entry || payload.analysis ? "enriched" : "scaffold")
+    wikiEntryQuality: fetchFailed ? undefined : (payload.wiki_entry || payload.analysis ? "enriched" : "scaffold"),
+    grounding: buildGroundingReport(payload)
   };
 }
 

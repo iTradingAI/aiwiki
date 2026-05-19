@@ -1,0 +1,42 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "url",
+    "url": "https://example.com/grounded",
+    "title": "Grounded Notes",
+    "content_format": "markdown",
+    "content": "高质量知识提炼应由宿主 Agent 提供。AIWiki CLI 负责落盘、索引和保留证据边界。",
+    "fetcher": "host-agent",
+    "fetch_status": "ok",
+    "captured_at": "2026-05-19T10:00:00+08:00",
+    "language": "zh-CN"
+  },
+  "analysis": {
+    "summary": "AIWiki 把理解留给宿主 Agent，把落盘和证据边界留给 CLI。",
+    "key_points": [
+      "AIWiki CLI 负责落盘、索引和保留证据边界"
+    ],
+    "reusable_knowledge": [
+      {
+        "title": "分层边界",
+        "content": "理解和落盘要分层处理。",
+        "source_quote": "AIWiki CLI 负责落盘、索引和保留证据边界。"
+      }
+    ],
+    "related_concepts": ["AIWiki", "Grounding"],
+    "use_cases": ["入库质量复核"],
+    "topic_candidates": ["为什么知识入库需要证据边界"],
+    "claims": [
+      {
+        "claim": "高质量知识提炼应由宿主 Agent 提供",
+        "confidence": "high",
+        "source_quote": "高质量知识提炼应由宿主 Agent 提供。"
+      }
+    ]
+  },
+  "request": {
+    "mode": "ingest",
+    "outputs": ["source_card", "wiki_entry", "creative_assets", "topics", "draft_outline", "processing_summary"],
+    "language": "zh-CN"
+  }
+}

@@ -1,4 +1,5 @@
 import { NormalizedPayload } from "./payload.js";
+import { buildGroundingReport, groundingFrontmatterLines, GroundingReport } from "./grounding.js";
 
 export type WikiEntryMode = "agent_enriched" | "deterministic_fallback";
 export type WikiEntryQuality = "enriched" | "scaffold";
@@ -27,8 +28,9 @@ export function renderWikiEntry(payload: NormalizedPayload, links: WikiEntryLink
   const mode: WikiEntryMode = enriched ? "agent_enriched" : "deterministic_fallback";
   const quality: WikiEntryQuality = enriched ? "enriched" : "scaffold";
   const title = payload.wiki_entry?.title ?? payload.source.title ?? "Untitled";
-  const frontmatter = wikiFrontmatter(payload, links, title, mode, quality);
-  const body = enriched ? enrichedBody(payload, links, title) : fallbackBody(payload, links, title);
+  const grounding = buildGroundingReport(payload);
+  const frontmatter = wikiFrontmatter(payload, links, title, mode, quality, grounding);
+  const body = enriched ? enrichedBody(payload, links, title, grounding) : fallbackBody(payload, links, title, grounding);
   return {
     mode,
     quality,
@@ -41,15 +43,16 @@ function wikiFrontmatter(
   links: WikiEntryLinks,
   title: string,
   mode: WikiEntryMode,
-  quality: WikiEntryQuality
+  quality: WikiEntryQuality,
+  grounding: GroundingReport
 ): string {
   return [
     "---",
     `aiwiki_id: "${escapeYaml(`${links.slug}:wiki-entry`)}"`,
     `type: "wiki_entry"`,
-    `wiki_type: "source_knowledge"`,
-    `source_role: "input"`,
-    `represents_user_view: false`,
+    `wiki_type: "${wikiType(payload)}"`,
+    `source_role: "${payload.source.source_role}"`,
+    `represents_user_view: ${payload.source.represents_user_view ? "true" : "false"}`,
     `status: "active"`,
     `generation_mode: "${mode}"`,
     `quality: "${quality}"`,
@@ -71,13 +74,25 @@ function wikiFrontmatter(
     ...(mode === "agent_enriched" ? [`summary: "${escapeYaml(payload.wiki_entry?.summary ?? payload.analysis?.summary ?? "")}"`] : []),
     `topics: ${yamlStringArray(payload.analysis?.related_concepts ?? [])}`,
     `claims: ${yamlStringArray(payload.analysis?.claims.map((claim) => claim.claim) ?? [])}`,
+    ...groundingFrontmatterLines(grounding),
     `tags: ["aiwiki/wiki-entry"]`,
     "---"
   ].join("\n");
 }
 
-function enrichedBody(payload: NormalizedPayload, links: WikiEntryLinks, title: string): string {
+function wikiType(payload: NormalizedPayload): "source_knowledge" | "thought_note" | "personal_knowledge" {
+  if (payload.source.source_role === "output") {
+    return "personal_knowledge";
+  }
+  if (payload.source.source_role === "processing") {
+    return "thought_note";
+  }
+  return "source_knowledge";
+}
+
+function enrichedBody(payload: NormalizedPayload, links: WikiEntryLinks, title: string, grounding: GroundingReport): string {
   const sections: string[] = [`# ${title}`, ""];
+  appendGroundingReview(sections, grounding);
   if (payload.wiki_entry?.summary || payload.analysis?.summary) {
     sections.push("## 一句话总结", "", payload.wiki_entry?.summary ?? payload.analysis?.summary ?? "", "");
   }
@@ -117,7 +132,7 @@ function bodyHasHeading(markdown: string, heading: string): boolean {
   return new RegExp(`^#{1,6}\\s+${escaped}\\s*$`, "m").test(markdown);
 }
 
-function fallbackBody(payload: NormalizedPayload, links: WikiEntryLinks, title: string): string {
+function fallbackBody(payload: NormalizedPayload, links: WikiEntryLinks, title: string, grounding: GroundingReport): string {
   const preview = trimPreview(payload.source.content ?? payload.source.fetch_notes ?? "", 1000);
   return [
     `# ${title}`,
@@ -148,6 +163,8 @@ function fallbackBody(payload: NormalizedPayload, links: WikiEntryLinks, title: 
     "- 适用场景",
     "- 可转化选题",
     "",
+    ...groundingReviewLines(grounding),
+    "",
     sourceSection(links)
   ].join("\n");
 }
@@ -172,6 +189,27 @@ function sourceSection(links: WikiEntryLinks): string {
     `- Raw: ${obsidianLink(links.raw, "原文")}`,
     `- Run: ${obsidianLink(links.runSummary, "处理记录")}`
   ].join("\n");
+}
+
+function appendGroundingReview(sections: string[], grounding: GroundingReport): void {
+  if (!grounding.needs_review) {
+    return;
+  }
+  sections.push(
+    "## Grounding 复核",
+    "",
+    ...groundingReviewLines(grounding),
+    ""
+  );
+}
+
+function groundingReviewLines(grounding: GroundingReport): string[] {
+  return [
+    `- 证据通道：${grounding.evidence_channel}`,
+    `- 需要复核：${grounding.needs_review ? "yes" : "no"}`,
+    `- 疑似标记：${grounding.suspicion_markers.length ? grounding.suspicion_markers.join(", ") : "none"}`,
+    `- Claim 引用覆盖：${grounding.claim_quote_count}/${grounding.claim_count}`
+  ];
 }
 
 function obsidianLink(vaultPath: string, label: string) {

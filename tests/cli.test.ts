@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { access, mkdir, readFile, rm } from "node:fs/promises";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -69,7 +69,12 @@ test("CLI init config doctor and status", async () => {
 
     const statusOut = new MemoryWritable();
     assert.equal(await runCli(["status", "--path", root], { stdout: statusOut, stderr: new MemoryWritable() }), 0);
-    assert.match(statusOut.text(), /处理次数: 0/);
+    assert.deepEqual(statusOut.text().split(/\r?\n/).slice(0, 4), [
+      `知识库路径: ${path.resolve(root)}`,
+      "处理次数: 0",
+      "失败次数: 0",
+      "最近处理: 无"
+    ]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -85,7 +90,7 @@ test("CLI setup stores default workspace for no-path commands", async () => {
     assert.equal(await runCli(["setup", "--path", root, "--yes"], { stdout: setupOut, stderr: new MemoryWritable() }), 0);
     assert.match(setupOut.text(), /默认知识库:/);
     assert.match(setupOut.text(), /用户配置:/);
-    assert.match(setupOut.text(), /新建数据库文件数: 7/);
+    assert.match(setupOut.text(), /新建数据库文件数: 9/);
     assert.match(setupOut.text(), /Obsidian 入口: dashboards\/AIWiki Home\.md/);
     assert.match(setupOut.text(), /aiwiki agent install/);
     assert.match(setupOut.text(), /Agent 设置完成后/);
@@ -96,7 +101,12 @@ test("CLI setup stores default workspace for no-path commands", async () => {
 
     const statusOut = new MemoryWritable();
     assert.equal(await runCli(["status"], { stdout: statusOut, stderr: new MemoryWritable() }), 0);
-    assert.match(statusOut.text(), new RegExp(`知识库路径: ${escapeRegExp(path.resolve(root))}`));
+    assert.deepEqual(statusOut.text().split(/\r?\n/).slice(0, 4), [
+      `知识库路径: ${path.resolve(root)}`,
+      "处理次数: 0",
+      "失败次数: 0",
+      "最近处理: 无"
+    ]);
 
     const ingestOut = new MemoryWritable();
     assert.equal(await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json")], { stdout: ingestOut, stderr: new MemoryWritable() }), 0);
@@ -291,6 +301,10 @@ test("CLI ingest-agent payload and ingest-url boundary", async () => {
     assert.match(out.text(), /wiki_entry: 05-wiki\/source-knowledge\/ai-agent-workflow-notes\.md/);
     assert.match(out.text(), /wiki_entry_generation_mode: deterministic_fallback/);
     assert.match(out.text(), /wiki_entry_quality: scaffold/);
+    assert.match(out.text(), /grounding_evidence_available: no/);
+    assert.match(out.text(), /grounding_evidence_channel: none/);
+    assert.match(out.text(), /grounding_needs_review: no/);
+    assert.match(out.text(), /grounding_markers: none/);
     assert.match(out.text(), /source_card:/);
     assert.match(out.text(), /source_card: 03-sources\/article-cards\/ai-agent-workflow-notes\.md/);
     assert.match(out.text(), /draft_outline:/);
@@ -343,17 +357,110 @@ test("CLI context returns JSON matches with wiki quality", async () => {
     const parsed = JSON.parse(out.text()) as {
       schema_version: string;
       matches: {
-        wiki_entries: Array<{ path: string; quality: string; warnings: string[] }>;
+        wiki_entries: Array<{ path: string; quality: string; grounding_needs_review?: boolean; grounding_markers: string[]; warnings: string[] }>;
         raw_refs: unknown[];
       };
     };
     assert.equal(parsed.schema_version, "aiwiki.context.v1");
     assert.equal(parsed.matches.wiki_entries[0]?.path, "05-wiki/source-knowledge/ai-agent-workflow-notes.md");
     assert.equal(parsed.matches.wiki_entries[0]?.quality, "scaffold");
+    assert.equal(parsed.matches.wiki_entries[0]?.grounding_needs_review, false);
+    assert.deepEqual(parsed.matches.wiki_entries[0]?.grounding_markers, []);
     assert.match(parsed.matches.wiki_entries[0]?.warnings.join("\n") ?? "", /deterministic fallback/);
     assert.equal(parsed.matches.raw_refs.length, 0);
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI query renders human-readable context without changing context JSON", async () => {
+  const root = await tempRoot("aiwiki-cli-query");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const queryOut = new MemoryWritable();
+    assert.equal(await runCli(["query", "AI Agent", "--path", root], { stdout: queryOut, stderr: new MemoryWritable() }), 0);
+    assert.match(queryOut.text(), /AIWiki 查询: AI Agent/);
+    assert.match(queryOut.text(), /Wiki 条目/);
+    assert.match(queryOut.text(), /05-wiki\/source-knowledge\/ai-agent-workflow-notes\.md/);
+
+    const contextOut = new MemoryWritable();
+    assert.equal(await runCli(["context", "AI Agent", "--path", root], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(contextOut.text()) as { schema_version: string };
+    assert.equal(parsed.schema_version, "aiwiki.context.v1");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI next gives setup guidance for fresh workspace and active workspace", async () => {
+  const root = await tempRoot("aiwiki-cli-next");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const freshOut = new MemoryWritable();
+    assert.equal(await runCli(["next", "--path", root], { stdout: freshOut, stderr: new MemoryWritable() }), 0);
+    assert.match(freshOut.text(), /下一步建议/);
+    assert.match(freshOut.text(), /aiwiki agent install/);
+
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const activeOut = new MemoryWritable();
+    assert.equal(await runCli(["next", "--path", root], { stdout: activeOut, stderr: new MemoryWritable() }), 0);
+    assert.match(activeOut.text(), /aiwiki query/);
+    assert.match(activeOut.text(), /aiwiki lint/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI next prioritizes lint-needed workspace guidance", async () => {
+  const root = await tempRoot("aiwiki-cli-next-lint-needed");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const payloadPath = path.join(root, "invalid-user-view-payload.json");
+    await writeFile(payloadPath, JSON.stringify({
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "External Article",
+        source_role: "input",
+        represents_user_view: true,
+        content_format: "markdown",
+        content: "This external article should not represent the user's view.",
+        fetch_status: "ok",
+        captured_at: "2026-05-19T00:00:00.000Z"
+      },
+      request: { mode: "ingest", outputs: ["wiki_entry"], language: "zh-CN" }
+    }), "utf8");
+    await runCli(["ingest-agent", "--payload", payloadPath, "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const out = new MemoryWritable();
+    assert.equal(await runCli(["next", "--path", root], { stdout: out, stderr: new MemoryWritable() }), 0);
+    assert.match(out.text(), /结构检查发现/);
+    assert.match(out.text(), /aiwiki lint/);
+    assert.doesNotMatch(out.text(), /已有入库记录，可以继续/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI agent check reports installed and missing host state", async () => {
+  const codexHome = await tempRoot("aiwiki-cli-agent-check-codex");
+  const qclawHome = await tempRoot("aiwiki-cli-agent-check-qclaw");
+  const previousCodexHome = process.env.CODEX_HOME;
+  const previousQclawHome = process.env.QCLAW_HOME;
+  process.env.CODEX_HOME = codexHome;
+  process.env.QCLAW_HOME = qclawHome;
+  try {
+    await runCli(["agent", "install", "--agent", "codex", "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const out = new MemoryWritable();
+    assert.equal(await runCli(["agent", "check"], { stdout: out, stderr: new MemoryWritable() }), 0);
+    assert.match(out.text(), /codex: Codex \| detected=yes \| installed=yes/);
+    assert.match(out.text(), /qclaw: QClaw \| detected=yes \| installed=no/);
+    assert.match(out.text(), /aiwiki agent install --agent qclaw --yes/);
+  } finally {
+    restoreEnv("CODEX_HOME", previousCodexHome);
+    restoreEnv("QCLAW_HOME", previousQclawHome);
+    await rm(codexHome, { recursive: true, force: true });
+    await rm(qclawHome, { recursive: true, force: true });
   }
 });
 

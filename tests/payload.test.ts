@@ -12,11 +12,58 @@ async function readFixture(name: string) {
 test("normalizes valid payload", async () => {
   const payload = normalizePayload(await readFixture("agent_payload.url.valid.json"), "2026-05-06T00:00:00.000Z");
   assert.equal(payload.source.fetch_status, "ok");
+  assert.equal(payload.source.source_role, "input");
+  assert.equal(payload.source.represents_user_view, false);
   assert.equal(payload.source.content?.includes("AI Agent"), true);
   assert.equal(payload.request.mode, "ingest");
   assert.equal(payload.request.outputs.includes("wiki_entry"), true);
   assert.equal(payload.analysis, undefined);
   assert.equal(payload.wiki_entry, undefined);
+});
+
+test("normalizes source role semantics from payload source", () => {
+  const payload = normalizePayload(
+    {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "Published essay",
+        role: "output",
+        represents_user_view: true,
+        content_format: "markdown",
+        content: "This is a user-authored published essay.",
+        fetch_status: "ok",
+        captured_at: "2026-05-19T00:00:00.000Z"
+      },
+      request: { mode: "ingest", outputs: ["wiki_entry"] }
+    },
+    "2026-05-19T00:00:00.000Z"
+  );
+
+  assert.equal(payload.source.source_role, "output");
+  assert.equal(payload.source.represents_user_view, true);
+});
+
+test("defaults invalid source role to input with warning", () => {
+  const payload = normalizePayload(
+    {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "Invalid role",
+        source_role: "private",
+        content_format: "markdown",
+        content: "A note with an unsupported role.",
+        fetch_status: "ok",
+        captured_at: "2026-05-19T00:00:00.000Z"
+      },
+      request: { mode: "ingest", outputs: ["wiki_entry"] }
+    },
+    "2026-05-19T00:00:00.000Z"
+  );
+
+  assert.equal(payload.source.source_role, "input");
+  assert.match(payload.warnings.join("\n"), /source_role 已忽略/);
 });
 
 test("normalizes optional analysis payload", async () => {
@@ -25,6 +72,12 @@ test("normalizes optional analysis payload", async () => {
   assert.equal(payload.analysis?.key_points.length, 2);
   assert.equal(payload.analysis?.reusable_knowledge[0]?.title, "Agent-first 边界");
   assert.equal(payload.analysis?.claims[0]?.confidence, "high");
+});
+
+test("normalizes optional host-supplied grounding quotes", async () => {
+  const payload = normalizePayload(await readFixture("agent_payload.analysis.grounded.json"), "2026-05-19T00:00:00.000Z");
+  assert.equal(payload.analysis?.claims[0]?.source_quote, "高质量知识提炼应由宿主 Agent 提供。");
+  assert.equal(payload.analysis?.reusable_knowledge[0]?.source_quote, "AIWiki CLI 负责落盘、索引和保留证据边界。");
 });
 
 test("normalizes optional wiki_entry payload", async () => {

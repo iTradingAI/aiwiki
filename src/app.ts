@@ -5,7 +5,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
 import { flagBool, flagString, parseArgs } from "./args.js";
-import { buildContext } from "./context.js";
+import { buildContext, type ContextResult } from "./context.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "./ingest.js";
 import { lintWorkspace, renderLintReport, writeLintReport } from "./lint.js";
 import { CliError, CliStreams, writeLine } from "./output.js";
@@ -69,6 +69,11 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
         writeLine(streams.stdout, `目标路径: ${result.target}`);
         writeLine(streams.stdout, `下一步: 重启或重新加载 ${result.name}，然后发送 \`入库 <url>\`。`);
       }
+      return 0;
+    }
+
+    if (command === "agent" && subcommand === "check") {
+      await printAgentCheck(streams.stdout, await discoverAgentTargets());
       return 0;
     }
 
@@ -147,6 +152,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `处理次数: ${summary.runCount}`);
       writeLine(streams.stdout, `失败次数: ${summary.failedCount}`);
       writeLine(streams.stdout, `最近处理: ${summary.lastRunId ?? "无"}`);
+      await printStatusDetails(streams.stdout, root, summary.runCount);
       return 0;
     }
 
@@ -157,6 +163,25 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
         throw new CliError("请提供查询主题。");
       }
       writeLine(streams.stdout, JSON.stringify(await buildContext(root, query), null, 2));
+      return 0;
+    }
+
+    if (command === "query") {
+      const root = await resolveWorkspace(flagString(args, "path"));
+      const query = args.positional.slice(1).join(" ").trim();
+      if (!query) {
+        throw new CliError("请提供查询主题。");
+      }
+      writeLine(streams.stdout, renderQuery(await buildContext(root, query)));
+      return 0;
+    }
+
+    if (command === "next") {
+      const root = await resolveWorkspace(flagString(args, "path"));
+      const summary = await statusSummary(root);
+      const checks = await doctor(root);
+      const report = summary.runCount > 0 ? await lintWorkspace(root) : undefined;
+      await printNext(streams.stdout, root, summary.runCount, checks, await discoverAgentTargets(), report);
       return 0;
     }
 
@@ -252,6 +277,8 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
   writeLine(stream, "  aiwiki context <query>");
+  writeLine(stream, "  aiwiki query <query>");
+  writeLine(stream, "  aiwiki next");
   writeLine(stream, "  aiwiki lint");
   writeLine(stream, "  aiwiki ingest-agent --stdin");
   writeLine(stream, "  aiwiki ingest-file --file <file>");
@@ -259,6 +286,7 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki config show");
   writeLine(stream, "  aiwiki ingest-agent --payload <file>");
   writeLine(stream, "  aiwiki ingest-url <url> --content-file <file>");
+  writeLine(stream, "  aiwiki agent check");
 }
 
 type AgentTarget = {
@@ -353,6 +381,19 @@ function printAgentList(stream: NodeJS.WritableStream, targets: AgentTarget[]): 
   }
 }
 
+async function printAgentCheck(stream: NodeJS.WritableStream, targets: AgentTarget[]): Promise<void> {
+  writeLine(stream, "AIWiki Agent 接入检查");
+  for (const target of targets) {
+    const installed = target.target ? await exists(target.target) : false;
+    writeLine(stream, `${target.id}: ${target.name} | detected=${target.detected ? "yes" : "no"} | installed=${installed ? "yes" : "no"} | installable=${target.installable ? "yes" : "no"}`);
+    if (target.detected && target.installable && !installed) {
+      writeLine(stream, `  建议: aiwiki agent install --agent ${target.id} --yes`);
+    } else if (target.detected && !target.installable) {
+      writeLine(stream, "  建议: aiwiki prompt agent");
+    }
+  }
+}
+
 async function installAgentSkill(options: { agentId?: string; yes: boolean; force: boolean; streams: CliStreams }) {
   const targets = await discoverAgentTargets();
   const installable = targets.filter((target) => target.detected && target.installable);
@@ -443,6 +484,140 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取；声称 AIWiki CLI 会在没有 Agent 分析字段时自动高质量总结。");
 }
 
+async function printStatusDetails(stream: NodeJS.WritableStream, root: string, runCount: number): Promise<void> {
+  const counts = await contentCounts(root);
+  const lintPath = path.join(root, "dashboards", "Lint Report.md");
+  writeLine(stream, "");
+  writeLine(stream, "内容统计:");
+  writeLine(stream, `Wiki 条目: ${counts.wikiEntries}`);
+  writeLine(stream, `资料卡: ${counts.sourceCards}`);
+  writeLine(stream, `原文: ${counts.rawFiles}`);
+  writeLine(stream, `选题: ${counts.topics}`);
+  writeLine(stream, `大纲: ${counts.outlines}`);
+  writeLine(stream, `最近 lint: ${await exists(lintPath) ? await relativeMtime(root, lintPath) : "无"}`);
+  writeLine(stream, "");
+  writeLine(stream, "下一步建议:");
+  writeLine(stream, runCount === 0 ? "运行 `aiwiki agent install` 接入宿主 Agent，然后发送 `入库 <url>`。" : "运行 `aiwiki query <主题>` 查询知识，或运行 `aiwiki lint` 检查结构。");
+}
+
+async function printNext(
+  stream: NodeJS.WritableStream,
+  root: string,
+  runCount: number,
+  checks: Awaited<ReturnType<typeof doctor>>,
+  targets: AgentTarget[],
+  report?: Awaited<ReturnType<typeof lintWorkspace>>
+): Promise<void> {
+  const missing = checks.filter((check) => check.status !== "ok");
+  const installableMissing: AgentTarget[] = [];
+  for (const target of targets) {
+    if (target.detected && target.installable && target.target && !(await exists(target.target))) {
+      installableMissing.push(target);
+    }
+  }
+  writeLine(stream, "AIWiki 下一步建议");
+  writeLine(stream, `知识库路径: ${root}`);
+  if (missing.length) {
+    writeLine(stream, "");
+    writeLine(stream, "先修复知识库结构:");
+    writeLine(stream, `- aiwiki setup --path "${root}" --yes`);
+    return;
+  }
+  if (runCount === 0) {
+    writeLine(stream, "");
+    writeLine(stream, "还没有入库记录。");
+    writeLine(stream, "- aiwiki agent install");
+    writeLine(stream, "- 然后向宿主 Agent 发送 `入库 <url>`");
+    writeLine(stream, "- CLI 不抓网页；网页正文由宿主 Agent 提供。");
+    return;
+  }
+  const actionableIssues = report?.issues.filter((issue) => issue.severity !== "info") ?? [];
+  if (actionableIssues.length) {
+    writeLine(stream, "");
+    writeLine(stream, `结构检查发现 ${actionableIssues.length} 个需要处理的问题。`);
+    writeLine(stream, "- aiwiki lint");
+    writeLine(stream, `- 查看报告: dashboards/Lint Report.md`);
+    writeLine(stream, "- 先处理 error / warning，再继续扩展查询或入库。");
+    return;
+  }
+  writeLine(stream, "");
+  writeLine(stream, "已有入库记录，可以继续：");
+  writeLine(stream, "- aiwiki query <主题>");
+  writeLine(stream, "- aiwiki lint");
+  if (installableMissing.length) {
+    writeLine(stream, "");
+    writeLine(stream, "可补充宿主 Agent 接入:");
+    for (const target of installableMissing) {
+      writeLine(stream, `- aiwiki agent install --agent ${target.id} --yes`);
+    }
+  }
+}
+
+function renderQuery(context: ContextResult): string {
+  const lines = [`AIWiki 查询: ${context.query}`, ""];
+  appendQueryGroup(lines, "Wiki 条目", context.matches.wiki_entries);
+  appendQueryGroup(lines, "资料卡", context.matches.source_cards);
+  appendQueryGroup(lines, "选题", context.matches.topics);
+  appendQueryGroup(lines, "Claim 建议", context.matches.claims);
+  appendQueryGroup(lines, "大纲", context.matches.outlines);
+  appendQueryGroup(lines, "原文引用", context.matches.raw_refs);
+  if (context.warnings.length) {
+    lines.push("提示:", ...context.warnings.map((warning) => `- ${warning}`), "");
+  }
+  lines.push("Agent JSON:", `- aiwiki context "${context.query}"`);
+  return `${lines.join("\n")}\n`;
+}
+
+function appendQueryGroup(lines: string[], label: string, items: ContextResult["matches"]["wiki_entries"]): void {
+  lines.push(`${label}:`);
+  if (!items.length) {
+    lines.push("- 无", "");
+    return;
+  }
+  for (const item of items.slice(0, 5)) {
+    lines.push(`- ${item.title} (${item.path})`);
+    if (item.summary) {
+      lines.push(`  ${item.summary}`);
+    }
+    if (item.warnings.length) {
+      lines.push(`  提示: ${item.warnings.join("；")}`);
+    }
+  }
+  lines.push("");
+}
+
+async function contentCounts(root: string) {
+  return {
+    wikiEntries: await countMarkdownFiles(path.join(root, "05-wiki")),
+    sourceCards: await countMarkdownFiles(path.join(root, "03-sources", "article-cards")),
+    rawFiles: await countMarkdownFiles(path.join(root, "02-raw", "articles")),
+    topics: await countMarkdownFiles(path.join(root, "07-topics", "ready")),
+    outlines: await countMarkdownFiles(path.join(root, "08-outputs", "outlines"))
+  };
+}
+
+async function countMarkdownFiles(dir: string): Promise<number> {
+  if (!(await exists(dir))) {
+    return 0;
+  }
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  let count = 0;
+  for (const entry of entries) {
+    const target = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      count += await countMarkdownFiles(target);
+    } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+async function relativeMtime(root: string, target: string): Promise<string> {
+  const stats = await fs.stat(target);
+  return `${path.relative(root, target).replace(/\\/g, "/")} (${stats.mtime.toISOString()})`;
+}
+
 function doctorStatusText(status: "ok" | "missing" | "permission error") {
   if (status === "ok") {
     return "正常";
@@ -477,6 +652,11 @@ function printIngestResult(stream: NodeJS.WritableStream, result: Awaited<Return
   if (result.agentReport.wikiEntryQuality) {
     writeLine(stream, `wiki_entry_quality: ${result.agentReport.wikiEntryQuality}`);
   }
+  writeLine(stream, `grounding_evidence_available: ${result.agentReport.grounding.evidence_available ? "yes" : "no"}`);
+  writeLine(stream, `grounding_evidence_channel: ${result.agentReport.grounding.evidence_channel}`);
+  writeLine(stream, `grounding_needs_review: ${result.agentReport.grounding.needs_review ? "yes" : "no"}`);
+  writeLine(stream, `grounding_markers: ${result.agentReport.grounding.suspicion_markers.length ? result.agentReport.grounding.suspicion_markers.join(",") : "none"}`);
+  writeLine(stream, `grounding_claims_with_quotes: ${result.agentReport.grounding.claim_quote_count}/${result.agentReport.grounding.claim_count}`);
   if (result.agentReport.keyFiles.sourceCard) {
     writeLine(stream, `source_card: ${result.agentReport.keyFiles.sourceCard}`);
   }

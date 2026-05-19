@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { frontmatterArray, frontmatterString, parseMarkdown } from "./frontmatter.js";
+import { frontmatterArray, frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmatter.js";
 import { relativePath } from "./paths.js";
 import { exists } from "./workspace.js";
 
@@ -14,6 +14,9 @@ type MatchItem = {
   source_url: string;
   generation_mode?: string;
   quality?: string;
+  grounding_evidence_available?: boolean;
+  grounding_needs_review?: boolean;
+  grounding_markers: string[];
   warnings: string[];
 };
 
@@ -111,9 +114,14 @@ async function searchDir(root: string, dir: string, tokens: string[], weight: nu
     }
     const generationMode = frontmatterString(parsed.frontmatter, "generation_mode");
     const quality = frontmatterString(parsed.frontmatter, "quality");
+    const groundingMarkers = frontmatterArray(parsed.frontmatter, "grounding_markers");
+    const groundingNeedsReview = frontmatterBoolean(parsed.frontmatter, "grounding_needs_review");
     const warnings = generationMode === "deterministic_fallback"
       ? ["该 Wiki Entry 是 deterministic fallback，仅包含来源、正文预览和待补全区。"]
       : [];
+    if (groundingNeedsReview) {
+      warnings.push(`Grounding needs review${groundingMarkers.length ? `: ${groundingMarkers.join(", ")}` : ""}.`);
+    }
     matches.push({
       title,
       path: rel,
@@ -123,6 +131,9 @@ async function searchDir(root: string, dir: string, tokens: string[], weight: nu
       source_url: frontmatterString(parsed.frontmatter, "source_url") ?? "",
       generation_mode: generationMode,
       quality,
+      grounding_evidence_available: frontmatterBoolean(parsed.frontmatter, "grounding_evidence_available"),
+      grounding_needs_review: groundingNeedsReview,
+      grounding_markers: groundingMarkers,
       warnings
     });
   }
