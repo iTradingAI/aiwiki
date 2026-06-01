@@ -403,3 +403,6 @@ aiwiki status
 - 成功读取时，`03-sources/article-cards` 下出现资料卡。
 - 成功读取时，`05-wiki/source-knowledge` 下出现 Wiki Entry。
 - 抓取失败时，`09-runs/<run-id>-fetch-failed` 下出现失败记录。
+# System Purpose Files
+
+`aiwiki setup` now also seeds `_system/purpose.md`, `_system/index.md`, and `_system/log.md` when they are missing. These files give humans and host Agents a stable entry point for the knowledge-base goal, scope, common folders, common commands, and lightweight event notes. Re-running setup preserves user edits.

@@ -208,3 +208,8 @@ aiwiki lint
 ```
 
 不要把外部资料标成代表用户观点。
+# Knowledge Base Purpose
+
+Before ingesting, querying, or reorganizing material, read `_system/purpose.md` in the target AIWiki workspace. Treat it as the local contract for what belongs in this knowledge base, what should stay out, and how future multi-knowledge-base routing should be handled.
+
+If the material does not fit the purpose file, do not force it into the knowledge base as confirmed knowledge. Record the mismatch, ask for review when needed, or keep it as a traceable source rather than a claim.

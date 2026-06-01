@@ -48,6 +48,94 @@ export type DoctorCheck = {
 
 const WORKSPACE_SEEDS: Array<{ path: string; content: string }> = [
   {
+    path: "_system/purpose.md",
+    content: `# AIWiki Knowledge Base Purpose
+
+This file defines what this knowledge base is for. Host Agents should read it before ingesting, querying, or reorganizing content.
+
+## Goal
+
+Build a local, traceable AI knowledge base that turns useful articles, notes, and source material into Obsidian-ready Markdown.
+
+## Suitable Materials
+
+- Articles, notes, transcripts, and references that can become source cards, wiki entries, claims, topics, outlines, or reusable assets.
+- External materials with clear source information.
+- User-owned drafts or published work when the user explicitly says the material represents their own output.
+
+## Unsuitable Materials
+
+- Content without a usable source or context.
+- Purely private, sensitive, illegal, or unsafe material.
+- Generic web noise that cannot become reusable knowledge.
+- Claims that cannot be tied back to evidence.
+
+## Multi-Knowledge-Base Boundary
+
+This base AIWiki workspace is a single knowledge base. If the user later creates multiple knowledge bases, each one should have its own purpose file and Agents should route material according to that local purpose.
+
+## Agent Rules
+
+- Respect this purpose before ingesting material.
+- Keep evidence and inference separate.
+- Do not treat external input as the user's own view unless the user says so.
+- Prefer traceable source cards and wiki entries over unsupported summaries.
+`
+  },
+  {
+    path: "_system/index.md",
+    content: `# AIWiki System Index
+
+Use this file as the human and Agent entry point for the knowledge base.
+
+## Core Areas
+
+- [[02-raw/articles|Raw Articles]]
+- [[03-sources/article-cards|Source Cards]]
+- [[04-claims/_suggestions|Claim Suggestions]]
+- [[05-wiki|Wiki Entries]]
+- [[06-assets/_suggestions|Asset Suggestions]]
+- [[07-topics/ready|Topic Pipeline]]
+- [[08-outputs/outlines|Draft Outlines]]
+- [[09-runs|Processing Runs]]
+
+## Dashboards
+
+- [[dashboards/AIWiki Home|AIWiki Home]]
+- [[dashboards/Review Queue|Review Queue]]
+- [[dashboards/Recent Runs|Recent Runs]]
+- [[dashboards/Lint Report|Lint Report]]
+
+## System Files
+
+- [[_system/purpose|Purpose]]
+- [[_system/log|Log]]
+- [[_system/schemas/aiwiki-frontmatter|Frontmatter Schema]]
+
+## Common Commands
+
+\`\`\`bash
+aiwiki status
+aiwiki next
+aiwiki query "<topic>"
+aiwiki context "<topic>"
+aiwiki lint
+\`\`\`
+`
+  },
+  {
+    path: "_system/log.md",
+    content: `# AIWiki System Log
+
+This lightweight log is reserved for important workspace events. It keeps the base edition file-first and does not require a database.
+
+## Entries
+
+<!-- Add manual or future automated events below. -->
+
+`
+  },
+  {
     path: "dashboards/AIWiki Home.md",
     content: `# AIWiki 首页
 

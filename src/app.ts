@@ -472,6 +472,7 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "- 收录 <url>");
   writeLine(stream, "- 存一下 <url>");
   writeLine(stream, "- aiwiki <url>");
+  writeLine(stream, "Before ingesting, querying, or reorganizing, read `_system/purpose.md` and keep material aligned with the knowledge-base goal, scope, and unsuitable-content rules.");
   writeLine(stream, "");
   writeLine(stream, "如果当前会话被用户明确设定为 AIWiki 入库助手，则用户只发送 URL 也默认触发入库。普通会话中不要把所有 URL 都自动入库。");
   writeLine(stream, "");

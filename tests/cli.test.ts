@@ -38,6 +38,7 @@ test("prompt agent prints neutral Agent handoff instructions", async () => {
   assert.match(text, /aiwiki context/);
   assert.match(text, /aiwiki lint/);
   assert.match(text, /Dataview 是可选增强/);
+  assert.match(text, /_system\/purpose\.md/);
   assert.doesNotMatch(text, /qclaw/i);
   assert.equal(stderr.text(), "");
 });
@@ -90,7 +91,7 @@ test("CLI setup stores default workspace for no-path commands", async () => {
     assert.equal(await runCli(["setup", "--path", root, "--yes"], { stdout: setupOut, stderr: new MemoryWritable() }), 0);
     assert.match(setupOut.text(), /默认知识库:/);
     assert.match(setupOut.text(), /用户配置:/);
-    assert.match(setupOut.text(), /新建数据库文件数: 9/);
+    assert.match(setupOut.text(), /新建数据库文件数: 12/);
     assert.match(setupOut.text(), /Obsidian 入口: dashboards\/AIWiki Home\.md/);
     assert.match(setupOut.text(), /aiwiki agent install/);
     assert.match(setupOut.text(), /Agent 设置完成后/);
