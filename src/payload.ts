@@ -37,10 +37,15 @@ export type PayloadAnalysis = {
   summary?: string;
   key_points: string[];
   reusable_knowledge: Array<{ title?: string; content: string; source_quote?: string }>;
+  entities: string[];
+  concepts: string[];
+  tensions: string[];
+  reusable_judgments: Array<{ title?: string; judgment: string; rationale?: string; source_quote?: string }>;
   related_concepts: string[];
   use_cases: string[];
   topic_candidates: string[];
   claims: Array<{ claim: string; confidence?: string; source_quote?: string }>;
+  suggested_links: Array<{ title: string; target?: string; reason?: string }>;
   outline?: {
     title?: string;
     sections: string[];
@@ -215,10 +220,15 @@ function normalizeAnalysis(value: unknown, warnings: string[]): PayloadAnalysis 
     summary: stringValue(value.summary),
     key_points: stringArray(value.key_points, "analysis.key_points", warnings),
     reusable_knowledge: reusableKnowledgeArray(value.reusable_knowledge, warnings),
+    entities: stringArray(value.entities, "analysis.entities", warnings),
+    concepts: stringArray(value.concepts, "analysis.concepts", warnings),
+    tensions: stringArray(value.tensions, "analysis.tensions", warnings),
+    reusable_judgments: reusableJudgmentsArray(value.reusable_judgments, warnings),
     related_concepts: stringArray(value.related_concepts, "analysis.related_concepts", warnings),
     use_cases: stringArray(value.use_cases, "analysis.use_cases", warnings),
     topic_candidates: stringArray(value.topic_candidates, "analysis.topic_candidates", warnings),
     claims: claimsArray(value.claims, warnings),
+    suggested_links: suggestedLinksArray(value.suggested_links, warnings),
     outline: outlineValue(value.outline, warnings)
   };
 
@@ -269,6 +279,53 @@ function reusableKnowledgeArray(value: unknown, warnings: string[]): PayloadAnal
     }
     if (isRecord(item) && typeof item.content === "string" && item.content.trim()) {
       return [{ title: stringValue(item.title), content: item.content.trim(), source_quote: stringValue(item.source_quote) }];
+    }
+    return [];
+  });
+}
+
+function reusableJudgmentsArray(value: unknown, warnings: string[]): PayloadAnalysis["reusable_judgments"] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    warnings.push("analysis.reusable_judgments ignored: expected an array.");
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (typeof item === "string" && item.trim()) {
+      return [{ judgment: item.trim() }];
+    }
+    if (isRecord(item) && typeof item.judgment === "string" && item.judgment.trim()) {
+      return [{
+        title: stringValue(item.title),
+        judgment: item.judgment.trim(),
+        rationale: stringValue(item.rationale),
+        source_quote: stringValue(item.source_quote)
+      }];
+    }
+    return [];
+  });
+}
+
+function suggestedLinksArray(value: unknown, warnings: string[]): PayloadAnalysis["suggested_links"] {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    warnings.push("analysis.suggested_links ignored: expected an array.");
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (typeof item === "string" && item.trim()) {
+      return [{ title: item.trim() }];
+    }
+    if (isRecord(item) && typeof item.title === "string" && item.title.trim()) {
+      return [{
+        title: item.title.trim(),
+        target: stringValue(item.target),
+        reason: stringValue(item.reason)
+      }];
     }
     return [];
   });
@@ -336,10 +393,15 @@ function hasAnalysisContent(analysis: PayloadAnalysis): boolean {
     analysis.summary ||
     analysis.key_points.length ||
     analysis.reusable_knowledge.length ||
+    analysis.entities.length ||
+    analysis.concepts.length ||
+    analysis.tensions.length ||
+    analysis.reusable_judgments.length ||
     analysis.related_concepts.length ||
     analysis.use_cases.length ||
     analysis.topic_candidates.length ||
     analysis.claims.length ||
+    analysis.suggested_links.length ||
     analysis.outline
   );
 }

@@ -14,6 +14,7 @@ export type WikiEntryLinks = {
   slug: string;
   runId: string;
   createdAt: string;
+  contentFingerprint: string;
   wikiEntry: string;
   raw: string;
   sourceCard: string;
@@ -69,10 +70,11 @@ function wikiFrontmatter(
     `outline_file: "${escapeYaml(links.outline)}"`,
     `run_summary: "${escapeYaml(links.runSummary)}"`,
     `run_id: "${escapeYaml(links.runId)}"`,
+    `content_fingerprint: "${escapeYaml(links.contentFingerprint)}"`,
     `created_at: "${escapeYaml(links.createdAt)}"`,
     `updated_at: "${escapeYaml(links.createdAt)}"`,
     ...(mode === "agent_enriched" ? [`summary: "${escapeYaml(payload.wiki_entry?.summary ?? payload.analysis?.summary ?? "")}"`] : []),
-    `topics: ${yamlStringArray(payload.analysis?.related_concepts ?? [])}`,
+    `topics: ${yamlStringArray([...(payload.analysis?.related_concepts ?? []), ...(payload.analysis?.concepts ?? [])])}`,
     `claims: ${yamlStringArray(payload.analysis?.claims.map((claim) => claim.claim) ?? [])}`,
     ...groundingFrontmatterLines(grounding),
     `tags: ["aiwiki/wiki-entry"]`,
@@ -118,9 +120,13 @@ function enrichedBody(payload: NormalizedPayload, links: WikiEntryLinks, title: 
   } else {
     sections.push("## 核心观点", "", ...listOrFallback(payload.analysis?.key_points ?? [], "待宿主 Agent 补充。"), "");
     sections.push("## 可复用知识点", "", ...knowledgeList(payload), "");
+    sections.push("## Reusable Judgments", "", ...judgmentList(payload), "");
+    sections.push("## Entities and Concepts", "", ...entityConceptList(payload), "");
+    sections.push("## Tensions", "", ...listOrFallback(payload.analysis?.tensions ?? [], "No explicit tension supplied by the host Agent."), "");
     sections.push("## 相关概念", "", ...listOrFallback(payload.analysis?.related_concepts ?? [], "待宿主 Agent 补充。"), "");
     sections.push("## 适合用于什么场景", "", ...listOrFallback(payload.analysis?.use_cases ?? [], "待宿主 Agent 补充。"), "");
     sections.push("## 可转化的选题", "", ...listOrFallback(payload.analysis?.topic_candidates ?? [], "待宿主 Agent 补充。"), "");
+    sections.push("## Suggested Links", "", ...suggestedLinkList(payload), "");
   }
 
   sections.push(sourceSection(links));
@@ -175,6 +181,45 @@ function knowledgeList(payload: NormalizedPayload): string[] {
     return ["待宿主 Agent 补充。"];
   }
   return items.flatMap((item) => item.title ? [`### ${item.title}`, "", item.content] : [`- ${item.content}`]);
+}
+
+function judgmentList(payload: NormalizedPayload): string[] {
+  const items = payload.analysis?.reusable_judgments ?? [];
+  if (!items.length) {
+    return ["No reusable judgment supplied by the host Agent."];
+  }
+  return items.flatMap((item) => [
+    item.title ? `### ${item.title}` : "### Judgment",
+    "",
+    `- judgment: ${item.judgment}`,
+    ...(item.rationale ? [`- rationale: ${item.rationale}`] : []),
+    ...(item.source_quote ? ["- evidence boundary: host supplied quote"] : ["- evidence boundary: needs review if reused as a factual claim"]),
+    ""
+  ]);
+}
+
+function entityConceptList(payload: NormalizedPayload): string[] {
+  const entities = payload.analysis?.entities ?? [];
+  const concepts = payload.analysis?.concepts ?? [];
+  if (!entities.length && !concepts.length) {
+    return ["No explicit entities or concepts supplied by the host Agent."];
+  }
+  return [
+    ...(entities.length ? [`- entities: ${entities.join(", ")}`] : []),
+    ...(concepts.length ? [`- concepts: ${concepts.join(", ")}`] : [])
+  ];
+}
+
+function suggestedLinkList(payload: NormalizedPayload): string[] {
+  const links = payload.analysis?.suggested_links ?? [];
+  if (!links.length) {
+    return ["No suggested links supplied by the host Agent."];
+  }
+  return links.map((link) => {
+    const target = link.target ? ` -> ${link.target}` : "";
+    const reason = link.reason ? ` (${link.reason})` : "";
+    return `- ${link.title}${target}${reason}`;
+  });
 }
 
 function listOrFallback(values: string[], fallback: string): string[] {

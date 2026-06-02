@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import { NormalizedPayload, normalizePayload } from "./payload.js";
 import { buildGroundingReport, groundingFrontmatterLines, groundingWarnings, GroundingReport } from "./grounding.js";
@@ -42,6 +42,7 @@ type ArtifactLinks = {
   slug: string;
   runId: string;
   createdAt: string;
+  contentFingerprint: string;
   raw: string;
   sourceCard: string;
   wikiEntry: string;
@@ -86,9 +87,11 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
 
   const slug = slugify(payload.source.title ?? payload.source.url);
   const content = payload.source.content ?? "";
+  const contentFingerprint = createContentFingerprint(content);
   const collisionWarnings: string[] = [];
+  await detectDuplicateContent(root, payload, contentFingerprint, collisionWarnings);
   const longTermTargets = await chooseLongTermTargets(root, slug, runId, collisionWarnings);
-  const links = buildArtifactLinks(root, slug, runDirName, runStartedAt, longTermTargets);
+  const links = buildArtifactLinks(root, slug, runDirName, runStartedAt, contentFingerprint, longTermTargets);
   const grounding = buildGroundingReport(payload);
 
   await writeFile(path.join(runDir, "raw.md"), contentFile(payload, content, links), generatedFiles);
@@ -168,6 +171,49 @@ async function chooseLongTermTarget(root: string, dir: string, fileName: string,
   return renamedTarget;
 }
 
+async function detectDuplicateContent(
+  root: string,
+  payload: NormalizedPayload,
+  contentFingerprint: string,
+  warnings: string[]
+): Promise<void> {
+  const rawDir = safeJoin(root, "02-raw", "articles");
+  let entries: string[];
+  try {
+    entries = await fs.readdir(rawDir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return;
+    }
+    throw error;
+  }
+
+  const sourceUrl = payload.source.url ?? "";
+  for (const entry of entries) {
+    if (!entry.toLowerCase().endsWith(".md")) {
+      continue;
+    }
+    const existingPath = path.join(rawDir, entry);
+    const existing = await fs.readFile(existingPath, "utf8");
+    if (!frontmatterValue(existing, "content_fingerprint", contentFingerprint)) {
+      continue;
+    }
+    const sameSource = sourceUrl
+      ? frontmatterValue(existing, "source_url", sourceUrl)
+      : frontmatterValue(existing, "title", payload.source.title ?? "Untitled");
+    if (sameSource) {
+      warnings.push(`duplicate content fingerprint: ${contentFingerprint} already exists at ${relativePath(root, existingPath)}; new run kept separate and long-term files will not overwrite existing files.`);
+      return;
+    }
+  }
+}
+
+function frontmatterValue(markdown: string, key: string, expected: string): boolean {
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedExpected = expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escapedKey}:\\s*"?${escapedExpected}"?\\s*$`, "m").test(markdown);
+}
+
 async function writeFile(target: string, content: string, generatedFiles: string[]) {
   try {
     await fs.writeFile(target, content, { encoding: "utf8", flag: "wx" });
@@ -206,6 +252,7 @@ async function writeSummary(
     `created_at: "${escapeYaml(createdAt)}"`,
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(runId)}"`,
+    ...(links ? [`content_fingerprint: "${escapeYaml(links.contentFingerprint)}"`] : []),
     ...(links ? relationshipFrontmatter(links) : []),
     ...groundingFrontmatterLines(grounding),
     `tags: ["aiwiki/run"]`,
@@ -251,6 +298,7 @@ function contentFile(payload: NormalizedPayload, content: string, links: Artifac
     `created_at: "${escapeYaml(links.createdAt)}"`,
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(links.runId)}"`,
+    `content_fingerprint: "${escapeYaml(links.contentFingerprint)}"`,
     ...relationshipFrontmatter(links),
     `tags: ["aiwiki/raw"]`,
     "---",
@@ -283,6 +331,7 @@ function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLi
     `created_at: "${escapeYaml(links.createdAt)}"`,
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(runId)}"`,
+    `content_fingerprint: "${escapeYaml(links.contentFingerprint)}"`,
     ...relationshipFrontmatter(links),
     ...groundingFrontmatterLines(grounding),
     `aliases: ["${escapeYaml(payload.source.title ?? "Untitled")}"]`,
@@ -304,6 +353,13 @@ function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLi
     "## 摘要",
     "",
     trimPreview(payload.source.content ?? payload.source.fetch_notes ?? ""),
+    "",
+    "## Problem / Evidence / Reuse",
+    "",
+    `- problem_solved: ${payload.analysis?.summary ?? "needs host Agent analysis"}`,
+    `- evidence_boundary: ${grounding.needs_review ? "review required before treating analysis as fact" : "host supplied evidence available"}`,
+    `- reuse_scenarios: ${payload.analysis?.use_cases.length ? payload.analysis.use_cases.join(", ") : "not specified"}`,
+    `- content_fingerprint: ${links.contentFingerprint}`,
     "",
     "## Grounding 状态",
     "",
@@ -330,6 +386,7 @@ function claims(payload: NormalizedPayload, links: ArtifactLinks, grounding: Gro
     `created_at: "${escapeYaml(links.createdAt)}"`,
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(links.runId)}"`,
+    `content_fingerprint: "${escapeYaml(links.contentFingerprint)}"`,
     ...relationshipFrontmatter(links),
     ...groundingFrontmatterLines(grounding),
     `tags: ["aiwiki/claims"]`,
@@ -351,6 +408,11 @@ function claims(payload: NormalizedPayload, links: ArtifactLinks, grounding: Gro
     "## 建议",
     "",
     ...claimLines,
+    "## Evidence Boundary",
+    "",
+    "- Claims with a matching source_quote are traceable to the provided source content.",
+    "- Claims without a matching source_quote remain suggestions and need human or host-Agent review before reuse.",
+    "",
     ""
   ].join("\n");
 }
@@ -368,6 +430,7 @@ function creativeAssets(payload: NormalizedPayload, links: ArtifactLinks): strin
     `created_at: "${escapeYaml(links.createdAt)}"`,
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(links.runId)}"`,
+    `content_fingerprint: "${escapeYaml(links.contentFingerprint)}"`,
     ...relationshipFrontmatter(links),
     `tags: ["aiwiki/assets"]`,
     "---",
@@ -395,6 +458,7 @@ function topics(payload: NormalizedPayload, links: ArtifactLinks): string {
     `created_at: "${escapeYaml(links.createdAt)}"`,
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(links.runId)}"`,
+    `content_fingerprint: "${escapeYaml(links.contentFingerprint)}"`,
     ...relationshipFrontmatter(links),
     `tags: ["aiwiki/topics"]`,
     "---",
@@ -422,6 +486,7 @@ function outline(payload: NormalizedPayload, links: ArtifactLinks): string {
     `created_at: "${escapeYaml(links.createdAt)}"`,
     `captured_at: "${escapeYaml(payload.source.captured_at)}"`,
     `run_id: "${escapeYaml(links.runId)}"`,
+    `content_fingerprint: "${escapeYaml(links.contentFingerprint)}"`,
     ...relationshipFrontmatter(links),
     `tags: ["aiwiki/outline"]`,
     "---",
@@ -434,10 +499,28 @@ function outline(payload: NormalizedPayload, links: ArtifactLinks): string {
     "",
     "1. 背景",
     "2. 关键观点",
-    "3. 可复用方法",
-    `4. 来源：${payload.source.title ?? "Untitled"}`,
+    "3. 证据与推断边界",
+    "4. 可复用判断与方法",
+    "5. 适用场景",
+    "6. 可继续链接的条目",
+    `7. 来源：${payload.source.title ?? "Untitled"}`,
+    "",
+    "## Host Agent Outline Hints",
+    "",
+    ...outlineHintLines(payload),
     ""
   ].join("\n");
+}
+
+function outlineHintLines(payload: NormalizedPayload): string[] {
+  const outline = payload.analysis?.outline?.sections ?? [];
+  const links = payload.analysis?.suggested_links ?? [];
+  const lines = [
+    ...(outline.length ? outline.map((item) => `- outline_section: ${item}`) : []),
+    ...(payload.analysis?.reusable_judgments.length ? payload.analysis.reusable_judgments.map((item) => `- reusable_judgment: ${item.judgment}`) : []),
+    ...(links.length ? links.map((item) => `- suggested_link: ${item.title}${item.target ? ` -> ${item.target}` : ""}`) : [])
+  ];
+  return lines.length ? lines : ["- No enriched outline hints supplied by the host Agent."];
 }
 
 function claimSuggestionLines(index: number, claim: string, confidence: string | undefined, sourceQuote: string | undefined, content: string): string[] {
@@ -535,11 +618,19 @@ function findGeneratedFileInDir(root: string, files: string[], dir: string) {
   return match ? relativePath(root, match) : undefined;
 }
 
-function buildArtifactLinks(root: string, slug: string, runDirName: string, createdAt: string, longTermTargets: LongTermTargets): ArtifactLinks {
+function buildArtifactLinks(
+  root: string,
+  slug: string,
+  runDirName: string,
+  createdAt: string,
+  contentFingerprint: string,
+  longTermTargets: LongTermTargets
+): ArtifactLinks {
   return {
     slug,
     runId: runDirName,
     createdAt,
+    contentFingerprint,
     raw: relativePath(root, longTermTargets.raw),
     sourceCard: relativePath(root, longTermTargets.sourceCard),
     wikiEntry: relativePath(root, longTermTargets.wikiEntry),
@@ -549,6 +640,10 @@ function buildArtifactLinks(root: string, slug: string, runDirName: string, crea
     outline: relativePath(root, longTermTargets.outline),
     runSummary: `09-runs/${runDirName}/processing-summary.md`
   };
+}
+
+function createContentFingerprint(content: string): string {
+  return `sha256:${createHash("sha256").update(content.replace(/\r\n/g, "\n"), "utf8").digest("hex")}`;
 }
 
 function relationshipFrontmatter(links: ArtifactLinks): string[] {

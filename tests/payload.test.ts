@@ -71,6 +71,11 @@ test("normalizes optional analysis payload", async () => {
   assert.equal(payload.analysis?.summary, "LLM Wiki 把资料整理成可持续维护的本地知识层。");
   assert.equal(payload.analysis?.key_points.length, 2);
   assert.equal(payload.analysis?.reusable_knowledge[0]?.title, "Agent-first 边界");
+  assert.equal(payload.analysis?.entities.includes("AIWiki CLI"), true);
+  assert.equal(payload.analysis?.concepts.includes("content fingerprint"), true);
+  assert.equal(payload.analysis?.tensions[0], "automation speed vs evidence review");
+  assert.equal(payload.analysis?.reusable_judgments[0]?.judgment, "Unsupported analysis should stay reviewable before it becomes reusable knowledge.");
+  assert.equal(payload.analysis?.suggested_links[0]?.title, "Grounding review workflow");
   assert.equal(payload.analysis?.claims[0]?.confidence, "high");
 });
 

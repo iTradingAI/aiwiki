@@ -36,6 +36,7 @@ test("ingests agent payload into run and long-term files", async () => {
     await assertSourceCardFrontmatter(path.join(result.runDir, "source-card.md"));
     await assertFallbackWikiEntry(path.join(root, "05-wiki", "source-knowledge", "ai-agent-workflow-notes.md"));
     await assertSummaryContains(path.join(result.runDir, "processing-summary.md"));
+    await assertContentFingerprint(root, result.runDir);
     await assertObsidianLinks(root, result.runDir);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -78,6 +79,7 @@ test("long-term collisions append run id before extension", async () => {
     assert.equal(files.some((file) => /^ai-agent-workflow-notes-claims-.+\.md$/.test(file)), true);
     const summary = await readFile(path.join(second.runDir, "processing-summary.md"), "utf8");
     assert.match(summary, /collision renamed/);
+    assert.match(summary, /duplicate content fingerprint/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -122,6 +124,11 @@ test("ingests analysis into enriched wiki entry", async () => {
     assert.match(wikiEntry, /^quality: "enriched"$/m);
     assert.match(wikiEntry, /LLM Wiki 把资料整理成可持续维护的本地知识层/);
     assert.match(wikiEntry, /Wiki Entry 是入库后的默认知识容器/);
+    assert.match(wikiEntry, /Reusable Judgments/);
+    assert.match(wikiEntry, /Unsupported analysis should stay reviewable/);
+    assert.match(wikiEntry, /Entities and Concepts/);
+    assert.match(wikiEntry, /content fingerprint/);
+    assert.match(wikiEntry, /Suggested Links/);
     assert.equal(result.agentReport.wikiEntryQuality, "enriched");
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -367,6 +374,19 @@ async function assertSummaryContains(file: string) {
   for (const fragment of expected.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)) {
     assert.match(text, new RegExp(fragment));
   }
+}
+
+async function assertContentFingerprint(root: string, runDir: string) {
+  const sourceCard = await readFile(path.join(root, "03-sources", "article-cards", "ai-agent-workflow-notes.md"), "utf8");
+  const wikiEntry = await readFile(path.join(root, "05-wiki", "source-knowledge", "ai-agent-workflow-notes.md"), "utf8");
+  const raw = await readFile(path.join(root, "02-raw", "articles", "ai-agent-workflow-notes.md"), "utf8");
+  const summary = await readFile(path.join(runDir, "processing-summary.md"), "utf8");
+  const match = sourceCard.match(/^content_fingerprint: "(sha256:[a-f0-9]{64})"$/m);
+  assert.ok(match, "source card should include a sha256 content fingerprint");
+  const fingerprint = match[1];
+  assert.match(wikiEntry, new RegExp(`^content_fingerprint: "${fingerprint}"$`, "m"));
+  assert.match(raw, new RegExp(`^content_fingerprint: "${fingerprint}"$`, "m"));
+  assert.match(summary, new RegExp(`^content_fingerprint: "${fingerprint}"$`, "m"));
 }
 
 async function assertObsidianLinks(root: string, runDir: string) {

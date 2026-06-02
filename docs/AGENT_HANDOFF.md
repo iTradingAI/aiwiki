@@ -101,6 +101,18 @@ AIWiki 会修复常见 UTF-8 mojibake，但这只是兜底；宿主 Agent 仍应
 }
 ```
 
+## Analysis 增强字段
+
+`analysis` 仍然向后兼容；旧 payload 不需要修改。宿主 Agent 能提供时，可以额外写入这些可选字段：
+
+- `entities`：文章中可复查的人、产品、组织、地点等实体。
+- `concepts`：可沉淀为知识条目的概念、方法或框架。
+- `tensions`：原文中的冲突、取舍、不确定性或反常识点。
+- `reusable_judgments`：可复用判断，建议同时提供 `rationale` 和 `source_quote`。
+- `suggested_links`：建议关联到已有 Wiki 条目的线索和原因。
+
+不能确认的内容不要编造。AIWiki 会为成功入库的正文写入 `content_fingerprint`；重复入库同一来源同一正文时会保留新 run、输出 warning，并避免覆盖已有长期文件。
+
 ## 失败 payload
 
 ```json
