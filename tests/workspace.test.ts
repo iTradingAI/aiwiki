@@ -70,6 +70,29 @@ test("status reads run directory without state machine", async () => {
     const summary = await statusSummary(root);
     assert.equal(summary.runCount, 0);
     assert.equal(summary.failedCount, 0);
+    assert.equal(summary.fallbackCount, 0);
+    assert.equal(summary.groundingReviewCount, 0);
+    assert.equal(summary.lintStatus, "missing");
+    assert.deepEqual(summary.systemFiles, [
+      { path: "_system/purpose.md", status: "ok" },
+      { path: "_system/index.md", status: "ok" },
+      { path: "_system/log.md", status: "ok" }
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("doctor reports missing purpose index and log files", async () => {
+  const root = await tempRoot("aiwiki-doctor-system-files");
+  try {
+    await initWorkspace(root);
+    await rm(path.join(root, "_system", "purpose.md"), { force: true });
+    const checks = await doctor(root);
+    const purpose = checks.find((check) => check.name === "_system/purpose.md");
+    const index = checks.find((check) => check.name === "_system/index.md");
+    assert.equal(purpose?.status, "missing");
+    assert.equal(index?.status, "ok");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

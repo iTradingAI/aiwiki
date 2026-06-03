@@ -410,3 +410,17 @@ aiwiki status
 # System Purpose Files
 
 `aiwiki setup` now also seeds `_system/purpose.md`, `_system/index.md`, and `_system/log.md` when they are missing. These files give humans and host Agents a stable entry point for the knowledge-base goal, scope, common folders, common commands, and lightweight event notes. Re-running setup preserves user edits.
+
+## Diagnostic Commands
+
+`aiwiki doctor` checks the workspace directories, write permission, and required system files: `_system/purpose.md`, `_system/index.md`, and `_system/log.md`.
+
+`aiwiki status` keeps the existing run-count summary and also reports:
+
+- `fallback_entries`: Wiki entries generated as deterministic fallback/scaffold.
+- `grounding_review_entries`: Wiki entries marked for grounding review.
+- `lint_status`: whether a lint report is missing, clean, or needs attention.
+- `system_files`: readiness of purpose, index, and log files.
+- `next_action`: the recommended next command.
+
+`aiwiki next` uses the same repair order: fix workspace structure first, then lint errors, lint warnings, empty-workspace onboarding, and finally healthy-state query guidance.

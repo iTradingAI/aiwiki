@@ -487,18 +487,29 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
 
 async function printStatusDetails(stream: NodeJS.WritableStream, root: string, runCount: number): Promise<void> {
   const counts = await contentCounts(root);
+  const summary = await statusSummary(root);
   const lintPath = path.join(root, "dashboards", "Lint Report.md");
   writeLine(stream, "");
-  writeLine(stream, "内容统计:");
-  writeLine(stream, `Wiki 条目: ${counts.wikiEntries}`);
-  writeLine(stream, `资料卡: ${counts.sourceCards}`);
-  writeLine(stream, `原文: ${counts.rawFiles}`);
-  writeLine(stream, `选题: ${counts.topics}`);
-  writeLine(stream, `大纲: ${counts.outlines}`);
-  writeLine(stream, `最近 lint: ${await exists(lintPath) ? await relativeMtime(root, lintPath) : "无"}`);
+  writeLine(stream, "Content stats:");
+  writeLine(stream, `Wiki entries: ${counts.wikiEntries}`);
+  writeLine(stream, `Source cards: ${counts.sourceCards}`);
+  writeLine(stream, `Raw files: ${counts.rawFiles}`);
+  writeLine(stream, `Topics: ${counts.topics}`);
+  writeLine(stream, `Outlines: ${counts.outlines}`);
+  writeLine(stream, `fallback_entries: ${summary.fallbackCount}`);
+  writeLine(stream, `grounding_review_entries: ${summary.groundingReviewCount}`);
+  writeLine(stream, `recent_lint: ${await exists(lintPath) ? await relativeMtime(root, lintPath) : "none"}`);
+  writeLine(stream, `lint_status: ${summary.lintStatus}`);
+  if (summary.lastSuccessRunId) {
+    writeLine(stream, `last_success: ${summary.lastSuccessRunId}`);
+  }
+  if (summary.lastFailureRunId) {
+    writeLine(stream, `last_failure: ${summary.lastFailureRunId}`);
+  }
+  writeLine(stream, `system_files: ${summary.systemFiles.map((item) => `${item.path}=${item.status}`).join(", ")}`);
   writeLine(stream, "");
-  writeLine(stream, "下一步建议:");
-  writeLine(stream, runCount === 0 ? "运行 `aiwiki agent install` 接入宿主 Agent，然后发送 `入库 <url>`。" : "运行 `aiwiki query <主题>` 查询知识，或运行 `aiwiki lint` 检查结构。");
+  writeLine(stream, "Next action:");
+  writeLine(stream, recommendedNextAction(runCount, summary.lintStatus, summary.systemFiles.some((item) => item.status !== "ok")));
 }
 
 async function printNext(
@@ -517,41 +528,67 @@ async function printNext(
     }
   }
   writeLine(stream, "AIWiki 下一步建议");
-  writeLine(stream, `知识库路径: ${root}`);
+  writeLine(stream, `workspace: ${root}`);
   if (missing.length) {
     writeLine(stream, "");
-    writeLine(stream, "先修复知识库结构:");
+    writeLine(stream, "Repair workspace structure first:");
     writeLine(stream, `- aiwiki setup --path "${root}" --yes`);
+    writeLine(stream, "- repair_order: structure");
+    return;
+  }
+  const actionableIssues = report?.issues.filter((issue) => issue.severity !== "info") ?? [];
+  const errorCount = actionableIssues.filter((issue) => issue.severity === "error").length;
+  const warningCount = actionableIssues.filter((issue) => issue.severity === "warning").length;
+  if (errorCount > 0) {
+    writeLine(stream, "");
+    writeLine(stream, `结构检查发现 ${errorCount} 个 error 问题。`);
+    writeLine(stream, "- aiwiki lint");
+    writeLine(stream, "- report: dashboards/Lint Report.md");
+    writeLine(stream, "- repair_order: lint_errors");
+    return;
+  }
+  if (warningCount > 0) {
+    writeLine(stream, "");
+    writeLine(stream, `结构检查发现 ${warningCount} 个 warning 问题。`);
+    writeLine(stream, "- aiwiki lint");
+    writeLine(stream, "- report: dashboards/Lint Report.md");
+    writeLine(stream, "- repair_order: lint_warnings");
     return;
   }
   if (runCount === 0) {
     writeLine(stream, "");
-    writeLine(stream, "还没有入库记录。");
+    writeLine(stream, "No ingest records yet.");
     writeLine(stream, "- aiwiki agent install");
-    writeLine(stream, "- 然后向宿主 Agent 发送 `入库 <url>`");
-    writeLine(stream, "- CLI 不抓网页；网页正文由宿主 Agent 提供。");
-    return;
-  }
-  const actionableIssues = report?.issues.filter((issue) => issue.severity !== "info") ?? [];
-  if (actionableIssues.length) {
-    writeLine(stream, "");
-    writeLine(stream, `结构检查发现 ${actionableIssues.length} 个需要处理的问题。`);
-    writeLine(stream, "- aiwiki lint");
-    writeLine(stream, `- 查看报告: dashboards/Lint Report.md`);
-    writeLine(stream, "- 先处理 error / warning，再继续扩展查询或入库。");
+    writeLine(stream, "- Then ask the host Agent to ingest a URL.");
+    writeLine(stream, "- AIWiki CLI does not fetch webpages; the host Agent supplies content.");
+    writeLine(stream, "- repair_order: empty_workspace");
     return;
   }
   writeLine(stream, "");
-  writeLine(stream, "已有入库记录，可以继续：");
-  writeLine(stream, "- aiwiki query <主题>");
+  writeLine(stream, "Workspace is healthy enough for retrieval:");
+  writeLine(stream, "- aiwiki query <topic>");
   writeLine(stream, "- aiwiki lint");
+  writeLine(stream, "- repair_order: healthy_query");
   if (installableMissing.length) {
     writeLine(stream, "");
-    writeLine(stream, "可补充宿主 Agent 接入:");
+    writeLine(stream, "Optional host Agent setup:");
     for (const target of installableMissing) {
       writeLine(stream, `- aiwiki agent install --agent ${target.id} --yes`);
     }
   }
+}
+
+function recommendedNextAction(runCount: number, lintStatus: "ok" | "missing" | "needs_attention", hasMissingSystemFiles: boolean): string {
+  if (hasMissingSystemFiles) {
+    return "next_action: aiwiki setup --path <workspace> --yes";
+  }
+  if (lintStatus === "needs_attention") {
+    return "next_action: aiwiki lint";
+  }
+  if (runCount === 0) {
+    return "next_action: aiwiki agent install";
+  }
+  return "next_action: aiwiki query <topic>";
 }
 
 function renderQuery(context: ContextResult): string {

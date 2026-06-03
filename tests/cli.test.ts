@@ -498,3 +498,70 @@ test("CLI ingest-url with content file reuses ingest", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("CLI status reports diagnostic counters and next action", async () => {
+  const root = await tempRoot("aiwiki-cli-status-diagnostics");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const out = new MemoryWritable();
+    assert.equal(await runCli(["status", "--path", root], { stdout: out, stderr: new MemoryWritable() }), 0);
+    assert.match(out.text(), /fallback_entries: 0/);
+    assert.match(out.text(), /grounding_review_entries: 0/);
+    assert.match(out.text(), /lint_status: missing/);
+    assert.match(out.text(), /system_files: _system\/purpose\.md=ok/);
+    assert.match(out.text(), /next_action: aiwiki agent install/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI next emits repair order for structure, lint warnings, empty, and healthy states", async () => {
+  const root = await tempRoot("aiwiki-cli-next-repair-order");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await rm(path.join(root, "_system", "purpose.md"), { force: true });
+
+    const structureOut = new MemoryWritable();
+    assert.equal(await runCli(["next", "--path", root], { stdout: structureOut, stderr: new MemoryWritable() }), 0);
+    assert.match(structureOut.text(), /repair_order: structure/);
+
+    await runCli(["setup", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const emptyOut = new MemoryWritable();
+    assert.equal(await runCli(["next", "--path", root], { stdout: emptyOut, stderr: new MemoryWritable() }), 0);
+    assert.match(emptyOut.text(), /repair_order: empty_workspace/);
+
+    const payloadPath = path.join(root, "invalid-user-view-payload.json");
+    await writeFile(payloadPath, JSON.stringify({
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "External Article",
+        source_role: "input",
+        represents_user_view: true,
+        content_format: "markdown",
+        content: "This external article should not represent the user's view.",
+        fetch_status: "ok",
+        captured_at: "2026-05-19T00:00:00.000Z"
+      },
+      request: { mode: "ingest", outputs: ["wiki_entry"], language: "zh-CN" }
+    }), "utf8");
+    await runCli(["ingest-agent", "--payload", payloadPath, "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+
+    const warningOut = new MemoryWritable();
+    assert.equal(await runCli(["next", "--path", root], { stdout: warningOut, stderr: new MemoryWritable() }), 0);
+    assert.match(warningOut.text(), /repair_order: lint_warnings/);
+
+    const healthyRoot = await tempRoot("aiwiki-cli-next-healthy");
+    try {
+      await runCli(["init", "--path", healthyRoot, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+      await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.analysis.grounded.json"), "--path", healthyRoot], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+      const healthyOut = new MemoryWritable();
+      assert.equal(await runCli(["next", "--path", healthyRoot], { stdout: healthyOut, stderr: new MemoryWritable() }), 0);
+      assert.match(healthyOut.text(), /repair_order: healthy_query/);
+    } finally {
+      await rm(healthyRoot, { recursive: true, force: true });
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

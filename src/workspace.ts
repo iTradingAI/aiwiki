@@ -4,7 +4,9 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
+import { frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmatter.js";
 import { CliError } from "./output.js";
+import { relativePath } from "./paths.js";
 
 export const CONFIG_FILE = "aiwiki.yaml";
 
@@ -45,6 +47,8 @@ export type DoctorCheck = {
   status: "ok" | "missing" | "permission error";
   detail: string;
 };
+
+export type ReadinessStatus = "ok" | "missing" | "needs_attention";
 
 const WORKSPACE_SEEDS: Array<{ path: string; content: string }> = [
   {
@@ -604,6 +608,15 @@ export async function doctor(rootPath: string) {
     });
   }
 
+  for (const file of REQUIRED_FILES) {
+    const absolute = path.join(root, file);
+    checks.push({
+      name: file,
+      status: (await exists(absolute)) ? "ok" : "missing",
+      detail: absolute
+    });
+  }
+
   const writeTarget = path.join(root, "_system", "logs", ".doctor-write-test");
   try {
     await fs.writeFile(writeTarget, "ok", "utf8");
@@ -621,13 +634,29 @@ export type StatusSummary = {
   runCount: number;
   failedCount: number;
   lastRunId?: string;
+  lastSuccessRunId?: string;
+  lastFailureRunId?: string;
+  fallbackCount: number;
+  groundingReviewCount: number;
+  lintStatus: ReadinessStatus;
+  lintReportPath?: string;
+  systemFiles: Array<{ path: string; status: "ok" | "missing" }>;
 };
 
 export async function statusSummary(rootPath: string) {
   const root = resolveRoot(rootPath);
   const runsRoot = path.join(root, "09-runs");
   if (!(await exists(runsRoot))) {
-    return { root, runCount: 0, failedCount: 0 };
+    return {
+      root,
+      runCount: 0,
+      failedCount: 0,
+      fallbackCount: await countWikiEntries(root, "deterministic_fallback"),
+      groundingReviewCount: await countGroundingReviewEntries(root),
+      lintStatus: await readLintStatus(root),
+      lintReportPath: await lintReportPath(root),
+      systemFiles: await systemFileSummary(root)
+    };
   }
 
   const entries = await fs.readdir(runsRoot, { withFileTypes: true });
@@ -653,12 +682,21 @@ export async function statusSummary(rootPath: string) {
     stats.push({ dir, mtimeMs: (await fs.stat(path.join(runsRoot, dir))).mtimeMs });
   }
   stats.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  const successDirs = dirs.filter((dir) => !dir.endsWith("-fetch-failed"));
+  const failureDirs = dirs.filter((dir) => dir.endsWith("-fetch-failed"));
 
   return {
     root,
     runCount: dirs.length,
     failedCount,
-    lastRunId: stats[0]?.dir
+    lastRunId: stats[0]?.dir,
+    lastSuccessRunId: await newestDir(root, successDirs),
+    lastFailureRunId: await newestDir(root, failureDirs),
+    fallbackCount: await countWikiEntries(root, "deterministic_fallback"),
+    groundingReviewCount: await countGroundingReviewEntries(root),
+    lintStatus: await readLintStatus(root),
+    lintReportPath: await lintReportPath(root),
+    systemFiles: await systemFileSummary(root)
   };
 }
 
@@ -678,4 +716,81 @@ function readScalar(text: string, key: string): string | undefined {
 
 function unquote(value: string): string {
   return value.replace(/^["']|["']$/g, "");
+}
+
+const REQUIRED_FILES = ["_system/purpose.md", "_system/index.md", "_system/log.md"] as const;
+
+async function systemFileSummary(root: string) {
+  const files: Array<{ path: string; status: "ok" | "missing" }> = [];
+  for (const file of REQUIRED_FILES) {
+    files.push({ path: file, status: await exists(path.join(root, file)) ? "ok" : "missing" });
+  }
+  return files;
+}
+
+async function newestDir(root: string, dirs: string[]): Promise<string | undefined> {
+  const stats: Array<{ dir: string; mtimeMs: number }> = [];
+  for (const dir of dirs) {
+    stats.push({ dir, mtimeMs: (await fs.stat(path.join(root, "09-runs", dir))).mtimeMs });
+  }
+  stats.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return stats[0]?.dir;
+}
+
+async function countWikiEntries(root: string, generationMode: string): Promise<number> {
+  const files = await markdownFiles(path.join(root, "05-wiki", "source-knowledge"));
+  let count = 0;
+  for (const file of files) {
+    const parsed = parseMarkdown(await fs.readFile(file, "utf8"));
+    if (frontmatterString(parsed.frontmatter, "generation_mode") === generationMode) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+async function countGroundingReviewEntries(root: string): Promise<number> {
+  const files = await markdownFiles(path.join(root, "05-wiki", "source-knowledge"));
+  let count = 0;
+  for (const file of files) {
+    const parsed = parseMarkdown(await fs.readFile(file, "utf8"));
+    if (frontmatterBoolean(parsed.frontmatter, "grounding_needs_review") === true) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+async function readLintStatus(root: string): Promise<ReadinessStatus> {
+  const reportPath = await lintReportPath(root);
+  if (!reportPath) {
+    return "missing";
+  }
+  const text = await fs.readFile(path.join(root, reportPath), "utf8");
+  if (/\[(error|warning)\]/.test(text)) {
+    return "needs_attention";
+  }
+  return "ok";
+}
+
+async function lintReportPath(root: string): Promise<string | undefined> {
+  const absolute = path.join(root, "dashboards", "Lint Report.md");
+  return await exists(absolute) ? relativePath(root, absolute) : undefined;
+}
+
+async function markdownFiles(dir: string): Promise<string[]> {
+  if (!(await exists(dir))) {
+    return [];
+  }
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const target = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await markdownFiles(target));
+    } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) {
+      files.push(target);
+    }
+  }
+  return files;
 }
