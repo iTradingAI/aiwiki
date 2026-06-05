@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { flagBool, flagString, parseArgs } from "./args.js";
 import { buildContext, type ContextResult } from "./context.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "./ingest.js";
-import { lintWorkspace, renderLintReport, writeLintReport } from "./lint.js";
+import { filterLintReport, lintWorkspace, renderLintReport, renderLintSummary, writeLintReport, type LintSeverity } from "./lint.js";
 import { CliError, CliStreams, writeLine } from "./output.js";
 import {
   confirmInit,
@@ -187,10 +187,16 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
 
     if (command === "lint") {
       const root = await resolveWorkspace(flagString(args, "path"));
-      const report = await lintWorkspace(root);
-      const reportPath = await writeLintReport(root, report);
+      const severity = parseLintSeverity(flagString(args, "severity"));
+      const report = filterLintReport(await lintWorkspace(root), severity);
+      if (flagBool(args, "json")) {
+        writeLine(streams.stdout, JSON.stringify(report, null, 2));
+        return 0;
+      }
+      const reportPath = flagBool(args, "no-write") ? undefined : await writeLintReport(root, report);
+      writeLine(streams.stdout, renderLintSummary(report, reportPath));
+      writeLine(streams.stdout, "");
       writeLine(streams.stdout, renderLintReport(report));
-      writeLine(streams.stdout, `report: ${reportPath}`);
       return 0;
     }
 
@@ -287,6 +293,16 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki ingest-agent --payload <file>");
   writeLine(stream, "  aiwiki ingest-url <url> --content-file <file>");
   writeLine(stream, "  aiwiki agent check");
+}
+
+function parseLintSeverity(value: string | undefined): LintSeverity | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === "error" || value === "warning" || value === "info") {
+    return value;
+  }
+  throw new CliError("lint --severity must be error, warning, or info");
 }
 
 type AgentTarget = {

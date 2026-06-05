@@ -472,9 +472,39 @@ test("CLI lint writes dashboard report", async () => {
     await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
     const out = new MemoryWritable();
     assert.equal(await runCli(["lint", "--path", root], { stdout: out, stderr: new MemoryWritable() }), 0);
+    assert.match(out.text(), /lint_summary: errors=\d+ warnings=\d+ info=\d+/);
+    assert.match(out.text(), /top_issue:/);
     assert.match(out.text(), /AIWiki Lint Report/);
     assert.match(out.text(), /report: dashboards\/Lint Report\.md/);
     assert.match(await readFile(path.join(root, "dashboards", "Lint Report.md"), "utf8"), /deterministic fallback/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI lint supports severity json and no-write modes", async () => {
+  const root = await tempRoot("aiwiki-cli-lint-modes");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+
+    const warningOut = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--severity", "warning", "--path", root], { stdout: warningOut, stderr: new MemoryWritable() }), 0);
+    assert.match(warningOut.text(), /## Warnings/);
+    assert.doesNotMatch(warningOut.text(), /\[info\]/);
+
+    const jsonOut = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--json", "--severity", "info", "--path", root], { stdout: jsonOut, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(jsonOut.text()) as { issues: Array<{ severity: string; action?: string; category?: string }> };
+    assert.ok(parsed.issues.length > 0);
+    assert.equal(parsed.issues.every((issue) => issue.severity === "info"), true);
+    assert.equal(parsed.issues.some((issue) => issue.action === "enrich" && issue.category === "stale_scaffold"), true);
+
+    await rm(path.join(root, "dashboards", "Lint Report.md"), { force: true });
+    const noWriteOut = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--no-write", "--path", root], { stdout: noWriteOut, stderr: new MemoryWritable() }), 0);
+    assert.doesNotMatch(noWriteOut.text(), /report: dashboards\/Lint Report\.md/);
+    await assert.rejects(access(path.join(root, "dashboards", "Lint Report.md")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

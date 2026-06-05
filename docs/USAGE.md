@@ -318,13 +318,23 @@ aiwiki query "AI Agent"
 aiwiki lint
 ```
 
+常用工作台模式：
+
+```bash
+aiwiki lint --severity warning
+aiwiki lint --json
+aiwiki lint --no-write
+```
+
+`lint` 会先输出 `lint_summary`、`top_issue` 和报告路径，再按 Errors / Warnings / Info 分组展示问题。每个问题会尽量给出建议动作，例如 `enrich`、`fix_link`、`reingest`、`archive` 或 `mark_reviewed`。`--severity` 只查看指定级别，`--json` 给宿主 Agent 使用，`--no-write` 只在终端检查而不更新 `dashboards/Lint Report.md`。
+
 查看下一步建议：
 
 ```bash
 aiwiki next
 ```
 
-`lint` 输出报告并写入 `dashboards/Lint Report.md`。
+默认情况下，`lint` 输出报告并写入 `dashboards/Lint Report.md`。
 
 ## 8. 高级调试
 

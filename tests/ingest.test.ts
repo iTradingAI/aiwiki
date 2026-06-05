@@ -294,7 +294,7 @@ test("lint accepts output user-view entries and warns on non-output user-view en
       request: { mode: "ingest", outputs: ["wiki_entry"], language: "zh-CN" }
     });
     const validReport = await lintWorkspace(validRoot, "2026-05-19T00:00:00.000Z");
-    assert.equal(validReport.issues.some((issue) => issue.message.includes("只有 output")), false);
+    assert.equal(validReport.issues.some((issue) => issue.message.includes("Only output source_role")), false);
 
     await ingestPayload(invalidRoot, {
       schema_version: "aiwiki.agent_payload.v1",
@@ -311,7 +311,7 @@ test("lint accepts output user-view entries and warns on non-output user-view en
       request: { mode: "ingest", outputs: ["wiki_entry"], language: "zh-CN" }
     });
     const invalidReport = await lintWorkspace(invalidRoot, "2026-05-19T00:00:00.000Z");
-    assert.equal(invalidReport.issues.some((issue) => issue.message.includes("只有 output")), true);
+    assert.equal(invalidReport.issues.some((issue) => issue.message.includes("Only output source_role")), true);
   } finally {
     await rm(validRoot, { recursive: true, force: true });
     await rm(invalidRoot, { recursive: true, force: true });

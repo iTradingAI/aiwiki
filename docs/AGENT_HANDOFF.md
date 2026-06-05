@@ -199,6 +199,28 @@ aiwiki query "<主题>"
 aiwiki lint
 ```
 
+需要机器读取时用：
+
+```bash
+aiwiki lint --json
+```
+
+只想看某一级别时用：
+
+```bash
+aiwiki lint --severity error
+aiwiki lint --severity warning
+aiwiki lint --severity info
+```
+
+只做临时检查、不改 dashboard 时用：
+
+```bash
+aiwiki lint --no-write
+```
+
+Lint 输出会包含摘要、最高优先级问题、分级报告，以及建议动作。把 `error` 当作必须先修的结构问题，把 `warning` 当作需要处理或复核的维护问题，把 `info` 当作富集、归档或后续整理 backlog。
+
 `context` 返回 JSON，注意其中的 `generation_mode`、`quality` 和 `warnings`。如果结果是 `deterministic_fallback` / `scaffold`，回复时要说明它只是可追溯脚手架，不是高质量知识提炼。
 
 `context` 也可能返回 grounding 字段。回复用户时可以把 `grounding_needs_review: true` 解释为“这条资料需要复核证据或覆盖度”，不要说成“AIWiki 已确认漏掉重点”。
