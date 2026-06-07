@@ -4,7 +4,7 @@ This log records queue-driven AIWiki development milestones that should remain v
 
 ## 2026-06-08 - Base contract cleanup and safe optional directory pruning
 
-Status: implemented and locally verified, committed locally, blocked before GitHub push and npm publication. Prepublication test-server verification is now required before npm publication.
+Status: implemented and locally verified, committed locally, blocked before GitHub push and npm publication. Test-server verification is now required before both GitHub push and npm publication.
 
 Version target: `@itradingai/aiwiki@0.2.19`
 
@@ -76,11 +76,11 @@ Because GitHub push failed, npm publication was not attempted. The task queue an
 
 ### Testing Server Gate
 
-Test-server verification must run before npm publication.
+Test-server verification must run before updating GitHub or npm.
 
-The release gate for `0.2.19` is now a prepublication tarball smoke test: create the exact local npm tarball that would be published, copy that `.tgz` to a task-specific directory on `170.106.73.197`, install it into a task-local Node project, and run the same smoke commands against that installed package. This proves the package artifact before it reaches npm.
+The release gate for `0.2.19` is now a pre-GitHub and pre-npm tarball smoke test: create the exact local npm tarball that would be published, copy that `.tgz` to a task-specific directory on `170.106.73.197`, install it into a task-local Node project, and run the same smoke commands against that installed package. This proves the package artifact before it reaches GitHub or npm.
 
-The older published-package smoke test remains useful after npm publication as a final registry sanity check, but it is no longer allowed to be the first remote test. Publishing before test-server verification would make npm the first real deployment surface, which is the wrong order for this queue.
+The older published-package smoke test remains useful after npm publication as a final registry sanity check, but it is no longer allowed to be the first remote test. Pushing to GitHub or publishing to npm before test-server verification would make a public delivery surface the first real deployment surface, which is the wrong order for this queue.
 
 Required prepublication smoke commands:
 
@@ -100,27 +100,27 @@ The smoke test must use only a task-specific temporary directory on the remote s
 
 ### Resume Steps
 
-Restore SSH key access for the current runtime user or configure GitHub authentication so this succeeds:
+Remote tarball smoke must pass first. Only after that, restore SSH key access for the current runtime user or configure GitHub authentication so this succeeds:
 
 ```powershell
 git push origin main
 ```
 
-Then continue the release chain only after prepublication test-server verification has passed:
+Then continue the release chain:
 
 ```powershell
 npm publish --access public
 npm view @itradingai/aiwiki version
 ```
 
-After `npm view` returns `0.2.19`, a short published-package registry sanity check can be run, but the blocking test-server gate must already have passed before publish.
+After `npm view` returns `0.2.19`, a short published-package registry sanity check can be run, but the blocking test-server gate must already have passed before both GitHub push and npm publish.
 
 ### Notes For Future Changes
 
 - Keep optional directories optional. Do not reintroduce required empty claims/assets/topics/outlines directories in new workspaces.
 - Keep safe fixes narrow and auditable. Do not let `--fix-empty-dirs` delete files, core directories, unknown directories, or non-empty directories.
 - Keep main help focused on the core path. Legacy commands can remain compatible without being promoted as first-run guidance.
-- Prepublication test-server verification from the local npm tarball must happen before npm publication. Local pack verification alone is not enough to publish.
+- Test-server verification from the local npm tarball must happen before GitHub push and before npm publication. Local pack verification alone is not enough to update GitHub or npm.
 
 ## 2026-06-07 - Agent-first skill sync
 
