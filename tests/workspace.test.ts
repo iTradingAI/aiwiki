@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { directorySummary, doctor, initWorkspace, readConfig, statusSummary } from "../src/workspace.js";
@@ -11,7 +11,7 @@ test("init creates layout and keeps existing config", async () => {
   try {
     const first = await initWorkspace(root);
     assert.equal(first.createdConfig, true);
-    assert.equal(first.createdDirs.length, 13);
+    assert.equal(first.createdDirs.length, 9);
     assert.equal(first.seededFiles.filter((file) => file.created).length, 12);
 
     const configPath = path.join(root, "aiwiki.yaml");
@@ -42,6 +42,7 @@ test("init creates layout and keeps existing config", async () => {
 
     const summary = await directorySummary(root);
     assert.equal(summary.missing.length, 0);
+    await assert.rejects(access(path.join(root, "04-claims", "_suggestions")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -57,6 +58,20 @@ test("config and doctor report fresh workspace", async () => {
     assert.match(config.createdAt, /^\d{4}-/);
 
     const checks = await doctor(root);
+    assert.equal(checks.some((check) => check.status !== "ok"), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("doctor ignores missing optional enhancement directories", async () => {
+  const root = await tempRoot("aiwiki-doctor-optional-dirs");
+  try {
+    await initWorkspace(root);
+    await mkdir(path.join(root, "04-claims", "_suggestions"), { recursive: true });
+    await rm(path.join(root, "04-claims"), { recursive: true, force: true });
+    const checks = await doctor(root);
+    assert.equal(checks.some((check) => check.name === "04-claims/_suggestions"), false);
     assert.equal(checks.some((check) => check.status !== "ok"), false);
   } finally {
     await rm(root, { recursive: true, force: true });

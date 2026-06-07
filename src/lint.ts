@@ -3,10 +3,16 @@ import path from "node:path";
 
 import { frontmatterArray, frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmatter.js";
 import { relativePath, safeJoin } from "./paths.js";
-import { exists } from "./workspace.js";
+import { exists, OPTIONAL_DIRS, OPTIONAL_PARENT_DIRS } from "./workspace.js";
 
 export type LintSeverity = "error" | "warning" | "info";
-export type LintAction = "enrich" | "fix_link" | "archive" | "reingest" | "mark_reviewed" | "repair_structure";
+export type LintAction = "enrich" | "fix_link" | "archive" | "reingest" | "mark_reviewed" | "repair_structure" | "remove_empty_optional_dir";
+
+export type LintSafeFix = {
+  action: "remove_empty_optional_dir";
+  path: string;
+  command: "aiwiki lint --fix-empty-dirs --json";
+};
 
 export type LintIssue = {
   severity: LintSeverity;
@@ -15,6 +21,7 @@ export type LintIssue = {
   suggestion?: string;
   category?: string;
   action?: LintAction;
+  safe_fix?: LintSafeFix;
 };
 
 export type LintReport = {
@@ -24,6 +31,11 @@ export type LintReport = {
     source_cards: number;
     raw_files: number;
     runs: number;
+  };
+  safe_fixes: {
+    available: number;
+    applied: LintSafeFix[];
+    only_safe_fixes: boolean;
   };
   issues: LintIssue[];
 };
@@ -54,6 +66,7 @@ export async function lintWorkspace(rootPath: string, now = new Date().toISOStri
   const issues: LintIssue[] = [];
 
   issues.push(...await systemFileIssues(root));
+  issues.push(...await emptyOptionalDirectoryIssues(root));
 
   const wikiSourceCards = new Set(wikiEntries.map((note) => frontmatterString(note.frontmatter, "source_card")).filter(Boolean));
   for (const card of sourceCards) {
@@ -173,6 +186,7 @@ export async function lintWorkspace(rootPath: string, now = new Date().toISOStri
       raw_files: rawFiles.length,
       runs: runs.length
     },
+    safe_fixes: safeFixSummary(issues),
     issues
   };
 }
@@ -183,7 +197,31 @@ export function filterLintReport(report: LintReport, severity?: LintSeverity): L
   }
   return {
     ...report,
+    safe_fixes: safeFixSummary(report.issues.filter((issue) => issue.severity === severity), report.safe_fixes.applied),
     issues: report.issues.filter((issue) => issue.severity === severity)
+  };
+}
+
+export async function removeEmptyOptionalDirs(rootPath: string): Promise<LintSafeFix[]> {
+  const root = path.resolve(rootPath);
+  const applied: LintSafeFix[] = [];
+  for (const dir of [...OPTIONAL_DIRS].sort((left, right) => right.length - left.length)) {
+    if (await removeKnownEmptyDir(root, dir)) {
+      applied.push(safeFixFor(dir));
+    }
+  }
+  for (const dir of [...OPTIONAL_PARENT_DIRS].sort((left, right) => right.length - left.length)) {
+    if (await removeKnownEmptyDir(root, dir)) {
+      applied.push(safeFixFor(dir));
+    }
+  }
+  return applied;
+}
+
+export function attachAppliedSafeFixes(report: LintReport, applied: LintSafeFix[]): LintReport {
+  return {
+    ...report,
+    safe_fixes: safeFixSummary(report.issues, applied)
   };
 }
 
@@ -212,6 +250,8 @@ export function renderLintReport(report: LintReport): string {
     `- Errors: ${counts.error}`,
     `- Warnings: ${counts.warning}`,
     `- Info: ${counts.info}`,
+    `- Safe Fixes Available: ${report.safe_fixes.available}`,
+    `- Only Safe Fixes: ${report.safe_fixes.only_safe_fixes ? "yes" : "no"}`,
     `- Top Issue: ${topIssue ? formatIssueLine(topIssue) : "none"}`,
     "",
     "## Suggested Handling Order",
@@ -232,6 +272,7 @@ export function renderLintSummary(report: LintReport, reportPath?: string): stri
   const topIssue = report.issues[0];
   return [
     `lint_summary: errors=${counts.error} warnings=${counts.warning} info=${counts.info}`,
+    `safe_fixes: available=${report.safe_fixes.available} applied=${report.safe_fixes.applied.length} only_safe_fixes=${report.safe_fixes.only_safe_fixes ? "yes" : "no"}`,
     `top_issue: ${topIssue ? formatIssueLine(topIssue) : "none"}`,
     ...(reportPath ? [`report: ${reportPath}`] : [])
   ].join("\n");
@@ -253,6 +294,66 @@ async function systemFileIssues(root: string): Promise<LintIssue[]> {
     });
   }
   return issues;
+}
+
+async function emptyOptionalDirectoryIssues(root: string): Promise<LintIssue[]> {
+  const issues: LintIssue[] = [];
+  for (const dir of [...OPTIONAL_DIRS, ...OPTIONAL_PARENT_DIRS]) {
+    if (!(await isExistingEmptyDirectory(path.join(root, dir)))) {
+      continue;
+    }
+    issues.push({
+      severity: "info",
+      path: dir,
+      category: "empty_optional_directory",
+      action: "remove_empty_optional_dir",
+      message: `Optional directory is empty and can be safely removed: ${dir}`,
+      suggestion: "Run aiwiki lint --fix-empty-dirs --json to remove known empty optional directories.",
+      safe_fix: safeFixFor(dir)
+    });
+  }
+  return issues;
+}
+
+async function removeKnownEmptyDir(root: string, dir: string): Promise<boolean> {
+  const target = path.join(root, dir);
+  if (!(await isExistingEmptyDirectory(target))) {
+    return false;
+  }
+  await fs.rmdir(target);
+  return true;
+}
+
+async function isExistingEmptyDirectory(target: string): Promise<boolean> {
+  try {
+    const stats = await fs.stat(target);
+    if (!stats.isDirectory()) {
+      return false;
+    }
+    return (await fs.readdir(target)).length === 0;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function safeFixFor(dir: string): LintSafeFix {
+  return {
+    action: "remove_empty_optional_dir",
+    path: dir,
+    command: "aiwiki lint --fix-empty-dirs --json"
+  };
+}
+
+function safeFixSummary(issues: LintIssue[], applied: LintSafeFix[] = []): LintReport["safe_fixes"] {
+  const available = issues.filter((issue) => issue.safe_fix).length;
+  return {
+    available,
+    applied,
+    only_safe_fixes: issues.length > 0 && issues.every((issue) => Boolean(issue.safe_fix))
+  };
 }
 
 async function readNotes(root: string, dir: string): Promise<Note[]> {

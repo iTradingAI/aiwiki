@@ -2,6 +2,10 @@
 
 AIWiki 对外只有一个项目，所以这里写的是能力路线，不是版本分层。
 
+公开试用和长期运营的完整路线图见：
+
+- [AIWiki 长期运营路线图](./20260607-aiwiki-long-term-operating-roadmap.md)
+
 ## 1. 更稳的入库体验
 
 - 更顺的 setup 引导

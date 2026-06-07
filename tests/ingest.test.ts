@@ -73,10 +73,10 @@ test("long-term collisions append run id before extension", async () => {
   try {
     await ingestPayload(root, await readFixture("agent_payload.url.valid.json"));
     const second = await ingestPayload(root, await readFixture("agent_payload.url.valid.json"));
-    const claimsDir = path.join(root, "04-claims", "_suggestions");
-    const files = await readdir(claimsDir);
-    assert.equal(files.includes("ai-agent-workflow-notes-claims.md"), true);
-    assert.equal(files.some((file) => /^ai-agent-workflow-notes-claims-.+\.md$/.test(file)), true);
+    const assetsDir = path.join(root, "06-assets", "_suggestions");
+    const files = await readdir(assetsDir);
+    assert.equal(files.includes("ai-agent-workflow-notes-assets.md"), true);
+    assert.equal(files.some((file) => /^ai-agent-workflow-notes-assets-.+\.md$/.test(file)), true);
     const summary = await readFile(path.join(second.runDir, "processing-summary.md"), "utf8");
     assert.match(summary, /collision renamed/);
     assert.match(summary, /duplicate content fingerprint/);
@@ -110,6 +110,44 @@ test("ingest file uses the file title instead of content headings", async () => 
     const expectedSlug = "2025-12-31-cursor-dev-log";
     await stat(path.join(root, "02-raw", "articles", `${expectedSlug}.md`));
     await stat(path.join(root, "03-sources", "article-cards", `${expectedSlug}.md`));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("minimal ingest creates only core long-term artifacts by default", async () => {
+  const root = await tempRoot("aiwiki-ingest-minimal");
+  try {
+    const result = await ingestPayload(root, {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "Minimal Core Note",
+        content_format: "markdown",
+        content: "A short source that should create only core AIWiki artifacts.",
+        fetch_status: "ok",
+        captured_at: "2026-06-08T00:00:00.000Z"
+      },
+      request: { mode: "ingest", outputs: ["wiki_entry"], language: "zh-CN" }
+    });
+
+    assert.deepEqual((await readdir(result.runDir)).sort(), [
+      "payload.json",
+      "processing-summary.md",
+      "raw.md",
+      "source-card.md",
+      "wiki-entry.md"
+    ].sort());
+    await stat(path.join(root, "02-raw", "articles", "minimal-core-note.md"));
+    await stat(path.join(root, "03-sources", "article-cards", "minimal-core-note.md"));
+    await stat(path.join(root, "05-wiki", "source-knowledge", "minimal-core-note.md"));
+    await assert.rejects(readdir(path.join(root, "04-claims")));
+    await assert.rejects(readdir(path.join(root, "06-assets")));
+    await assert.rejects(readdir(path.join(root, "07-topics")));
+    await assert.rejects(readdir(path.join(root, "08-outputs")));
+
+    const report = await lintWorkspace(root, "2026-06-08T00:00:00.000Z");
+    assert.equal(report.issues.some((issue) => issue.category === "broken_link"), false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -393,7 +431,7 @@ async function assertObsidianLinks(root: string, runDir: string) {
   const sourceCard = await readFile(path.join(root, "03-sources", "article-cards", "ai-agent-workflow-notes.md"), "utf8");
   assert.match(sourceCard, /\[\[05-wiki\/source-knowledge\/ai-agent-workflow-notes\|Wiki 条目\]\]/);
   assert.match(sourceCard, /\[\[02-raw\/articles\/ai-agent-workflow-notes\|原文\]\]/);
-  assert.match(sourceCard, /\[\[04-claims\/_suggestions\/ai-agent-workflow-notes-claims\|Claim 建议\]\]/);
+  assert.doesNotMatch(sourceCard, /\[\[04-claims\/_suggestions\/ai-agent-workflow-notes-claims\|Claim 建议\]\]/);
   assert.match(sourceCard, /\[\[08-outputs\/outlines\/ai-agent-workflow-notes-outline\|大纲\]\]/);
   assert.match(sourceCard, /^aiwiki_id: "ai-agent-workflow-notes:source-card"$/m);
   assert.match(sourceCard, /^slug: "ai-agent-workflow-notes"$/m);
@@ -401,9 +439,9 @@ async function assertObsidianLinks(root: string, runDir: string) {
   assert.match(sourceCard, /^wiki_entry: "\[\[05-wiki\/source-knowledge\/ai-agent-workflow-notes\|Wiki 条目\]\]"$/m);
   assert.match(sourceCard, /^run_summary: "\[\[09-runs\/.+\/processing-summary\|处理记录\]\]"$/m);
 
-  const claims = await readFile(path.join(root, "04-claims", "_suggestions", "ai-agent-workflow-notes-claims.md"), "utf8");
-  assert.match(claims, /\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|资料卡\]\]/);
-  assert.match(claims, /^raw_note: "\[\[02-raw\/articles\/ai-agent-workflow-notes\|原文\]\]"$/m);
+  const assets = await readFile(path.join(root, "06-assets", "_suggestions", "ai-agent-workflow-notes-assets.md"), "utf8");
+  assert.match(assets, /\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|资料卡\]\]/);
+  assert.match(assets, /^raw_note: "\[\[02-raw\/articles\/ai-agent-workflow-notes\|原文\]\]"$/m);
 
   const raw = await readFile(path.join(root, "02-raw", "articles", "ai-agent-workflow-notes.md"), "utf8");
   assert.match(raw, /\[\[05-wiki\/source-knowledge\/ai-agent-workflow-notes\|Wiki 条目\]\]/);

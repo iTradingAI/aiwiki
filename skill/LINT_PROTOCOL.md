@@ -9,17 +9,17 @@ Use this protocol when the user asks:
 
 ## Steps
 
-1. Call:
-
-```bash
-aiwiki lint
-```
-
-2. When you need machine-readable triage, call:
+1. Call JSON lint first:
 
 ```bash
 aiwiki lint --json
-aiwiki next
+```
+
+2. If `safe_fixes.only_safe_fixes` is true and the user allows cleanup, apply the built-in safe fix and rerun JSON lint:
+
+```bash
+aiwiki lint --fix-empty-dirs --json
+aiwiki lint --json
 ```
 
 3. Read the terminal report.
@@ -38,6 +38,7 @@ dashboards/Lint Report.md
 - `error`: broken structure such as a missing internal link.
 - `warning`: likely fix needed, such as missing source fields or stale fallback entries.
 - `info`: useful inventory, such as deterministic fallback count or duplicate titles.
+- `safe_fixes`: machine-readable count of safe fixes available/applied; `only_safe_fixes` means all current issues are safe to apply with the supported fixer.
 
 ## Repair Guidance
 
@@ -47,3 +48,4 @@ Prefer small, traceable fixes:
 - Fix broken wikilinks.
 - Add missing `source_card` or `raw_file` paths.
 - Ask the host Agent to provide `analysis` for scaffold entries.
+- Remove empty optional enhancement directories only through `aiwiki lint --fix-empty-dirs --json`; do not delete core directories, unknown directories, non-empty directories, or files.

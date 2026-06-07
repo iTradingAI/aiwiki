@@ -106,12 +106,8 @@ export function normalizePayload(raw: unknown, runStartedAt: string): Normalized
   const requestRaw = isRecord(raw.request) ? raw.request : {};
   const requestedOutputs = Array.isArray(requestRaw.outputs)
     ? requestRaw.outputs.filter((item): item is string => typeof item === "string")
-    : ["source_card", "creative_assets", "topics", "draft_outline", "processing_summary"];
-
-  const outputs = ["source_card", "wiki_entry", "creative_assets", "topics", "draft_outline", "processing_summary"];
-  if (fetchStatus !== "failed" && requestedOutputs.length && hasCustomOutputRequest(requestedOutputs)) {
-    warnings.push("AIWiki 会为每条输入生成完整资料产物，request.outputs 已按全量输出处理。");
-  }
+    : undefined;
+  const outputs = normalizeOutputs(requestedOutputs, fetchStatus, warnings);
   if (typeof raw.target_kb === "string" && raw.target_kb.trim()) {
     warnings.push(`target_kb=${raw.target_kb} 已被当前知识库流程忽略。`);
   }
@@ -406,9 +402,27 @@ function hasAnalysisContent(analysis: PayloadAnalysis): boolean {
   );
 }
 
-function hasCustomOutputRequest(outputs: string[]): boolean {
-  const legacyDefault = ["source_card", "creative_assets", "topics", "draft_outline", "processing_summary"];
-  const currentDefault = ["source_card", "wiki_entry", "creative_assets", "topics", "draft_outline", "processing_summary"];
-  const sameSet = (left: string[], right: string[]) => left.length === right.length && left.every((item) => right.includes(item));
-  return !sameSet(outputs, legacyDefault) && !sameSet(outputs, currentDefault);
+function normalizeOutputs(outputs: string[] | undefined, fetchStatus: "ok" | "failed", warnings: string[]): string[] {
+  if (fetchStatus === "failed") {
+    return ["processing_summary"];
+  }
+  const core = ["source_card", "wiki_entry", "processing_summary"];
+  const allowed = new Set([
+    ...core,
+    "claims",
+    "claim_suggestions",
+    "creative_assets",
+    "topics",
+    "draft_outline"
+  ]);
+  const requested = outputs ?? core;
+  const normalized = new Set(core);
+  for (const output of requested) {
+    if (!allowed.has(output)) {
+      warnings.push(`request.outputs ignored unknown output: ${output}`);
+      continue;
+    }
+    normalized.add(output);
+  }
+  return [...normalized];
 }

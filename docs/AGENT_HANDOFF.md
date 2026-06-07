@@ -91,9 +91,6 @@ AIWiki 会修复常见 UTF-8 mojibake，但这只是兜底；宿主 Agent 仍应
     "outputs": [
       "source_card",
       "wiki_entry",
-      "creative_assets",
-      "topics",
-      "draft_outline",
       "processing_summary"
     ],
     "language": "zh-CN"
@@ -193,15 +190,16 @@ aiwiki context "<主题>"
 aiwiki query "<主题>"
 ```
 
-当用户说“整理 / 检查知识库”时，调用：
+当用户说“整理 / 检查知识库”时，先调用 JSON 检查：
 
 ```bash
-aiwiki lint
+aiwiki lint --json
 ```
 
-需要机器读取时用：
+如果 `safe_fixes.only_safe_fixes` 为 `true`，且用户允许整理，可以应用内置安全修复并再次检查：
 
 ```bash
+aiwiki lint --fix-empty-dirs --json
 aiwiki lint --json
 ```
 
@@ -219,7 +217,7 @@ aiwiki lint --severity info
 aiwiki lint --no-write
 ```
 
-Lint 输出会包含摘要、最高优先级问题、分级报告，以及建议动作。把 `error` 当作必须先修的结构问题，把 `warning` 当作需要处理或复核的维护问题，把 `info` 当作富集、归档或后续整理 backlog。
+Lint 输出会包含摘要、`safe_fixes`、最高优先级问题、分级报告，以及建议动作。把 `error` 当作必须先修的结构问题，把 `warning` 当作需要处理或复核的维护问题，把 `info` 当作富集、归档或后续整理 backlog。当前唯一可自动应用的 safe fix 是 `remove_empty_optional_dir`，只会删除已知且为空的可选增强目录；不要删除核心目录、未知目录、非空目录或文件。
 
 `context` 返回 JSON，注意其中的 `generation_mode`、`quality` 和 `warnings`。如果结果是 `deterministic_fallback` / `scaffold`，回复时要说明它只是可追溯脚手架，不是高质量知识提炼。
 

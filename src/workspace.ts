@@ -10,21 +10,33 @@ import { relativePath } from "./paths.js";
 
 export const CONFIG_FILE = "aiwiki.yaml";
 
-export const REQUIRED_DIRS = [
+export const CORE_DIRS = [
   "02-raw/articles",
   "03-sources/article-cards",
-  "04-claims/_suggestions",
   "05-wiki",
   "05-wiki/source-knowledge",
-  "06-assets/_suggestions",
-  "07-topics/ready",
-  "08-outputs/outlines",
   "09-runs",
   "dashboards",
   "_system/templates",
   "_system/schemas",
   "_system/logs"
 ] as const;
+
+export const OPTIONAL_DIRS = [
+  "04-claims/_suggestions",
+  "06-assets/_suggestions",
+  "07-topics/ready",
+  "08-outputs/outlines"
+] as const;
+
+export const OPTIONAL_PARENT_DIRS = [
+  "04-claims",
+  "06-assets",
+  "07-topics",
+  "08-outputs"
+] as const;
+
+export const REQUIRED_DIRS = CORE_DIRS;
 
 export type SeedFile = {
   path: string;
@@ -393,7 +405,7 @@ export async function initWorkspace(rootPath: string) {
   await fs.mkdir(root, { recursive: true });
 
   const createdDirs: string[] = [];
-  for (const dir of REQUIRED_DIRS) {
+  for (const dir of CORE_DIRS) {
     const absolute = path.join(root, dir);
     const existed = await exists(absolute);
     await fs.mkdir(absolute, { recursive: true });
@@ -499,7 +511,7 @@ export async function promptForSetup(options: { rootPath?: string; yes: boolean 
     if (!options.yes) {
       const root = resolveRoot(rootPath);
       output.write(`将创建或补齐 AIWiki 目录: ${root}\n`);
-      for (const dir of REQUIRED_DIRS) {
+      for (const dir of CORE_DIRS) {
         output.write(`  - ${dir}\n`);
       }
       const answer = await rl.question("确认创建？输入 y 继续: ");
@@ -531,7 +543,7 @@ async function promptForSetupFromPipe(options: { rootPath?: string; yes: boolean
   if (!options.yes) {
     const root = resolveRoot(rootPath);
     output.write(`将创建或补齐 AIWiki 目录: ${root}\n`);
-    for (const dir of REQUIRED_DIRS) {
+    for (const dir of CORE_DIRS) {
       output.write(`  - ${dir}\n`);
     }
     output.write("确认创建？输入 y 继续: ");
@@ -553,7 +565,7 @@ export async function confirmInit(rootPath: string) {
   const rl = createInterface({ input, output });
   try {
     output.write(`将创建或补齐 AIWiki 目录: ${root}\n`);
-    for (const dir of REQUIRED_DIRS) {
+    for (const dir of CORE_DIRS) {
       output.write(`  - ${dir}\n`);
     }
     const answer = await rl.question("确认创建？输入 y 继续: ");

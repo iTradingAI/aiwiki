@@ -23,7 +23,7 @@ AIWiki 是一个开源的 Agent-first 本地 LLM-wiki CLI。
 用户给 URL / 正文 / 文件
   -> 宿主 Agent 读取内容并尽量生成 analysis / wiki_entry
   -> aiwiki ingest-agent --stdin
-  -> AIWiki 写入 Raw / Source Card / Wiki Entry / Claim / Topic / Outline / Run Log
+  -> AIWiki 写入 Raw / Source Card / Wiki Entry / Run Summary；有明确内容或请求时再写 Claim / Topic / Outline / Asset
 ```
 
 ### Query：从 Wiki 调度知识
@@ -55,7 +55,7 @@ aiwiki lint
 我的知识库路径：F:\knowledges
 
 请检查 Node.js >=20，执行 aiwiki setup --path "我的知识库路径" --yes，
-然后运行 aiwiki agent list / aiwiki agent install 完成宿主 Agent 对接。
+然后运行 aiwiki agent sync --yes 和 aiwiki agent check --json 完成宿主 Agent 对接。
 最后执行 aiwiki doctor 和 aiwiki status，告诉我实际执行了哪些命令和还差什么手动步骤。
 ```
 
@@ -63,16 +63,15 @@ aiwiki lint
 
 ```bash
 npx @itradingai/aiwiki@latest setup
-aiwiki agent list
-aiwiki agent install
+aiwiki agent sync --yes
+aiwiki agent check --json
 ```
 
 ### 第二步：接入宿主 Agent
 
 ```bash
-aiwiki agent list
-aiwiki agent install
-aiwiki agent check
+aiwiki agent sync --yes
+aiwiki agent check --json
 ```
 
 也可以直接输出通用协议：
@@ -118,15 +117,11 @@ aiwiki query "xxx"
 ```text
 02-raw/articles/
 03-sources/article-cards/
-04-claims/_suggestions/
 05-wiki/source-knowledge/
-06-assets/_suggestions/
-07-topics/ready/
-08-outputs/outlines/
 09-runs/<run-id>/
 ```
 
-其中 `05-wiki/source-knowledge/<slug>.md` 是默认 Wiki Entry。
+其中 `02-raw/articles/`、`03-sources/article-cards/`、`05-wiki/source-knowledge/` 和 `09-runs/<run-id>/` 是核心产物。`04-claims/_suggestions/`、`06-assets/_suggestions/`、`07-topics/ready/`、`08-outputs/outlines/` 只在 payload 有对应内容或 `request.outputs` 明确请求时生成。
 
 ### Agent-Enriched Wiki Entry
 

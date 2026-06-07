@@ -18,9 +18,9 @@ export type WikiEntryLinks = {
   wikiEntry: string;
   raw: string;
   sourceCard: string;
-  claims: string;
-  topics: string;
-  outline: string;
+  claims?: string;
+  topics?: string;
+  outline?: string;
   runSummary: string;
 };
 
@@ -65,9 +65,9 @@ function wikiFrontmatter(
     `source_type: "${escapeYaml(payload.source.kind)}"`,
     `source_card: "${escapeYaml(links.sourceCard)}"`,
     `raw_file: "${escapeYaml(links.raw)}"`,
-    `claims_file: "${escapeYaml(links.claims)}"`,
-    `topics_file: "${escapeYaml(links.topics)}"`,
-    `outline_file: "${escapeYaml(links.outline)}"`,
+    ...(links.claims ? [`claims_file: "${escapeYaml(links.claims)}"`] : []),
+    ...(links.topics ? [`topics_file: "${escapeYaml(links.topics)}"`] : []),
+    ...(links.outline ? [`outline_file: "${escapeYaml(links.outline)}"`] : []),
     `run_summary: "${escapeYaml(links.runSummary)}"`,
     `run_id: "${escapeYaml(links.runId)}"`,
     `content_fingerprint: "${escapeYaml(links.contentFingerprint)}"`,

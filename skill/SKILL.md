@@ -3,7 +3,7 @@ name: aiwiki
 description: Agent-first AIWiki workflow for turning one URL/body into local Wiki knowledge files.
 ---
 
-<!-- aiwiki-skill-version: 0.2.18 -->
+<!-- aiwiki-skill-version: 0.2.19 -->
 
 # AIWiki Skill
 
@@ -132,7 +132,7 @@ Because AIWiki CLI does not call an LLM, high-quality summary and knowledge extr
   },
   "request": {
     "mode": "ingest",
-    "outputs": ["source_card", "wiki_entry", "creative_assets", "topics", "draft_outline", "processing_summary"],
+    "outputs": ["source_card", "wiki_entry", "processing_summary"],
     "language": "zh-CN"
   }
 }
@@ -208,13 +208,20 @@ aiwiki query "<topic>"
 
 ## Lint Protocol
 
-When the user asks to整理 / 检查 / lint the knowledge base, call:
+When the user asks to整理 / 检查 / lint the knowledge base, first call JSON lint:
 
 ```bash
-aiwiki lint
+aiwiki lint --json
 ```
 
-Explain warnings and errors as structure-health feedback. Do not frame lint as a requirement that the user manually review every item.
+If `safe_fixes.only_safe_fixes` is true and the user has allowed cleanup, apply the built-in safe fix and rerun JSON lint:
+
+```bash
+aiwiki lint --fix-empty-dirs --json
+aiwiki lint --json
+```
+
+Only `remove_empty_optional_dir` is auto-safe today. It removes known empty optional enhancement directories and must not delete core directories, unknown directories, non-empty directories, or files. Explain warnings and errors as structure-health feedback. Do not frame lint as a requirement that the user manually review every item.
 
 ## Source Role
 

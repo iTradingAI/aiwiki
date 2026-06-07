@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { flagBool, flagString, parseArgs, type ParsedArgs } from "./args.js";
 import { buildContext, type ContextFilters, type ContextResult } from "./context.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "./ingest.js";
-import { filterLintReport, lintWorkspace, renderLintReport, renderLintSummary, writeLintReport, type LintSeverity } from "./lint.js";
+import { attachAppliedSafeFixes, filterLintReport, lintWorkspace, removeEmptyOptionalDirs, renderLintReport, renderLintSummary, writeLintReport, type LintSeverity } from "./lint.js";
 import { CliError, CliStreams, writeLine } from "./output.js";
 import {
   confirmInit,
@@ -60,8 +60,8 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `默认知识库: ${defaultConfig.defaultPath}`);
       writeLine(streams.stdout, `用户配置: ${defaultConfig.configPath}`);
       writeLine(streams.stdout, "Obsidian 入口: dashboards/AIWiki Home.md");
-      writeLine(streams.stdout, "下一步: 运行 `aiwiki agent install`，把 AIWiki 安装到宿主 Agent。");
-      writeLine(streams.stdout, "Agent 设置完成后: 向 Agent 发送 `入库 <url>`");
+      writeLine(streams.stdout, "下一步: 运行 `aiwiki agent sync --yes`，同步 AIWiki 宿主 Agent 对接文件。");
+      writeLine(streams.stdout, "Agent 设置完成后: 让宿主 Agent 提供正文并调用 `aiwiki ingest-agent --stdin`，或运行 `aiwiki ingest-file --file <file>`。");
       return 0;
     }
 
@@ -212,7 +212,8 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
     if (command === "lint") {
       const root = await resolveWorkspace(flagString(args, "path"));
       const severity = parseLintSeverity(flagString(args, "severity"));
-      const report = filterLintReport(await lintWorkspace(root), severity);
+      const appliedSafeFixes = flagBool(args, "fix-empty-dirs") ? await removeEmptyOptionalDirs(root) : [];
+      const report = filterLintReport(attachAppliedSafeFixes(await lintWorkspace(root), appliedSafeFixes), severity);
       if (flagBool(args, "json")) {
         writeLine(streams.stdout, JSON.stringify(report, null, 2));
         return 0;
@@ -300,25 +301,16 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "用法:");
   writeLine(stream, "  aiwiki setup");
   writeLine(stream, "  aiwiki setup --path <path> --yes");
-  writeLine(stream, "  aiwiki agent list");
-  writeLine(stream, "  aiwiki agent install");
-  writeLine(stream, "  aiwiki agent install --agent codex --yes");
   writeLine(stream, "  aiwiki agent sync --yes");
   writeLine(stream, "  aiwiki agent check --json");
-  writeLine(stream, "  aiwiki prompt agent");
+  writeLine(stream, "  aiwiki ingest-agent --stdin");
+  writeLine(stream, "  aiwiki ingest-file --file <file>");
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
   writeLine(stream, "  aiwiki context <query>");
   writeLine(stream, "  aiwiki query <query>");
-  writeLine(stream, "  aiwiki next");
   writeLine(stream, "  aiwiki lint");
-  writeLine(stream, "  aiwiki ingest-agent --stdin");
-  writeLine(stream, "  aiwiki ingest-file --file <file>");
-  writeLine(stream, "  aiwiki init --path <path> --yes --set-default");
-  writeLine(stream, "  aiwiki config show");
-  writeLine(stream, "  aiwiki ingest-agent --payload <file>");
-  writeLine(stream, "  aiwiki ingest-url <url> --content-file <file>");
-  writeLine(stream, "  aiwiki agent check");
+  writeLine(stream, "  aiwiki lint --fix-empty-dirs --json");
 }
 
 function printAgentHelp(stream: NodeJS.WritableStream): void {
@@ -726,7 +718,7 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "回复措辞：成功时说“AIWiki 已完成入库，并生成 Wiki 条目。” 如果 wiki_entry_quality=scaffold，说明该条目只是可追溯脚手架，仍需宿主 Agent 后续补全。Dataview 是可选增强，不要替用户安装插件或修改 .obsidian。");
   writeLine(stream, "");
   writeLine(stream, "查询：当用户要求从 AIWiki 里了解某个主题时，调用 `aiwiki context <主题>`。");
-  writeLine(stream, "整理：当用户要求检查或整理知识库时，调用 `aiwiki lint`。");
+  writeLine(stream, "整理：当用户要求检查或整理知识库时，先调用 `aiwiki lint --json`；若只有 safe fix 且用户允许整理，再调用 `aiwiki lint --fix-empty-dirs --json`，随后重跑 `aiwiki lint --json`。");
   writeLine(stream, "");
   writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取；声称 AIWiki CLI 会在没有 Agent 分析字段时自动高质量总结。");
 }

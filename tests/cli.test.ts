@@ -14,13 +14,21 @@ test("help exposes only base commands", async () => {
   const text = stdout.text();
   assert.equal(code, 0);
   assert.match(text, /aiwiki setup/);
-  assert.match(text, /aiwiki init/);
-  assert.match(text, /aiwiki agent list/);
-  assert.match(text, /aiwiki agent install/);
   assert.match(text, /aiwiki agent sync --yes/);
-  assert.match(text, /aiwiki prompt agent/);
+  assert.match(text, /aiwiki agent check --json/);
+  assert.match(text, /aiwiki ingest-agent --stdin/);
+  assert.match(text, /aiwiki ingest-file --file <file>/);
   assert.match(text, /aiwiki context <query>/);
+  assert.match(text, /aiwiki query <query>/);
   assert.match(text, /aiwiki lint/);
+  assert.match(text, /aiwiki lint --fix-empty-dirs --json/);
+  assert.doesNotMatch(text, /aiwiki init/);
+  assert.doesNotMatch(text, /aiwiki agent install/);
+  assert.doesNotMatch(text, /aiwiki prompt agent/);
+  assert.doesNotMatch(text, /aiwiki next/);
+  assert.doesNotMatch(text, /aiwiki config show/);
+  assert.doesNotMatch(text, /aiwiki ingest-url/);
+  assert.doesNotMatch(text, /aiwiki ingest-agent --payload/);
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
   assert.equal(stderr.text(), "");
@@ -106,8 +114,8 @@ test("CLI setup stores default workspace for no-path commands", async () => {
     assert.match(setupOut.text(), /用户配置:/);
     assert.match(setupOut.text(), /新建数据库文件数: 12/);
     assert.match(setupOut.text(), /Obsidian 入口: dashboards\/AIWiki Home\.md/);
-    assert.match(setupOut.text(), /aiwiki agent install/);
-    assert.match(setupOut.text(), /Agent 设置完成后/);
+    assert.match(setupOut.text(), /aiwiki agent sync --yes/);
+    assert.match(setupOut.text(), /aiwiki ingest-agent --stdin/);
 
     const doctorOut = new MemoryWritable();
     assert.equal(await runCli(["doctor"], { stdout: doctorOut, stderr: new MemoryWritable() }), 0);
@@ -608,6 +616,41 @@ test("CLI lint supports severity json and no-write modes", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("CLI lint fix-empty-dirs removes only known empty optional directories", async () => {
+  const root = await tempRoot("aiwiki-cli-lint-empty-dirs");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await mkdir(path.join(root, "04-claims", "_suggestions"), { recursive: true });
+    await mkdir(path.join(root, "06-assets", "_suggestions"), { recursive: true });
+    await mkdir(path.join(root, "07-topics", "ready"), { recursive: true });
+    await mkdir(path.join(root, "08-outputs", "outlines"), { recursive: true });
+    await mkdir(path.join(root, "08-outputs", "custom"), { recursive: true });
+    await writeFile(path.join(root, "08-outputs", "custom", "keep.md"), "keep", "utf8");
+
+    const beforeOut = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--json", "--path", root], { stdout: beforeOut, stderr: new MemoryWritable() }), 0);
+    const before = JSON.parse(beforeOut.text()) as { safe_fixes: { available: number; only_safe_fixes: boolean }; issues: Array<{ category?: string; safe_fix?: { action: string; path: string } }> };
+    assert.equal(before.issues.some((issue) => issue.category === "empty_optional_directory"), true);
+    assert.equal(before.safe_fixes.available >= 4, true);
+    assert.equal(before.safe_fixes.only_safe_fixes, true);
+
+    const fixOut = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--fix-empty-dirs", "--json", "--path", root], { stdout: fixOut, stderr: new MemoryWritable() }), 0);
+    const fixed = JSON.parse(fixOut.text()) as { safe_fixes: { available: number; applied: Array<{ path: string }> } };
+    assert.equal(fixed.safe_fixes.available, 0);
+    assert.ok(fixed.safe_fixes.applied.some((item) => item.path === "04-claims/_suggestions"));
+    await assert.rejects(access(path.join(root, "04-claims", "_suggestions")));
+    await assert.rejects(access(path.join(root, "06-assets", "_suggestions")));
+    await assert.rejects(access(path.join(root, "07-topics", "ready")));
+    await assert.rejects(access(path.join(root, "04-claims")));
+    await access(path.join(root, "08-outputs", "custom", "keep.md"));
+    await access(path.join(root, "02-raw", "articles"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 
 test("CLI ingest-url with content file reuses ingest", async () => {
   const root = await tempRoot("aiwiki-cli-url-file");

@@ -46,10 +46,10 @@ type ArtifactLinks = {
   raw: string;
   sourceCard: string;
   wikiEntry: string;
-  claims: string;
-  assets: string;
-  topics: string;
-  outline: string;
+  claims?: string;
+  assets?: string;
+  topics?: string;
+  outline?: string;
   runSummary: string;
 };
 
@@ -57,10 +57,17 @@ type LongTermTargets = {
   raw: string;
   sourceCard: string;
   wikiEntry: string;
-  claims: string;
-  assets: string;
-  topics: string;
-  outline: string;
+  claims?: string;
+  assets?: string;
+  topics?: string;
+  outline?: string;
+};
+
+type OptionalOutputPlan = {
+  claims: boolean;
+  assets: boolean;
+  topics: boolean;
+  outline: boolean;
 };
 
 export async function ingestPayload(rootPath: string, rawPayload: unknown) {
@@ -90,7 +97,8 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
   const contentFingerprint = createContentFingerprint(content);
   const collisionWarnings: string[] = [];
   await detectDuplicateContent(root, payload, contentFingerprint, collisionWarnings);
-  const longTermTargets = await chooseLongTermTargets(root, slug, runId, collisionWarnings);
+  const optionalOutputs = optionalOutputPlan(payload);
+  const longTermTargets = await chooseLongTermTargets(root, slug, runId, collisionWarnings, optionalOutputs);
   const links = buildArtifactLinks(root, slug, runDirName, runStartedAt, contentFingerprint, longTermTargets);
   const grounding = buildGroundingReport(payload);
 
@@ -98,17 +106,31 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
   await writeFile(path.join(runDir, "source-card.md"), sourceCard(payload, runDirName, links, grounding), generatedFiles);
   const wikiEntryResult = renderWikiEntry(payload, links);
   await writeFile(path.join(runDir, "wiki-entry.md"), wikiEntryResult.markdown, generatedFiles);
-  await writeFile(path.join(runDir, "creative-assets.md"), creativeAssets(payload, links), generatedFiles);
-  await writeFile(path.join(runDir, "topics.md"), topics(payload, links), generatedFiles);
-  await writeFile(path.join(runDir, "draft-outline.md"), outline(payload, links), generatedFiles);
+  if (optionalOutputs.assets && links.assets) {
+    await writeFile(path.join(runDir, "creative-assets.md"), creativeAssets(payload, links), generatedFiles);
+  }
+  if (optionalOutputs.topics && links.topics) {
+    await writeFile(path.join(runDir, "topics.md"), topics(payload, links), generatedFiles);
+  }
+  if (optionalOutputs.outline && links.outline) {
+    await writeFile(path.join(runDir, "draft-outline.md"), outline(payload, links), generatedFiles);
+  }
 
   await writeFile(longTermTargets.raw, contentFile(payload, content, links), generatedFiles);
   await writeFile(longTermTargets.sourceCard, sourceCard(payload, runDirName, links, grounding), generatedFiles);
   await writeFile(longTermTargets.wikiEntry, wikiEntryResult.markdown, generatedFiles);
-  await writeFile(longTermTargets.claims, claims(payload, links, grounding), generatedFiles);
-  await writeFile(longTermTargets.assets, creativeAssets(payload, links), generatedFiles);
-  await writeFile(longTermTargets.topics, topics(payload, links), generatedFiles);
-  await writeFile(longTermTargets.outline, outline(payload, links), generatedFiles);
+  if (optionalOutputs.claims && longTermTargets.claims) {
+    await writeFile(longTermTargets.claims, claims(payload, links, grounding), generatedFiles);
+  }
+  if (optionalOutputs.assets && longTermTargets.assets) {
+    await writeFile(longTermTargets.assets, creativeAssets(payload, links), generatedFiles);
+  }
+  if (optionalOutputs.topics && longTermTargets.topics) {
+    await writeFile(longTermTargets.topics, topics(payload, links), generatedFiles);
+  }
+  if (optionalOutputs.outline && longTermTargets.outline) {
+    await writeFile(longTermTargets.outline, outline(payload, links), generatedFiles);
+  }
 
   const warnings = [...payload.warnings, ...groundingWarnings(grounding), ...collisionWarnings];
   await writeSummary(root, runDir, payload, generatedFiles, warnings, links, grounding);
@@ -133,7 +155,7 @@ export async function ingestFile(rootPath: string, filePath: string) {
     },
     request: {
       mode: "ingest",
-      outputs: ["source_card", "creative_assets", "topics", "draft_outline", "processing_summary"],
+      outputs: ["source_card", "wiki_entry", "processing_summary"],
       language: "zh-CN"
     }
   });
@@ -143,20 +165,31 @@ export function deriveFileTitle(filePath: string): string {
   return path.basename(filePath, path.extname(filePath));
 }
 
-async function chooseLongTermTargets(root: string, slug: string, runId: string, warnings: string[]): Promise<LongTermTargets> {
+async function chooseLongTermTargets(root: string, slug: string, runId: string, warnings: string[], plan: OptionalOutputPlan): Promise<LongTermTargets> {
   return {
     raw: await chooseLongTermTarget(root, "02-raw/articles", `${slug}.md`, runId, warnings),
     sourceCard: await chooseLongTermTarget(root, "03-sources/article-cards", `${slug}.md`, runId, warnings),
     wikiEntry: await chooseLongTermTarget(root, "05-wiki/source-knowledge", `${slug}.md`, runId, warnings),
-    claims: await chooseLongTermTarget(root, "04-claims/_suggestions", `${slug}-claims.md`, runId, warnings),
-    assets: await chooseLongTermTarget(root, "06-assets/_suggestions", `${slug}-assets.md`, runId, warnings),
-    topics: await chooseLongTermTarget(root, "07-topics/ready", `${slug}-topics.md`, runId, warnings),
-    outline: await chooseLongTermTarget(root, "08-outputs/outlines", `${slug}-outline.md`, runId, warnings)
+    claims: plan.claims ? await chooseLongTermTarget(root, "04-claims/_suggestions", `${slug}-claims.md`, runId, warnings) : undefined,
+    assets: plan.assets ? await chooseLongTermTarget(root, "06-assets/_suggestions", `${slug}-assets.md`, runId, warnings) : undefined,
+    topics: plan.topics ? await chooseLongTermTarget(root, "07-topics/ready", `${slug}-topics.md`, runId, warnings) : undefined,
+    outline: plan.outline ? await chooseLongTermTarget(root, "08-outputs/outlines", `${slug}-outline.md`, runId, warnings) : undefined
+  };
+}
+
+function optionalOutputPlan(payload: NormalizedPayload): OptionalOutputPlan {
+  const outputs = new Set(payload.request.outputs);
+  return {
+    claims: outputs.has("claims") || outputs.has("claim_suggestions") || Boolean(payload.analysis?.claims.length),
+    assets: outputs.has("creative_assets"),
+    topics: outputs.has("topics") || Boolean(payload.analysis?.topic_candidates.length),
+    outline: outputs.has("draft_outline") || Boolean(payload.analysis?.outline || payload.analysis?.suggested_links.length || payload.analysis?.reusable_judgments.length)
   };
 }
 
 async function chooseLongTermTarget(root: string, dir: string, fileName: string, runId: string, warnings: string[]) {
   const target = safeJoin(root, dir, fileName);
+  await fs.mkdir(path.dirname(target), { recursive: true });
   try {
     await fs.access(target);
   } catch (error) {
@@ -344,10 +377,10 @@ function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLi
     "",
     `- Wiki 条目：${obsidianLink(links.wikiEntry, "Wiki 条目")}`,
     `- 原文：${obsidianLink(links.raw, "原文")}`,
-    `- Claim 建议：${obsidianLink(links.claims, "Claim 建议")}`,
-    `- 素材建议：${obsidianLink(links.assets, "素材建议")}`,
-    `- 选题：${obsidianLink(links.topics, "选题")}`,
-    `- 大纲：${obsidianLink(links.outline, "大纲")}`,
+    ...(links.claims ? [`- Claim 建议：${obsidianLink(links.claims, "Claim 建议")}`] : []),
+    ...(links.assets ? [`- 素材建议：${obsidianLink(links.assets, "素材建议")}`] : []),
+    ...(links.topics ? [`- 选题：${obsidianLink(links.topics, "选题")}`] : []),
+    ...(links.outline ? [`- 大纲：${obsidianLink(links.outline, "大纲")}`] : []),
     `- 处理记录：${obsidianLink(links.runSummary, "处理记录")}`,
     "",
     "## 摘要",
@@ -467,7 +500,7 @@ function topics(payload: NormalizedPayload, links: ArtifactLinks): string {
     "",
     `- Wiki 条目：${obsidianLink(links.wikiEntry, "Wiki 条目")}`,
     `- 资料卡：${obsidianLink(links.sourceCard, "资料卡")}`,
-    `- 大纲：${obsidianLink(links.outline, "大纲")}`,
+    ...(links.outline ? [`- 大纲：${obsidianLink(links.outline, "大纲")}`] : []),
     `- ${payload.source.title ?? "Untitled"}`,
     ""
   ].join("\n");
@@ -634,10 +667,10 @@ function buildArtifactLinks(
     raw: relativePath(root, longTermTargets.raw),
     sourceCard: relativePath(root, longTermTargets.sourceCard),
     wikiEntry: relativePath(root, longTermTargets.wikiEntry),
-    claims: relativePath(root, longTermTargets.claims),
-    assets: relativePath(root, longTermTargets.assets),
-    topics: relativePath(root, longTermTargets.topics),
-    outline: relativePath(root, longTermTargets.outline),
+    claims: longTermTargets.claims ? relativePath(root, longTermTargets.claims) : undefined,
+    assets: longTermTargets.assets ? relativePath(root, longTermTargets.assets) : undefined,
+    topics: longTermTargets.topics ? relativePath(root, longTermTargets.topics) : undefined,
+    outline: longTermTargets.outline ? relativePath(root, longTermTargets.outline) : undefined,
     runSummary: `09-runs/${runDirName}/processing-summary.md`
   };
 }
@@ -651,10 +684,10 @@ function relationshipFrontmatter(links: ArtifactLinks): string[] {
     `wiki_entry: "${escapeYaml(obsidianLink(links.wikiEntry, "Wiki 条目"))}"`,
     `source_card: "${escapeYaml(obsidianLink(links.sourceCard, "资料卡"))}"`,
     `raw_note: "${escapeYaml(obsidianLink(links.raw, "原文"))}"`,
-    `claims_note: "${escapeYaml(obsidianLink(links.claims, "Claim 建议"))}"`,
-    `assets_note: "${escapeYaml(obsidianLink(links.assets, "素材建议"))}"`,
-    `topics_note: "${escapeYaml(obsidianLink(links.topics, "选题"))}"`,
-    `outline_note: "${escapeYaml(obsidianLink(links.outline, "大纲"))}"`,
+    ...(links.claims ? [`claims_note: "${escapeYaml(obsidianLink(links.claims, "Claim 建议"))}"`] : []),
+    ...(links.assets ? [`assets_note: "${escapeYaml(obsidianLink(links.assets, "素材建议"))}"`] : []),
+    ...(links.topics ? [`topics_note: "${escapeYaml(obsidianLink(links.topics, "选题"))}"`] : []),
+    ...(links.outline ? [`outline_note: "${escapeYaml(obsidianLink(links.outline, "大纲"))}"`] : []),
     `run_summary: "${escapeYaml(obsidianLink(links.runSummary, "处理记录"))}"`
   ];
 }
