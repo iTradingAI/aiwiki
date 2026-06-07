@@ -247,3 +247,31 @@ Lint 输出会包含摘要、最高优先级问题、分级报告，以及建议
 Before ingesting, querying, or reorganizing material, read `_system/purpose.md` in the target AIWiki workspace. Treat it as the local contract for what belongs in this knowledge base, what should stay out, and how future multi-knowledge-base routing should be handled.
 
 If the material does not fit the purpose file, do not force it into the knowledge base as confirmed knowledge. Record the mismatch, ask for review when needed, or keep it as a traceable source rather than a claim.
+
+## Context JSON for Retrieval
+
+When answering from AIWiki, prefer:
+
+```bash
+aiwiki context "<topic>" --limit 10
+```
+
+Use filters when the user intent is narrow:
+
+```bash
+aiwiki context "<topic>" --type wiki_entries --source-role input --wiki-type source_knowledge --status active
+aiwiki context "<topic>" --type source_cards --status to-review
+```
+
+`context` is local Markdown/frontmatter retrieval only. Do not describe it as vector search, RAG, a database query, or external web search.
+
+Read these fields before responding:
+
+- `query_scope`: what was searched and which filters were applied.
+- `result_quality.total_matches` and `result_quality.has_wiki_entry`: whether the answer is grounded in a Wiki Entry or only in supporting artifacts.
+- `recommended_next_action`: whether to answer, enrich, review grounding, or broaden the query.
+- `match_reasons`: why each result matched, such as title, body, tags, topics, relationships, or source URL.
+- `quality_signals`: scaffold, enriched, status, grounding, and relationship hints.
+- `related_refs`: local wikilinks and frontmatter relationships such as `source_card`, `raw_file`, and run artifacts.
+
+If `quality_signals` contains `quality:scaffold` or `grounding:needs_review`, tell the user the result is a traceable lead that needs enrichment or review. Do not present it as confirmed final knowledge.

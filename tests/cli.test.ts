@@ -357,18 +357,56 @@ test("CLI context returns JSON matches with wiki quality", async () => {
     assert.equal(await runCli(["context", "AI Agent", "--path", root], { stdout: out, stderr: new MemoryWritable() }), 0);
     const parsed = JSON.parse(out.text()) as {
       schema_version: string;
+      query_scope: { filters: Record<string, string>; limit: number };
+      result_quality: { total_matches: number; has_wiki_entry: boolean };
+      recommended_next_action: string;
       matches: {
-        wiki_entries: Array<{ path: string; quality: string; grounding_needs_review?: boolean; grounding_markers: string[]; warnings: string[] }>;
+        wiki_entries: Array<{ path: string; quality: string; grounding_needs_review?: boolean; grounding_markers: string[]; warnings: string[]; match_reasons: string[]; quality_signals: string[]; related_refs: string[] }>;
         raw_refs: unknown[];
       };
     };
     assert.equal(parsed.schema_version, "aiwiki.context.v1");
+    assert.equal(parsed.query_scope.limit, 10);
+    assert.equal(parsed.result_quality.has_wiki_entry, true);
+    assert.equal(parsed.recommended_next_action, "review_grounding_or_enrich_entry");
     assert.equal(parsed.matches.wiki_entries[0]?.path, "05-wiki/source-knowledge/ai-agent-workflow-notes.md");
     assert.equal(parsed.matches.wiki_entries[0]?.quality, "scaffold");
     assert.equal(parsed.matches.wiki_entries[0]?.grounding_needs_review, false);
     assert.deepEqual(parsed.matches.wiki_entries[0]?.grounding_markers, []);
+    assert.ok(parsed.matches.wiki_entries[0]?.match_reasons.length);
+    assert.ok(parsed.matches.wiki_entries[0]?.quality_signals.includes("quality:scaffold"));
+    assert.ok(parsed.matches.wiki_entries[0]?.related_refs.length);
     assert.match(parsed.matches.wiki_entries[0]?.warnings.join("\n") ?? "", /deterministic fallback/);
     assert.equal(parsed.matches.raw_refs.length, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI context supports filters and limit for Agent JSON", async () => {
+  const root = await tempRoot("aiwiki-cli-context-filters");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const out = new MemoryWritable();
+    assert.equal(await runCli(["context", "AI Agent", "--type", "wiki_entries", "--source-role", "input", "--wiki-type", "source_knowledge", "--status", "active", "--limit", "1", "--path", root], { stdout: out, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(out.text()) as {
+      query_scope: { filters: { type: string; source_role: string; wiki_type: string; status: string }; limit: number; searched_groups: string[] };
+      matches: { wiki_entries: Array<{ source_role: string; wiki_type: string; status: string }>; source_cards: unknown[] };
+    };
+    assert.deepEqual(parsed.query_scope.filters, {
+      type: "wiki_entries",
+      source_role: "input",
+      wiki_type: "source_knowledge",
+      status: "active"
+    });
+    assert.equal(parsed.query_scope.limit, 1);
+    assert.deepEqual(parsed.query_scope.searched_groups, ["wiki_entries"]);
+    assert.equal(parsed.matches.wiki_entries.length, 1);
+    assert.equal(parsed.matches.wiki_entries[0]?.source_role, "input");
+    assert.equal(parsed.matches.wiki_entries[0]?.wiki_type, "source_knowledge");
+    assert.equal(parsed.matches.wiki_entries[0]?.status, "active");
+    assert.equal(parsed.matches.source_cards.length, 0);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -382,6 +420,9 @@ test("CLI query renders human-readable context without changing context JSON", a
     const queryOut = new MemoryWritable();
     assert.equal(await runCli(["query", "AI Agent", "--path", root], { stdout: queryOut, stderr: new MemoryWritable() }), 0);
     assert.match(queryOut.text(), /AIWiki 查询: AI Agent/);
+    assert.match(queryOut.text(), /结果质量: matches=/);
+    assert.match(queryOut.text(), /reasons=/);
+    assert.match(queryOut.text(), /quality=/);
     assert.match(queryOut.text(), /Wiki 条目/);
     assert.match(queryOut.text(), /05-wiki\/source-knowledge\/ai-agent-workflow-notes\.md/);
 

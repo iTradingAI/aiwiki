@@ -247,3 +247,14 @@ aiwiki lint --path "F:\knowledge_data\aiwiki-test"
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Query Filters
+
+AIWiki retrieval is local Markdown/frontmatter search. It is intentionally lightweight: no vector search, no database, no external search, and no RAG-over-wiki.
+
+```bash
+aiwiki context "AI Agent" --type wiki_entries --source-role input --wiki-type source_knowledge --status active --limit 5
+aiwiki query "AI Agent" --type source_cards --status to-review --limit 3
+```
+
+`context` returns Agent-readable JSON with `query_scope`, `result_quality`, `recommended_next_action`, `match_reasons`, `quality_signals`, and `related_refs`. `query` uses the same retrieval path and shows the match reasons and quality hints for humans.

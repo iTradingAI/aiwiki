@@ -434,3 +434,31 @@ aiwiki status
 - `next_action`: the recommended next command.
 
 `aiwiki next` uses the same repair order: fix workspace structure first, then lint errors, lint warnings, empty-workspace onboarding, and finally healthy-state query guidance.
+
+## Query and Context Filters
+
+`aiwiki context` and `aiwiki query` use local Markdown/frontmatter search. They do not use vector search, a database, external search, or RAG-over-wiki.
+
+Useful filters:
+
+```bash
+aiwiki context "AI Agent" --type wiki_entries --source-role input --wiki-type source_knowledge --status active --limit 5
+aiwiki query "AI Agent" --type source_cards --status to-review --limit 3
+```
+
+Supported filters:
+
+- `--type`: one result group, such as `wiki_entries`, `source_cards`, `claims`, `topics`, `outlines`, or `raw_refs`.
+- `--source-role`: frontmatter `source_role`, usually `input`, `processing`, or `output`.
+- `--wiki-type`: frontmatter `wiki_type`, such as `source_knowledge` or `personal_knowledge`.
+- `--status`: frontmatter status, such as `active`, `to-review`, `ready`, or `draft`.
+- `--limit`: per-group result limit, clamped from 1 to 50.
+
+The JSON result keeps the stable `schema_version: "aiwiki.context.v1"` and now also includes:
+
+- `query_scope`: filters, limit, and searched groups.
+- `result_quality`: total matches, best score, whether a Wiki Entry was found, and warnings.
+- `recommended_next_action`: for example `use_matches_for_answer`, `review_grounding_or_enrich_entry`, or `broaden_query_or_ingest_source`.
+- Per match: `match_reasons`, `quality_signals`, and `related_refs`.
+
+Use `match_reasons` to explain why a result matched. Use `quality_signals` before answering confidently: scaffold or grounding-review entries should be treated as traceable leads, not final knowledge.

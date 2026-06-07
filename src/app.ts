@@ -4,8 +4,8 @@ import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
-import { flagBool, flagString, parseArgs } from "./args.js";
-import { buildContext, type ContextResult } from "./context.js";
+import { flagBool, flagString, parseArgs, type ParsedArgs } from "./args.js";
+import { buildContext, type ContextFilters, type ContextResult } from "./context.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "./ingest.js";
 import { filterLintReport, lintWorkspace, renderLintReport, renderLintSummary, writeLintReport, type LintSeverity } from "./lint.js";
 import { CliError, CliStreams, writeLine } from "./output.js";
@@ -162,7 +162,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       if (!query) {
         throw new CliError("请提供查询主题。");
       }
-      writeLine(streams.stdout, JSON.stringify(await buildContext(root, query), null, 2));
+      writeLine(streams.stdout, JSON.stringify(await buildContext(root, query, contextOptions(args)), null, 2));
       return 0;
     }
 
@@ -172,7 +172,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       if (!query) {
         throw new CliError("请提供查询主题。");
       }
-      writeLine(streams.stdout, renderQuery(await buildContext(root, query)));
+      writeLine(streams.stdout, renderQuery(await buildContext(root, query, contextOptions(args))));
       return 0;
     }
 
@@ -607,8 +607,27 @@ function recommendedNextAction(runCount: number, lintStatus: "ok" | "missing" | 
   return "next_action: aiwiki query <topic>";
 }
 
+function contextOptions(args: ParsedArgs): { filters: ContextFilters; limit?: number } {
+  const limit = flagString(args, "limit");
+  return {
+    filters: {
+      type: flagString(args, "type"),
+      source_role: flagString(args, "source-role"),
+      wiki_type: flagString(args, "wiki-type"),
+      status: flagString(args, "status")
+    },
+    limit: limit === undefined ? undefined : Number(limit)
+  };
+}
+
 function renderQuery(context: ContextResult): string {
   const lines = [`AIWiki 查询: ${context.query}`, ""];
+  lines.push(
+    `结果质量: matches=${context.result_quality.total_matches}, best_score=${context.result_quality.best_score}, has_wiki_entry=${context.result_quality.has_wiki_entry ? "yes" : "no"}`,
+    `下一步建议: ${context.recommended_next_action}`,
+    `查询范围: groups=${context.query_scope.searched_groups.join(",") || "none"}, limit=${context.query_scope.limit}, filters=${JSON.stringify(context.query_scope.filters)}`,
+    ""
+  );
   appendQueryGroup(lines, "Wiki 条目", context.matches.wiki_entries);
   appendQueryGroup(lines, "资料卡", context.matches.source_cards);
   appendQueryGroup(lines, "选题", context.matches.topics);
@@ -630,8 +649,12 @@ function appendQueryGroup(lines: string[], label: string, items: ContextResult["
   }
   for (const item of items.slice(0, 5)) {
     lines.push(`- ${item.title} (${item.path})`);
+    lines.push(`  score=${item.score}; reasons=${item.match_reasons.join(",") || "unknown"}; quality=${item.quality_signals.join(",") || "none"}`);
     if (item.summary) {
       lines.push(`  ${item.summary}`);
+    }
+    if (item.related_refs.length) {
+      lines.push(`  related: ${item.related_refs.slice(0, 5).join("; ")}`);
     }
     if (item.warnings.length) {
       lines.push(`  提示: ${item.warnings.join("；")}`);
