@@ -3,20 +3,67 @@ name: aiwiki
 description: Agent-first AIWiki workflow for turning one URL/body into local Wiki knowledge files.
 ---
 
+<!-- aiwiki-skill-version: 0.2.18 -->
+
 # AIWiki Skill
 
 Use this skill when the user asks an Agent to process one URL, article body, or local text file with the `aiwiki` keyword, or says phrases like `入库 <url>` / `收录 <url>` / `从 AIWiki 里了解 <topic>`.
 
 AIWiki CLI does not fetch webpages and does not call an LLM. The host Agent reads and understands the source; AIWiki validates, writes, links, tracks, queries, and lints local Markdown knowledge files.
 
+## Agent-First Setup and Upgrade
+
+When the user asks you to install, update, or repair AIWiki Agent integration, prefer the idempotent sync command:
+
+```bash
+aiwiki agent sync --yes
+```
+
+For a specific host:
+
+```bash
+aiwiki agent sync --agent codex --yes
+aiwiki agent sync --agent claude --yes
+```
+
+Use `--dry-run` to preview without writing, and `--json` when you need machine-readable status:
+
+```bash
+aiwiki agent sync --agent codex --dry-run
+aiwiki agent sync --json --yes
+aiwiki agent check --json
+```
+
+Sync behavior:
+
+- missing installed skill: install the packaged AIWiki skill
+- current installed skill: leave unchanged
+- different installed skill: backup the old file, then overwrite with the packaged skill
+- unsupported host: do not write; use `aiwiki prompt agent` as a manual fallback
+
+After sync, tell the user the target path, any backup path, and that the target Agent may need to restart or reload before the new skill is active. Never edit Agent config during `npm install`; sync is the explicit safe step.
+
+## Knowledge Base Purpose
+
+Before ingesting, querying, linting, or reorganizing material, read `_system/purpose.md` in the target AIWiki workspace when it exists. Treat it as the local contract for:
+
+- what this knowledge base is trying to solve
+- what material belongs here
+- what material should stay out
+- how uncertain or off-scope material should be handled
+- how this knowledge base should remain separable from future knowledge bases
+
+If the material does not fit the purpose file, do not force it into the knowledge base as confirmed knowledge. Record the mismatch, ask for review when needed, or keep it as a traceable source rather than a claim.
+
 ## Ingest Flow
 
 1. Read the URL, message, attachment, or user-provided body.
-2. Build an `aiwiki.agent_payload.v1` payload with `source` and `request`.
-3. If you understand the source, also provide `analysis` and/or `wiki_entry`.
-4. Do not include output paths in the payload. The CLI decides where files are written.
-5. If webpage reading fails, still build a payload with `source.fetch_status` set to `failed` and include `source.fetch_notes`.
-6. Prefer stdin so the user does not need to save a payload file:
+2. Read `_system/purpose.md` and decide whether the material fits this knowledge base.
+3. Build an `aiwiki.agent_payload.v1` payload with `source` and `request`.
+4. If you understand the source, also provide `analysis` and/or `wiki_entry`.
+5. Do not include output paths in the payload. The CLI decides where files are written.
+6. If webpage reading fails, still build a payload with `source.fetch_status` set to `failed` and include `source.fetch_notes`.
+7. Prefer stdin so the user does not need to save a payload file:
 
 ```bash
 aiwiki ingest-agent --stdin
@@ -130,7 +177,26 @@ When the user asks to understand a topic from AIWiki, call:
 aiwiki context "<topic>"
 ```
 
-Use the returned JSON to answer. Prefer Wiki Entries first. Do not scan `02-raw` by default unless the Wiki result is insufficient, the user asks to verify the original text, or sources conflict.
+Use filters when the user's intent is clear:
+
+```bash
+aiwiki context "<topic>" --type wiki_entries --status active --limit 5
+aiwiki context "<topic>" --source-role output --limit 5
+aiwiki context "<topic>" --type source_cards --status to-review --limit 5
+```
+
+Use the returned JSON to answer. Prefer Wiki Entries first, but read these fields before responding:
+
+- `query_scope`: filters, limit, and searched groups
+- `result_quality`: total matches, best score, and whether a Wiki Entry was found
+- `recommended_next_action`: whether to answer, broaden the query, enrich, or review grounding
+- `match_reasons`: why each result matched
+- `quality_signals`: scaffold, enriched, grounding, status, and relationship hints
+- `related_refs`: local wikilinks and frontmatter relationships
+
+Do not scan `02-raw` by default unless the Wiki result is insufficient, the user asks to verify the original text, or sources conflict.
+
+If `quality_signals` contains `quality:scaffold` or `grounding:needs_review`, tell the user the result is a traceable lead that needs enrichment or review. Do not present it as final confirmed knowledge.
 
 For direct human terminal output, use:
 

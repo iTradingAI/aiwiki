@@ -462,3 +462,31 @@ The JSON result keeps the stable `schema_version: "aiwiki.context.v1"` and now a
 - Per match: `match_reasons`, `quality_signals`, and `related_refs`.
 
 Use `match_reasons` to explain why a result matched. Use `quality_signals` before answering confidently: scaffold or grounding-review entries should be treated as traceable leads, not final knowledge.
+
+## Agent Skill Sync
+
+AIWiki does not modify Agent configuration during `npm install`. After first install or upgrade, sync the packaged skill explicitly:
+
+```bash
+aiwiki agent sync --yes
+aiwiki agent check
+```
+
+For one host Agent:
+
+```bash
+aiwiki agent sync --agent codex --yes
+aiwiki agent sync --agent claude --yes
+```
+
+Useful Agent-facing options:
+
+```bash
+aiwiki agent sync --dry-run
+aiwiki agent sync --json --yes
+aiwiki agent check --json
+aiwiki agent help
+aiwiki context --help
+```
+
+`agent sync` is safe for first install and cross-version upgrades. It installs missing targets, leaves current targets unchanged, and backs up changed installed skill files before overwrite. If a backup is created, tell the user the backup path and that rollback means copying the backup file back to the target path.

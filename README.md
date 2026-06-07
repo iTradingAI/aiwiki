@@ -258,3 +258,26 @@ aiwiki query "AI Agent" --type source_cards --status to-review --limit 3
 ```
 
 `context` returns Agent-readable JSON with `query_scope`, `result_quality`, `recommended_next_action`, `match_reasons`, `quality_signals`, and `related_refs`. `query` uses the same retrieval path and shows the match reasons and quality hints for humans.
+
+## Agent Skill Sync and Upgrade
+
+AIWiki is Agent-first: after installing or upgrading the npm package, sync the packaged AIWiki skill into the local Agent environment.
+
+First install and later upgrades use the same safe command:
+
+```bash
+npm install -g @itradingai/aiwiki@latest
+aiwiki agent sync --yes
+aiwiki agent check
+```
+
+For one Agent:
+
+```bash
+aiwiki agent sync --agent codex --yes
+aiwiki agent sync --agent claude --yes
+```
+
+`agent sync` is idempotent. Missing targets are installed, current targets are left unchanged, and changed old skill files are backed up before overwrite. Use `--dry-run` to preview and `--json` when an AI Agent needs stable machine-readable status.
+
+After sync, restart or reload the target Agent so it reads the new AIWiki skill. To roll back, copy the generated `.bak-<timestamp>` file back over the target skill file.

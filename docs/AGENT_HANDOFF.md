@@ -275,3 +275,29 @@ Read these fields before responding:
 - `related_refs`: local wikilinks and frontmatter relationships such as `source_card`, `raw_file`, and run artifacts.
 
 If `quality_signals` contains `quality:scaffold` or `grounding:needs_review`, tell the user the result is a traceable lead that needs enrichment or review. Do not present it as confirmed final knowledge.
+
+## Agent Skill Upgrade Flow
+
+When the user asks you to install, update, upgrade, or repair AIWiki integration, run:
+
+```bash
+aiwiki agent sync --yes
+aiwiki agent check
+```
+
+Use JSON when you need exact state:
+
+```bash
+aiwiki agent sync --json --yes
+aiwiki agent check --json
+```
+
+Interpret sync results:
+
+- `installed`: target did not exist and now has the packaged skill.
+- `current`: installed skill already matches the packaged skill.
+- `updated`: installed skill differed; the old file was backed up and replaced.
+- `would_install` / `would_update`: dry-run preview only.
+- `unsupported`: no safe automatic target is known; use `aiwiki prompt agent`.
+
+After sync, report the target path, backup path when present, and that the user may need to restart or reload the Agent. Do not claim the new skill is active until the Agent has reloaded it.

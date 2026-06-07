@@ -15,15 +15,23 @@ Use this protocol when the user asks:
 aiwiki lint
 ```
 
-2. Read the terminal report.
-3. Mention the report path, usually:
+2. When you need machine-readable triage, call:
+
+```bash
+aiwiki lint --json
+aiwiki next
+```
+
+3. Read the terminal report.
+4. Mention the report path, usually:
 
 ```text
 dashboards/Lint Report.md
 ```
 
-4. Explain warnings and errors as structure-health feedback.
-5. Do not frame lint as "the user must manually audit every note".
+5. Explain warnings and errors as structure-health feedback.
+6. Do not frame lint as "the user must manually audit every note".
+7. If `aiwiki next` recommends `aiwiki agent sync --yes`, treat Agent skill setup as the next operational step before asking the user to ingest or query more material.
 
 ## Issue Meaning
 
@@ -39,4 +47,3 @@ Prefer small, traceable fixes:
 - Fix broken wikilinks.
 - Add missing `source_card` or `raw_file` paths.
 - Ask the host Agent to provide `analysis` for scaffold entries.
-

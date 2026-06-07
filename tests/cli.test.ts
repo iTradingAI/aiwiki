@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -17,12 +17,25 @@ test("help exposes only base commands", async () => {
   assert.match(text, /aiwiki init/);
   assert.match(text, /aiwiki agent list/);
   assert.match(text, /aiwiki agent install/);
+  assert.match(text, /aiwiki agent sync --yes/);
   assert.match(text, /aiwiki prompt agent/);
   assert.match(text, /aiwiki context <query>/);
   assert.match(text, /aiwiki lint/);
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
   assert.equal(stderr.text(), "");
+});
+
+test("agent and context help explain sync and filters", async () => {
+  const agentOut = new MemoryWritable();
+  assert.equal(await runCli(["agent", "sync", "--help"], { stdout: agentOut, stderr: new MemoryWritable() }), 0);
+  assert.match(agentOut.text(), /aiwiki agent sync --yes/);
+  assert.match(agentOut.text(), /backed up before overwrite/);
+
+  const contextOut = new MemoryWritable();
+  assert.equal(await runCli(["context", "--help"], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
+  assert.match(contextOut.text(), /--source-role/);
+  assert.match(contextOut.text(), /result_quality/);
 });
 
 test("prompt agent prints neutral Agent handoff instructions", async () => {
@@ -177,6 +190,45 @@ test("CLI agent install copies bundled skill to selected host", async () => {
     const forceOut = new MemoryWritable();
     assert.equal(await runCli(["agent", "install", "--agent", "codex", "--yes", "--force"], { stdout: forceOut, stderr: new MemoryWritable() }), 0);
     assert.match(forceOut.text(), /已安装: Codex/);
+  } finally {
+    restoreEnv("CODEX_HOME", previousCodexHome);
+    await rm(codexHome, { recursive: true, force: true });
+  }
+});
+
+test("CLI agent sync installs, previews, reports json, and backs up changed skills", async () => {
+  const codexHome = await tempRoot("aiwiki-cli-agent-sync-codex");
+  const previousCodexHome = process.env.CODEX_HOME;
+  process.env.CODEX_HOME = codexHome;
+  try {
+    const target = path.join(codexHome, "skills", "aiwiki", "SKILL.md");
+
+    const dryRunOut = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "codex", "--dry-run"], { stdout: dryRunOut, stderr: new MemoryWritable() }), 0);
+    assert.match(dryRunOut.text(), /action=would_install/);
+    await assert.rejects(access(target));
+
+    const installOut = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "codex", "--yes"], { stdout: installOut, stderr: new MemoryWritable() }), 0);
+    assert.match(installOut.text(), /action=installed/);
+    assert.match(await readFile(target, "utf8"), /name: aiwiki/);
+
+    const currentJson = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "codex", "--yes", "--json"], { stdout: currentJson, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(currentJson.text()) as { schema_version: string; results: Array<{ action: string; state: string; changed: boolean }> };
+    assert.equal(parsed.schema_version, "aiwiki.agent_sync.v1");
+    assert.equal(parsed.results[0]?.action, "current");
+    assert.equal(parsed.results[0]?.state, "current");
+    assert.equal(parsed.results[0]?.changed, false);
+
+    await writeFile(target, "old user edited aiwiki skill", "utf8");
+    const updateOut = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "codex", "--yes"], { stdout: updateOut, stderr: new MemoryWritable() }), 0);
+    assert.match(updateOut.text(), /action=updated/);
+    assert.match(updateOut.text(), /backup:/);
+    const files = await readdir(path.dirname(target));
+    assert.ok(files.some((file) => /^SKILL\.md\.bak-/.test(file)));
+    assert.match(await readFile(target, "utf8"), /name: aiwiki/);
   } finally {
     restoreEnv("CODEX_HOME", previousCodexHome);
     await rm(codexHome, { recursive: true, force: true });
@@ -442,7 +494,7 @@ test("CLI next gives setup guidance for fresh workspace and active workspace", a
     const freshOut = new MemoryWritable();
     assert.equal(await runCli(["next", "--path", root], { stdout: freshOut, stderr: new MemoryWritable() }), 0);
     assert.match(freshOut.text(), /下一步建议/);
-    assert.match(freshOut.text(), /aiwiki agent install/);
+    assert.match(freshOut.text(), /aiwiki agent sync --yes/);
 
     await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
     const activeOut = new MemoryWritable();
@@ -497,7 +549,13 @@ test("CLI agent check reports installed and missing host state", async () => {
     assert.equal(await runCli(["agent", "check"], { stdout: out, stderr: new MemoryWritable() }), 0);
     assert.match(out.text(), /codex: Codex \| detected=yes \| installed=yes/);
     assert.match(out.text(), /qclaw: QClaw \| detected=yes \| installed=no/);
-    assert.match(out.text(), /aiwiki agent install --agent qclaw --yes/);
+    assert.match(out.text(), /aiwiki agent sync --agent qclaw --yes/);
+    const jsonOut = new MemoryWritable();
+    assert.equal(await runCli(["agent", "check", "--json"], { stdout: jsonOut, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(jsonOut.text()) as { schema_version: string; targets: Array<{ id: string; state: string; installed: boolean }> };
+    assert.equal(parsed.schema_version, "aiwiki.agent_check.v1");
+    assert.equal(parsed.targets.find((target) => target.id === "codex")?.state, "current");
+    assert.equal(parsed.targets.find((target) => target.id === "qclaw")?.state, "missing");
   } finally {
     restoreEnv("CODEX_HOME", previousCodexHome);
     restoreEnv("QCLAW_HOME", previousQclawHome);
@@ -580,7 +638,7 @@ test("CLI status reports diagnostic counters and next action", async () => {
     assert.match(out.text(), /grounding_review_entries: 0/);
     assert.match(out.text(), /lint_status: missing/);
     assert.match(out.text(), /system_files: _system\/purpose\.md=ok/);
-    assert.match(out.text(), /next_action: aiwiki agent install/);
+    assert.match(out.text(), /next_action: aiwiki agent sync --yes/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

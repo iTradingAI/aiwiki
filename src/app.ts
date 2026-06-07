@@ -32,6 +32,14 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `aiwiki ${await packageVersion()}`);
       return 0;
     }
+    if (command === "agent" && (subcommand === "help" || args.flags.has("help"))) {
+      printAgentHelp(streams.stdout);
+      return 0;
+    }
+    if ((command === "context" || command === "query") && args.flags.has("help")) {
+      printContextHelp(streams.stdout);
+      return 0;
+    }
     if (args.flags.has("help") || !command || command === "help" || command === "-h") {
       printHelp(streams.stdout);
       return 0;
@@ -72,8 +80,24 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       return 0;
     }
 
+    if (command === "agent" && subcommand === "sync") {
+      const result = await syncAgentSkills({
+        agentId: flagString(args, "agent"),
+        yes: flagBool(args, "yes"),
+        dryRun: flagBool(args, "dry-run"),
+        json: flagBool(args, "json"),
+        streams
+      });
+      if (flagBool(args, "json")) {
+        writeLine(streams.stdout, JSON.stringify(result, null, 2));
+      } else {
+        printAgentSyncResult(streams.stdout, result);
+      }
+      return 0;
+    }
+
     if (command === "agent" && subcommand === "check") {
-      await printAgentCheck(streams.stdout, await discoverAgentTargets());
+      await printAgentCheckDetailed(streams.stdout, await discoverAgentTargets(), flagBool(args, "json"));
       return 0;
     }
 
@@ -279,6 +303,8 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki agent list");
   writeLine(stream, "  aiwiki agent install");
   writeLine(stream, "  aiwiki agent install --agent codex --yes");
+  writeLine(stream, "  aiwiki agent sync --yes");
+  writeLine(stream, "  aiwiki agent check --json");
   writeLine(stream, "  aiwiki prompt agent");
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
@@ -293,6 +319,43 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki ingest-agent --payload <file>");
   writeLine(stream, "  aiwiki ingest-url <url> --content-file <file>");
   writeLine(stream, "  aiwiki agent check");
+}
+
+function printAgentHelp(stream: NodeJS.WritableStream): void {
+  writeLine(stream, "AIWiki Agent commands");
+  writeLine(stream, "");
+  writeLine(stream, "Agent-first setup and upgrade:");
+  writeLine(stream, "  aiwiki agent sync --yes");
+  writeLine(stream, "  aiwiki agent sync --agent codex --yes");
+  writeLine(stream, "  aiwiki agent sync --agent codex --dry-run");
+  writeLine(stream, "  aiwiki agent sync --json --yes");
+  writeLine(stream, "");
+  writeLine(stream, "Status:");
+  writeLine(stream, "  aiwiki agent check");
+  writeLine(stream, "  aiwiki agent check --json");
+  writeLine(stream, "");
+  writeLine(stream, "Compatibility:");
+  writeLine(stream, "  aiwiki agent install --agent codex --yes");
+  writeLine(stream, "  aiwiki agent install --agent codex --yes --force");
+  writeLine(stream, "");
+  writeLine(stream, "sync is idempotent: missing targets are installed, current targets are left unchanged, and different targets are backed up before overwrite.");
+}
+
+function printContextHelp(stream: NodeJS.WritableStream): void {
+  writeLine(stream, "AIWiki context/query");
+  writeLine(stream, "");
+  writeLine(stream, "Local Markdown/frontmatter retrieval for host Agents and humans:");
+  writeLine(stream, "  aiwiki context <topic> --limit 10");
+  writeLine(stream, "  aiwiki query <topic> --type wiki_entries --status active");
+  writeLine(stream, "");
+  writeLine(stream, "Filters:");
+  writeLine(stream, "  --type wiki_entries|source_cards|claims|topics|outlines|raw_refs");
+  writeLine(stream, "  --source-role input|processing|output");
+  writeLine(stream, "  --wiki-type source_knowledge|personal_knowledge");
+  writeLine(stream, "  --status active|to-review|ready|draft");
+  writeLine(stream, "  --limit <1-50>");
+  writeLine(stream, "");
+  writeLine(stream, "context JSON includes query_scope, result_quality, recommended_next_action, match_reasons, quality_signals, and related_refs.");
 }
 
 function parseLintSeverity(value: string | undefined): LintSeverity | undefined {
@@ -314,6 +377,32 @@ type AgentTarget = {
   source?: string;
   target?: string;
   note: string;
+};
+
+type AgentInstallState = "unsupported" | "missing" | "current" | "different";
+
+type AgentSyncAction = "installed" | "updated" | "current" | "would_install" | "would_update" | "unsupported";
+
+type AgentSyncItem = {
+  id: string;
+  name: string;
+  detected: boolean;
+  installable: boolean;
+  state: AgentInstallState;
+  action: AgentSyncAction;
+  target?: string;
+  source?: string;
+  backupPath?: string;
+  changed: boolean;
+  dryRun: boolean;
+  note?: string;
+};
+
+type AgentSyncReport = {
+  schema_version: "aiwiki.agent_sync.v1";
+  generated_at: string;
+  dry_run: boolean;
+  results: AgentSyncItem[];
 };
 
 async function discoverAgentTargets(): Promise<AgentTarget[]> {
@@ -410,6 +499,42 @@ async function printAgentCheck(stream: NodeJS.WritableStream, targets: AgentTarg
   }
 }
 
+async function printAgentCheckDetailed(stream: NodeJS.WritableStream, targets: AgentTarget[], json = false): Promise<void> {
+  const checked = await Promise.all(targets.map(async (target) => ({
+    ...target,
+    state: await inspectAgentTarget(target),
+    installed: target.target ? await exists(target.target) : false
+  })));
+
+  if (json) {
+    writeLine(stream, JSON.stringify({
+      schema_version: "aiwiki.agent_check.v1",
+      generated_at: new Date().toISOString(),
+      targets: checked.map((target) => ({
+        id: target.id,
+        name: target.name,
+        detected: target.detected,
+        installable: target.installable,
+        installed: target.installed,
+        state: target.state,
+        source: target.source,
+        target: target.target
+      }))
+    }, null, 2));
+    return;
+  }
+
+  writeLine(stream, "AIWiki Agent check");
+  for (const target of checked) {
+    writeLine(stream, `${target.id}: ${target.name} | detected=${target.detected ? "yes" : "no"} | installed=${target.installed ? "yes" : "no"} | installable=${target.installable ? "yes" : "no"} | state=${target.state}`);
+    if (target.detected && target.installable && (target.state === "missing" || target.state === "different")) {
+      writeLine(stream, `  suggested: aiwiki agent sync --agent ${target.id} --yes`);
+    } else if (target.detected && !target.installable) {
+      writeLine(stream, "  suggested: aiwiki prompt agent");
+    }
+  }
+}
+
 async function installAgentSkill(options: { agentId?: string; yes: boolean; force: boolean; streams: CliStreams }) {
   const targets = await discoverAgentTargets();
   const installable = targets.filter((target) => target.detected && target.installable);
@@ -455,8 +580,8 @@ async function installAgentSkill(options: { agentId?: string; yes: boolean; forc
     }
   }
 
-  await copyInstallFile(selected.source, selected.target, options.force);
-  return selected;
+  const result = await copyInstallFileSafe(selected.source, selected.target, options.force);
+  return { ...selected, ...result };
 }
 
 async function askQuestion(streams: CliStreams, question: string) {
@@ -471,13 +596,118 @@ async function askQuestion(streams: CliStreams, question: string) {
   }
 }
 
-async function copyInstallFile(source: string, target: string, force: boolean) {
+async function syncAgentSkills(options: { agentId?: string; yes: boolean; dryRun: boolean; json: boolean; streams: CliStreams }): Promise<AgentSyncReport> {
+  const targets = await discoverAgentTargets();
+  const selected = options.agentId ? targets.find((target) => target.id === options.agentId) : undefined;
+  if (!selected && options.agentId) {
+    throw new CliError(`未知宿主 Agent: ${options.agentId}`);
+  }
+  const syncTargets = selected ? [selected] : targets.filter((target) => target.detected && target.installable);
+  if (!syncTargets.length) {
+    throw new CliError("No detected installable Agent targets. Run aiwiki agent list or aiwiki prompt agent.");
+  }
+  if (!options.yes && !options.dryRun) {
+    throw new CliError("agent sync modifies Agent skill files. Re-run with --yes, or use --dry-run to preview.");
+  }
+  return {
+    schema_version: "aiwiki.agent_sync.v1",
+    generated_at: new Date().toISOString(),
+    dry_run: options.dryRun,
+    results: await Promise.all(syncTargets.map((target) => syncAgentTarget(target, options.dryRun)))
+  };
+}
+
+async function copyInstallFile(source: string, target: string, force: boolean): Promise<{ action: AgentSyncAction; backupPath?: string }> {
+  return copyInstallFileSafe(source, target, force);
   await fs.access(source);
   if (!force && (await exists(target))) {
     throw new CliError(`目标文件已存在: ${target}。如需覆盖，请加 --force。`);
   }
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.copyFile(source, target);
+}
+
+async function copyInstallFileSafe(source: string, target: string, force: boolean): Promise<{ action: AgentSyncAction; backupPath?: string }> {
+  await fs.access(source);
+  const targetExists = await exists(target);
+  if (!force && targetExists) {
+    throw new CliError(`目标文件已存在: ${target}。如需覆盖，请运行 aiwiki agent sync --agent <id> --yes，或为 install 加 --force。`);
+  }
+  if (targetExists && await sameFileContent(source, target)) {
+    return { action: "current" };
+  }
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  const backupPath = targetExists ? await backupFile(target) : undefined;
+  await fs.copyFile(source, target);
+  return { action: targetExists ? "updated" : "installed", backupPath };
+}
+
+async function inspectAgentTarget(target: AgentTarget): Promise<AgentInstallState> {
+  if (!target.installable || !target.source || !target.target) {
+    return "unsupported";
+  }
+  if (!(await exists(target.target))) {
+    return "missing";
+  }
+  return await sameFileContent(target.source, target.target) ? "current" : "different";
+}
+
+async function syncAgentTarget(target: AgentTarget, dryRun: boolean): Promise<AgentSyncItem> {
+  const state = await inspectAgentTarget(target);
+  const base = {
+    id: target.id,
+    name: target.name,
+    detected: target.detected,
+    installable: target.installable,
+    state,
+    target: target.target,
+    source: target.source,
+    changed: false,
+    dryRun
+  };
+  if (state === "unsupported" || !target.source || !target.target) {
+    return { ...base, action: "unsupported", note: target.note };
+  }
+  if (state === "current") {
+    return { ...base, action: "current" };
+  }
+  if (dryRun) {
+    return { ...base, action: state === "missing" ? "would_install" : "would_update", changed: true };
+  }
+  const result = await copyInstallFileSafe(target.source, target.target, true);
+  return { ...base, action: result.action, backupPath: result.backupPath, changed: result.action !== "current" };
+}
+
+async function sameFileContent(source: string, target: string): Promise<boolean> {
+  try {
+    const [sourceText, targetText] = await Promise.all([fs.readFile(source, "utf8"), fs.readFile(target, "utf8")]);
+    return sourceText === targetText;
+  } catch {
+    return false;
+  }
+}
+
+async function backupFile(target: string): Promise<string> {
+  const parsed = path.parse(target);
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const backupPath = path.join(parsed.dir, `${parsed.base}.bak-${stamp}`);
+  await fs.copyFile(target, backupPath);
+  return backupPath;
+}
+
+function printAgentSyncResult(stream: NodeJS.WritableStream, report: AgentSyncReport): void {
+  writeLine(stream, "AIWiki Agent sync");
+  writeLine(stream, `dry_run: ${report.dry_run ? "yes" : "no"}`);
+  for (const item of report.results) {
+    writeLine(stream, `${item.id}: ${item.name} | state=${item.state} | action=${item.action} | changed=${item.changed ? "yes" : "no"}`);
+    if (item.target) {
+      writeLine(stream, `  target: ${item.target}`);
+    }
+    if (item.backupPath) {
+      writeLine(stream, `  backup: ${item.backupPath}`);
+    }
+  }
+  writeLine(stream, "next: restart or reload the target Agent so it reads the synced AIWiki skill.");
 }
 
 function printAgentPrompt(stream: NodeJS.WritableStream): void {
@@ -574,7 +804,7 @@ async function printNext(
   if (runCount === 0) {
     writeLine(stream, "");
     writeLine(stream, "No ingest records yet.");
-    writeLine(stream, "- aiwiki agent install");
+    writeLine(stream, "- aiwiki agent sync --yes");
     writeLine(stream, "- Then ask the host Agent to ingest a URL.");
     writeLine(stream, "- AIWiki CLI does not fetch webpages; the host Agent supplies content.");
     writeLine(stream, "- repair_order: empty_workspace");
@@ -602,7 +832,7 @@ function recommendedNextAction(runCount: number, lintStatus: "ok" | "missing" | 
     return "next_action: aiwiki lint";
   }
   if (runCount === 0) {
-    return "next_action: aiwiki agent install";
+  return "next_action: aiwiki agent sync --yes";
   }
   return "next_action: aiwiki query <topic>";
 }
