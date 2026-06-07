@@ -4,7 +4,7 @@ This log records queue-driven AIWiki development milestones that should remain v
 
 ## 2026-06-08 - Base contract cleanup and safe optional directory pruning
 
-Status: implemented and locally verified, committed locally, blocked before GitHub push and npm publication.
+Status: implemented and locally verified, committed locally, blocked before GitHub push and npm publication. Prepublication test-server verification is now required before npm publication.
 
 Version target: `@itradingai/aiwiki@0.2.19`
 
@@ -74,15 +74,29 @@ fatal: Could not read from remote repository.
 
 Because GitHub push failed, npm publication was not attempted. The task queue and human board are marked `blocked`, and the Enterprise WeChat blocked notification was delivered successfully with HTTP 200 / `errcode:0`.
 
-### Testing Server State
+### Testing Server Gate
 
-No test-server verification was performed for `0.2.19`.
+Test-server verification must run before npm publication.
 
-The intended remote test in the queue depends on a published package: install or run the npm-published `aiwiki`, create a task-specific temporary vault on `170.106.73.197`, then exercise setup, doctor, ingest, lint safe fixes, context, and query against the package users will actually receive.
+The release gate for `0.2.19` is now a prepublication tarball smoke test: create the exact local npm tarball that would be published, copy that `.tgz` to a task-specific directory on `170.106.73.197`, install it into a task-local Node project, and run the same smoke commands against that installed package. This proves the package artifact before it reaches npm.
 
-Since `0.2.19` was not pushed or published, running that published-package smoke test would have tested an older registry version. That would not prove the new directory contract or safe-fix behavior. The only verification completed for this task is local verification plus `npm pack --dry-run`, which proves the build, tests, and package contents locally but does not prove remote installation from npm.
+The older published-package smoke test remains useful after npm publication as a final registry sanity check, but it is no longer allowed to be the first remote test. Publishing before test-server verification would make npm the first real deployment surface, which is the wrong order for this queue.
 
-If pre-publication remote confidence is needed in the future, use a separate "local tarball remote smoke" step: create `npm pack` locally, copy the `.tgz` to a task-specific directory on the remote server, install from that tarball, and run the same smoke commands. That is useful as an extra check, but it is not a substitute for the final published-package verification after npm publish.
+Required prepublication smoke commands:
+
+```bash
+aiwiki setup --path <tmp-vault> --yes
+aiwiki doctor --path <tmp-vault>
+inspect that only core directories are created by default
+aiwiki ingest-agent --payload <minimal-fixture> --path <tmp-vault>
+inspect that optional output directories remain absent unless needed
+aiwiki lint --json --path <tmp-vault>
+aiwiki lint --fix-empty-dirs --json --path <tmp-vault>
+aiwiki context <topic> --path <tmp-vault>
+aiwiki query <topic> --path <tmp-vault>
+```
+
+The smoke test must use only a task-specific temporary directory on the remote server. Do not install globally, do not reuse a real user vault, and do not clean outside the task directory.
 
 ### Resume Steps
 
@@ -92,33 +106,21 @@ Restore SSH key access for the current runtime user or configure GitHub authenti
 git push origin main
 ```
 
-Then continue the release chain:
+Then continue the release chain only after prepublication test-server verification has passed:
 
 ```powershell
 npm publish --access public
 npm view @itradingai/aiwiki version
 ```
 
-After `npm view` returns `0.2.19`, run the remote smoke test on `170.106.73.197` in a task-specific temporary directory:
-
-```bash
-aiwiki setup --path <tmp-vault> --yes
-aiwiki doctor --path <tmp-vault>
-aiwiki ingest-agent --payload <minimal-fixture> --path <tmp-vault>
-aiwiki lint --json --path <tmp-vault>
-aiwiki lint --fix-empty-dirs --json --path <tmp-vault>
-aiwiki context <topic> --path <tmp-vault>
-aiwiki query <topic> --path <tmp-vault>
-```
-
-Confirm that setup creates only core directories by default and that optional output directories remain absent unless payload content or explicit outputs require them.
+After `npm view` returns `0.2.19`, a short published-package registry sanity check can be run, but the blocking test-server gate must already have passed before publish.
 
 ### Notes For Future Changes
 
 - Keep optional directories optional. Do not reintroduce required empty claims/assets/topics/outlines directories in new workspaces.
 - Keep safe fixes narrow and auditable. Do not let `--fix-empty-dirs` delete files, core directories, unknown directories, or non-empty directories.
 - Keep main help focused on the core path. Legacy commands can remain compatible without being promoted as first-run guidance.
-- Published-package remote verification must happen after npm publication; local pack verification alone is not enough to close the queue item.
+- Prepublication test-server verification from the local npm tarball must happen before npm publication. Local pack verification alone is not enough to publish.
 
 ## 2026-06-07 - Agent-first skill sync
 
