@@ -2,6 +2,124 @@
 
 This log records queue-driven AIWiki development milestones that should remain visible to future maintainers, not only in automation chat history.
 
+## 2026-06-08 - Base contract cleanup and safe optional directory pruning
+
+Status: implemented and locally verified, committed locally, blocked before GitHub push and npm publication.
+
+Version target: `@itradingai/aiwiki@0.2.19`
+
+Commit: `3ae25b9` (`Stabilize AIWiki base contract before public-trial work`)
+
+### Goal
+
+Make the base AIWiki experience quieter and more reliable before public-trial work. A new workspace should show the core knowledge workflow first, not a set of empty enhancement directories or legacy command paths. Agents should also have a safe, machine-readable way to detect and remove only empty optional directories.
+
+The scoped acceptance criteria were:
+
+- keep the main help and quick-start path focused on setup, Agent sync/check, ingest, context/query, lint, status, and doctor;
+- preserve legacy command behavior without presenting legacy commands as the primary path;
+- create only core directories by default in new workspaces;
+- create optional long-term directories only when ingest actually writes related outputs;
+- treat missing optional directories as normal in doctor and directory summaries;
+- report empty optional directories as safe-fix lint issues with stable JSON metadata;
+- make `lint --fix-empty-dirs --json` delete only known empty optional directories and empty known optional parent directories;
+- keep the base CLI out of crawling, vector search, RAG-over-wiki, RBAC, RSS, scheduled collection, and browser-plugin scope.
+
+### Implemented
+
+- `src/workspace.ts`
+  - Split core directories from optional enhancement directories.
+  - Made setup/init/doctor summaries core-first.
+  - Kept optional directories valid when they already exist, but stopped requiring them for a healthy workspace.
+
+- `src/payload.ts`, `src/ingest.ts`, and `src/wiki-entry.ts`
+  - Preserved `request.outputs` as an additive request instead of normalizing every ingest into all optional artifacts.
+  - Kept core ingest artifacts stable: Source Card, Wiki Entry, and Processing Summary.
+  - Created claims, assets, topics, and outline files only when payload content or explicit outputs require them.
+  - Omitted optional frontmatter links when the corresponding files are not written.
+
+- `src/lint.ts` and `src/app.ts`
+  - Added safe-fix metadata for empty known optional directories.
+  - Added `safe_fixes.available`, `safe_fixes.applied`, and `safe_fixes.only_safe_fixes` to JSON output.
+  - Added `aiwiki lint --fix-empty-dirs --json`.
+  - Kept deletion deliberately narrow: known optional empty directories only, never core directories, unknown directories, non-empty directories, or files.
+  - Reduced main help to the core user path while preserving existing command behavior.
+
+- Documentation and packaged skill files
+  - Updated README, usage docs, FAQ, Agent handoff, lint protocol, and skill instructions for the core-first workflow.
+  - Documented the Agent flow: run `aiwiki lint --json`, apply safe fixes only when allowed, rerun lint, and report the changed directories.
+  - Tightened package file inclusion so unrelated untracked docs are not accidentally packed.
+
+- Tests
+  - Updated workspace tests for the smaller default directory contract.
+  - Added ingest coverage for minimal output behavior.
+  - Added CLI coverage for `lint --fix-empty-dirs --json` and help/setup guidance.
+
+### Verification
+
+- `npm test`: passed, 59 tests.
+- `npm run release:check`: passed, including tests and `scripts/release-check.mjs`.
+- `npm pack --dry-run`: passed for `@itradingai/aiwiki@0.2.19`, 35 files, package size 77.1 kB, shasum `3f436503bb0dc3019b188941f06f3c518bbecc0b`.
+- Verification used `D:/Program Files/nodejs/npm.cmd` with a repo-local npm cache because the PowerShell `npm` shim points to a missing `C:/Users/Max/AppData/Roaming/npm/npm-cli.js`.
+
+### Release State
+
+The implementation is committed locally, but the GitHub push failed before publication:
+
+```text
+Warning: Identity file C:/Users/Max/.ssh/id_ed25519 not accessible: Permission denied.
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+```
+
+Because GitHub push failed, npm publication was not attempted. The task queue and human board are marked `blocked`, and the Enterprise WeChat blocked notification was delivered successfully with HTTP 200 / `errcode:0`.
+
+### Testing Server State
+
+No test-server verification was performed for `0.2.19`.
+
+The intended remote test in the queue depends on a published package: install or run the npm-published `aiwiki`, create a task-specific temporary vault on `170.106.73.197`, then exercise setup, doctor, ingest, lint safe fixes, context, and query against the package users will actually receive.
+
+Since `0.2.19` was not pushed or published, running that published-package smoke test would have tested an older registry version. That would not prove the new directory contract or safe-fix behavior. The only verification completed for this task is local verification plus `npm pack --dry-run`, which proves the build, tests, and package contents locally but does not prove remote installation from npm.
+
+If pre-publication remote confidence is needed in the future, use a separate "local tarball remote smoke" step: create `npm pack` locally, copy the `.tgz` to a task-specific directory on the remote server, install from that tarball, and run the same smoke commands. That is useful as an extra check, but it is not a substitute for the final published-package verification after npm publish.
+
+### Resume Steps
+
+Restore SSH key access for the current runtime user or configure GitHub authentication so this succeeds:
+
+```powershell
+git push origin main
+```
+
+Then continue the release chain:
+
+```powershell
+npm publish --access public
+npm view @itradingai/aiwiki version
+```
+
+After `npm view` returns `0.2.19`, run the remote smoke test on `170.106.73.197` in a task-specific temporary directory:
+
+```bash
+aiwiki setup --path <tmp-vault> --yes
+aiwiki doctor --path <tmp-vault>
+aiwiki ingest-agent --payload <minimal-fixture> --path <tmp-vault>
+aiwiki lint --json --path <tmp-vault>
+aiwiki lint --fix-empty-dirs --json --path <tmp-vault>
+aiwiki context <topic> --path <tmp-vault>
+aiwiki query <topic> --path <tmp-vault>
+```
+
+Confirm that setup creates only core directories by default and that optional output directories remain absent unless payload content or explicit outputs require them.
+
+### Notes For Future Changes
+
+- Keep optional directories optional. Do not reintroduce required empty claims/assets/topics/outlines directories in new workspaces.
+- Keep safe fixes narrow and auditable. Do not let `--fix-empty-dirs` delete files, core directories, unknown directories, or non-empty directories.
+- Keep main help focused on the core path. Legacy commands can remain compatible without being promoted as first-run guidance.
+- Published-package remote verification must happen after npm publication; local pack verification alone is not enough to close the queue item.
+
 ## 2026-06-07 - Agent-first skill sync
 
 Status: implemented, locally verified, pushed to GitHub, blocked on npm OTP before publication.
