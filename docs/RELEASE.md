@@ -21,6 +21,8 @@ npm version patch --no-git-tag-version
 
 ## npm 发布
 
+发布前必须先让同一个本地 tarball 在测试服务器通过 smoke test。顺序是：本地验证、版本号、提交、本地 `npm pack`、测试服务器安装 tarball 并跑 CLI smoke，然后才能 `git push` 和 `npm publish`。
+
 发布前确认 npm 登录账号：
 
 ```bash

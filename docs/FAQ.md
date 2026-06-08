@@ -63,6 +63,10 @@ aiwiki agent check --json
 - [SHOWCASE.md](SHOWCASE.md)
 - [AGENT_HANDOFF.md](AGENT_HANDOFF.md)
 
+## 有没有可以直接看的样例？
+
+有。`examples/demo-run/` 记录输入、命令和 CLI 输出；`examples/obsidian-vault-sample/` 是已经生成好的样例知识库。它展示了核心产物优先，以及可选增强目录只在有内容时出现。
+
 ## 怎么从知识库里查询？
 
 让宿主 Agent 调用：

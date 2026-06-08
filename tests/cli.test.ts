@@ -651,6 +651,25 @@ test("CLI lint fix-empty-dirs removes only known empty optional directories", as
   }
 });
 
+test("checked-in examples reflect core-first artifact contract", async () => {
+  const sampleRoot = path.join(process.cwd(), "examples", "obsidian-vault-sample");
+  const demoRoot = path.join(process.cwd(), "examples", "demo-run");
+
+  await access(path.join(demoRoot, "README.md"));
+  assert.match(await readFile(path.join(demoRoot, "ingest-file-output.txt"), "utf8"), /wiki_entry_quality: scaffold/);
+  assert.match(await readFile(path.join(demoRoot, "ingest-agent-output.txt"), "utf8"), /wiki_entry_quality: enriched/);
+
+  await access(path.join(sampleRoot, "02-raw", "articles", "local-article.md"));
+  await access(path.join(sampleRoot, "03-sources", "article-cards", "local-article.md"));
+  await access(path.join(sampleRoot, "05-wiki", "source-knowledge", "local-article.md"));
+  await assert.rejects(access(path.join(sampleRoot, "04-claims", "_suggestions", "local-article-claims.md")));
+
+  await access(path.join(sampleRoot, "04-claims", "_suggestions", "llm-wiki-notes-claims.md"));
+  await access(path.join(sampleRoot, "06-assets", "_suggestions", "llm-wiki-notes-assets.md"));
+  await access(path.join(sampleRoot, "07-topics", "ready", "llm-wiki-notes-topics.md"));
+  await access(path.join(sampleRoot, "08-outputs", "outlines", "llm-wiki-notes-outline.md"));
+});
+
 
 test("CLI ingest-url with content file reuses ingest", async () => {
   const root = await tempRoot("aiwiki-cli-url-file");

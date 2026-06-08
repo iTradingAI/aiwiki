@@ -1,0 +1,24 @@
+{
+  "schema_version": "aiwiki.agent_payload.v1",
+  "source": {
+    "kind": "file",
+    "source_role": "input",
+    "represents_user_view": false,
+    "title": "local-article",
+    "content_format": "markdown",
+    "content": "# 示例文章\n\n这是一篇用于 `aiwiki ingest-file` 的中文测试文章。\n\n它应该被保存为 raw，并生成资料卡、建议素材和 processing-summary。\n",
+    "fetcher": "local-file",
+    "fetch_status": "ok",
+    "captured_at": "2026-06-08T16:06:03.902Z"
+  },
+  "request": {
+    "mode": "ingest",
+    "outputs": [
+      "source_card",
+      "wiki_entry",
+      "processing_summary"
+    ],
+    "language": "zh-CN"
+  },
+  "warnings": []
+}

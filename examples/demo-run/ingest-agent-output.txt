@@ -1,0 +1,25 @@
+ingested: yes
+recorded: yes
+fetch_status: ok
+fit_score: 70
+fit_level: medium
+source_title: LLM Wiki Notes
+source_url: https://example.com/llm-wiki
+summary: 这是一篇关于 LLM Wiki 的文章，讨论了 Agent-first 本地知识库、结构化条目和持续整理。
+run_id: 20260608-160603980-89f570
+run_dir: <sample-vault>\09-runs\20260608-160603980-89f570
+files: 15
+processing_summary: 09-runs/20260608-160603980-89f570/processing-summary.md
+wiki_entry: 05-wiki/source-knowledge/llm-wiki-notes.md
+wiki_entry_generation_mode: agent_enriched
+wiki_entry_quality: enriched
+grounding_evidence_available: no
+grounding_evidence_channel: none
+grounding_needs_review: yes
+grounding_markers: unsupported_claims
+grounding_claims_with_quotes: 0/1
+source_card: 03-sources/article-cards/llm-wiki-notes.md
+draft_outline: 09-runs/20260608-160603980-89f570/draft-outline.md
+dashboard: dashboards/AIWiki Home.md
+review_queue: dashboards/Review Queue.md
+warnings: 1

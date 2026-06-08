@@ -1,0 +1,9 @@
+AIWiki 已初始化: <sample-vault>
+配置: 已保留
+新建目录数: 0
+新建数据库文件数: 0
+默认知识库: <sample-vault>
+用户配置: <aiwiki-home>\\config.json
+Obsidian 入口: dashboards/AIWiki Home.md
+下一步: 运行 `aiwiki agent sync --yes`，同步 AIWiki 宿主 Agent 对接文件。
+Agent 设置完成后: 让宿主 Agent 提供正文并调用 `aiwiki ingest-agent --stdin`，或运行 `aiwiki ingest-file --file <file>`。

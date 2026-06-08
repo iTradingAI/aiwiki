@@ -1,0 +1,341 @@
+{
+  "schema_version": "aiwiki.context.v1",
+  "query": "LLM Wiki",
+  "generated_at": "2026-06-08T16:06:04.172Z",
+  "query_scope": {
+    "filters": {},
+    "limit": 10,
+    "searched_groups": [
+      "wiki_entries",
+      "topics",
+      "source_cards",
+      "claims",
+      "outlines"
+    ]
+  },
+  "result_quality": {
+    "total_matches": 7,
+    "best_score": 6,
+    "has_wiki_entry": true,
+    "warnings": []
+  },
+  "recommended_next_action": "review_grounding_or_enrich_entry",
+  "matches": {
+    "wiki_entries": [
+      {
+        "title": "LLM Wiki Notes",
+        "path": "05-wiki/source-knowledge/llm-wiki-notes.md",
+        "summary": "LLM Wiki 把资料整理成可持续维护的本地知识层。",
+        "score": 6,
+        "type": "wiki_entry",
+        "topics": [
+          "LLM Wiki",
+          "Agent-first",
+          "content fingerprint",
+          "evidence boundary"
+        ],
+        "tags": [
+          "aiwiki/wiki-entry"
+        ],
+        "source_url": "https://example.com/llm-wiki",
+        "status": "active",
+        "source_role": "input",
+        "wiki_type": "source_knowledge",
+        "match_reasons": [
+          "title",
+          "topics",
+          "body",
+          "path",
+          "source_url",
+          "relationships",
+          "tags"
+        ],
+        "quality_signals": [
+          "quality:enriched",
+          "status:active",
+          "generation_mode:agent_enriched",
+          "grounding:no_evidence_flag",
+          "grounding:needs_review",
+          "relationships:present"
+        ],
+        "related_refs": [
+          "03-sources/article-cards/llm-wiki-notes.md",
+          "02-raw/articles/llm-wiki-notes.md",
+          "03-sources/article-cards/llm-wiki-notes",
+          "02-raw/articles/llm-wiki-notes",
+          "09-runs/20260608-160603980-89f570/processing-summary"
+        ],
+        "generation_mode": "agent_enriched",
+        "quality": "enriched",
+        "grounding_evidence_available": false,
+        "grounding_needs_review": true,
+        "grounding_markers": [
+          "unsupported_claims"
+        ],
+        "warnings": [
+          "Grounding needs review: unsupported_claims."
+        ]
+      },
+      {
+        "title": "local-article",
+        "path": "05-wiki/source-knowledge/local-article.md",
+        "summary": "Only a scaffold preview is available; enrich before relying on it as a final answer.",
+        "score": 2,
+        "type": "wiki_entry",
+        "topics": [],
+        "tags": [
+          "aiwiki/wiki-entry"
+        ],
+        "source_url": "",
+        "status": "active",
+        "source_role": "input",
+        "wiki_type": "source_knowledge",
+        "match_reasons": [
+          "path",
+          "tags",
+          "body"
+        ],
+        "quality_signals": [
+          "quality:scaffold",
+          "status:active",
+          "generation_mode:deterministic_fallback",
+          "grounding:no_evidence_flag",
+          "relationships:present"
+        ],
+        "related_refs": [
+          "03-sources/article-cards/local-article.md",
+          "02-raw/articles/local-article.md",
+          "03-sources/article-cards/local-article",
+          "02-raw/articles/local-article",
+          "09-runs/20260608-160603905-085f05/processing-summary"
+        ],
+        "generation_mode": "deterministic_fallback",
+        "quality": "scaffold",
+        "grounding_evidence_available": false,
+        "grounding_needs_review": false,
+        "grounding_markers": [],
+        "warnings": [
+          "This Wiki Entry is a deterministic fallback; it may need host-agent enrichment."
+        ]
+      }
+    ],
+    "source_cards": [
+      {
+        "title": "LLM Wiki Notes",
+        "path": "03-sources/article-cards/llm-wiki-notes.md",
+        "summary": "# LLM Wiki Notes ## Obsidian 链接 - Wiki 条目：[[05-wiki/source-knowledge/llm-wiki-notes|Wiki 条目]] - 原文：[[02-raw/articles/llm-wiki-notes|原文]] - Claim 建议：[[04-claims/_suggestions/llm-wik...",
+        "score": 4,
+        "type": "source_card",
+        "topics": [],
+        "tags": [
+          "aiwiki/source-card"
+        ],
+        "source_url": "https://example.com/llm-wiki",
+        "status": "to-review",
+        "match_reasons": [
+          "title",
+          "body",
+          "path",
+          "source_url",
+          "relationships",
+          "tags"
+        ],
+        "quality_signals": [
+          "status:to-review",
+          "grounding:no_evidence_flag",
+          "grounding:needs_review",
+          "relationships:present"
+        ],
+        "related_refs": [
+          "[[03-sources/article-cards/llm-wiki-notes|资料卡]]",
+          "[[04-claims/_suggestions/llm-wiki-notes-claims|Claim 建议]]",
+          "[[06-assets/_suggestions/llm-wiki-notes-assets|素材建议]]",
+          "[[07-topics/ready/llm-wiki-notes-topics|选题]]",
+          "[[08-outputs/outlines/llm-wiki-notes-outline|大纲]]",
+          "05-wiki/source-knowledge/llm-wiki-notes",
+          "02-raw/articles/llm-wiki-notes",
+          "04-claims/_suggestions/llm-wiki-notes-claims",
+          "06-assets/_suggestions/llm-wiki-notes-assets",
+          "07-topics/ready/llm-wiki-notes-topics",
+          "08-outputs/outlines/llm-wiki-notes-outline",
+          "09-runs/20260608-160603980-89f570/processing-summary"
+        ],
+        "grounding_evidence_available": false,
+        "grounding_needs_review": true,
+        "grounding_markers": [
+          "unsupported_claims"
+        ],
+        "warnings": [
+          "Grounding needs review: unsupported_claims."
+        ]
+      },
+      {
+        "title": "local-article",
+        "path": "03-sources/article-cards/local-article.md",
+        "summary": "# local-article ## Obsidian 链接 - Wiki 条目：[[05-wiki/source-knowledge/local-article|Wiki 条目]] - 原文：[[02-raw/articles/local-article|原文]] - 处理记录：[[09-runs/20260608-160603905-085f05/pro...",
+        "score": 1.33,
+        "type": "source_card",
+        "topics": [],
+        "tags": [
+          "aiwiki/source-card"
+        ],
+        "source_url": "",
+        "status": "to-review",
+        "match_reasons": [
+          "tags",
+          "relationships",
+          "body"
+        ],
+        "quality_signals": [
+          "status:to-review",
+          "grounding:no_evidence_flag",
+          "relationships:present"
+        ],
+        "related_refs": [
+          "[[03-sources/article-cards/local-article|资料卡]]",
+          "05-wiki/source-knowledge/local-article",
+          "02-raw/articles/local-article",
+          "09-runs/20260608-160603905-085f05/processing-summary"
+        ],
+        "grounding_evidence_available": false,
+        "grounding_needs_review": false,
+        "grounding_markers": [],
+        "warnings": []
+      }
+    ],
+    "claims": [
+      {
+        "title": "LLM Wiki Notes Claims",
+        "path": "04-claims/_suggestions/llm-wiki-notes-claims.md",
+        "summary": "# Claim 建议 - Wiki 条目：[[05-wiki/source-knowledge/llm-wiki-notes|Wiki 条目]] - 资料卡：[[03-sources/article-cards/llm-wiki-notes|资料卡]] - 原文：[[02-raw/articles/llm-wiki-notes|原文]] - 待人工审阅：LL...",
+        "score": 3,
+        "type": "claim_suggestions",
+        "topics": [],
+        "tags": [
+          "aiwiki/claims"
+        ],
+        "source_url": "https://example.com/llm-wiki",
+        "status": "to-review",
+        "match_reasons": [
+          "title",
+          "body",
+          "path",
+          "source_url",
+          "relationships",
+          "tags"
+        ],
+        "quality_signals": [
+          "status:to-review",
+          "grounding:no_evidence_flag",
+          "grounding:needs_review",
+          "relationships:present"
+        ],
+        "related_refs": [
+          "[[03-sources/article-cards/llm-wiki-notes|资料卡]]",
+          "[[04-claims/_suggestions/llm-wiki-notes-claims|Claim 建议]]",
+          "[[06-assets/_suggestions/llm-wiki-notes-assets|素材建议]]",
+          "[[07-topics/ready/llm-wiki-notes-topics|选题]]",
+          "[[08-outputs/outlines/llm-wiki-notes-outline|大纲]]",
+          "05-wiki/source-knowledge/llm-wiki-notes",
+          "03-sources/article-cards/llm-wiki-notes",
+          "02-raw/articles/llm-wiki-notes"
+        ],
+        "grounding_evidence_available": false,
+        "grounding_needs_review": true,
+        "grounding_markers": [
+          "unsupported_claims"
+        ],
+        "warnings": [
+          "Grounding needs review: unsupported_claims."
+        ]
+      }
+    ],
+    "topics": [
+      {
+        "title": "LLM Wiki Notes Topics",
+        "path": "07-topics/ready/llm-wiki-notes-topics.md",
+        "summary": "# 选题候选 - Wiki 条目：[[05-wiki/source-knowledge/llm-wiki-notes|Wiki 条目]] - 资料卡：[[03-sources/article-cards/llm-wiki-notes|资料卡]] - 大纲：[[08-outputs/outlines/llm-wiki-notes-outline|大纲]] - ...",
+        "score": 5,
+        "type": "topic_candidates",
+        "topics": [],
+        "tags": [
+          "aiwiki/topics"
+        ],
+        "source_url": "https://example.com/llm-wiki",
+        "status": "ready",
+        "match_reasons": [
+          "title",
+          "body",
+          "path",
+          "source_url",
+          "relationships",
+          "tags"
+        ],
+        "quality_signals": [
+          "status:ready",
+          "relationships:present"
+        ],
+        "related_refs": [
+          "[[03-sources/article-cards/llm-wiki-notes|资料卡]]",
+          "[[04-claims/_suggestions/llm-wiki-notes-claims|Claim 建议]]",
+          "[[06-assets/_suggestions/llm-wiki-notes-assets|素材建议]]",
+          "[[07-topics/ready/llm-wiki-notes-topics|选题]]",
+          "[[08-outputs/outlines/llm-wiki-notes-outline|大纲]]",
+          "05-wiki/source-knowledge/llm-wiki-notes",
+          "03-sources/article-cards/llm-wiki-notes",
+          "08-outputs/outlines/llm-wiki-notes-outline"
+        ],
+        "grounding_markers": [],
+        "warnings": []
+      }
+    ],
+    "outlines": [
+      {
+        "title": "LLM Wiki Notes Outline",
+        "path": "08-outputs/outlines/llm-wiki-notes-outline.md",
+        "summary": "# 草稿大纲 Wiki 条目：[[05-wiki/source-knowledge/llm-wiki-notes|Wiki 条目]] 资料卡：[[03-sources/article-cards/llm-wiki-notes|资料卡]] 原文：[[02-raw/articles/llm-wiki-notes|原文]] 1. 背景 2. 关键观点 3. 证据与...",
+        "score": 2,
+        "type": "draft_outline",
+        "topics": [],
+        "tags": [
+          "aiwiki/outline"
+        ],
+        "source_url": "https://example.com/llm-wiki",
+        "status": "draft",
+        "match_reasons": [
+          "title",
+          "body",
+          "path",
+          "source_url",
+          "relationships",
+          "tags"
+        ],
+        "quality_signals": [
+          "status:draft",
+          "relationships:present"
+        ],
+        "related_refs": [
+          "[[03-sources/article-cards/llm-wiki-notes|资料卡]]",
+          "[[04-claims/_suggestions/llm-wiki-notes-claims|Claim 建议]]",
+          "[[06-assets/_suggestions/llm-wiki-notes-assets|素材建议]]",
+          "[[07-topics/ready/llm-wiki-notes-topics|选题]]",
+          "[[08-outputs/outlines/llm-wiki-notes-outline|大纲]]",
+          "05-wiki/source-knowledge/llm-wiki-notes",
+          "03-sources/article-cards/llm-wiki-notes",
+          "02-raw/articles/llm-wiki-notes"
+        ],
+        "grounding_markers": [],
+        "warnings": []
+      }
+    ],
+    "raw_refs": []
+  },
+  "suggested_answer_structure": [
+    "topic overview",
+    "core claims",
+    "available evidence",
+    "reuse judgment",
+    "next action"
+  ],
+  "warnings": []
+}

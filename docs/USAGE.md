@@ -186,29 +186,25 @@ Obsidian 入口：dashboards/AIWiki Home.md
 
 ## 5. 成功后会生成什么
 
-每次 run 会写入：
+每次成功 run 先看核心产物：
 
 ```text
 09-runs/<run-id>/payload.json
 09-runs/<run-id>/raw.md
 09-runs/<run-id>/source-card.md
-09-runs/<run-id>/creative-assets.md
-09-runs/<run-id>/topics.md
-09-runs/<run-id>/draft-outline.md
+09-runs/<run-id>/wiki-entry.md
 09-runs/<run-id>/processing-summary.md
-```
-
-同时写入长期目录：
-
-```text
 02-raw/articles/
 03-sources/article-cards/
 05-wiki/source-knowledge/
 ```
 
-可选增强目录只在有对应内容或 `request.outputs` 明确请求时生成：
+只有 payload 有对应内容或 `request.outputs` 明确请求时，才会出现可选增强产物：
 
 ```text
+09-runs/<run-id>/creative-assets.md
+09-runs/<run-id>/topics.md
+09-runs/<run-id>/draft-outline.md
 04-claims/_suggestions/
 06-assets/_suggestions/
 07-topics/ready/
@@ -216,6 +212,8 @@ Obsidian 入口：dashboards/AIWiki Home.md
 ```
 
 `05-wiki/source-knowledge` 是默认知识层；`09-runs` 用于追溯每次处理。
+
+可以直接查看仓库里的 `examples/demo-run/` 和 `examples/obsidian-vault-sample/`，它们由当前 CLI 生成，展示普通本地文件只生成核心产物、enriched Agent payload 才生成可选增强产物。
 
 Wiki Entry 有两种质量模式：
 

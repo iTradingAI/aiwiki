@@ -1,0 +1,23 @@
+ingested: yes
+recorded: yes
+fetch_status: ok
+fit_score: 65
+fit_level: medium
+source_title: local-article
+summary: # 示例文章 这是一篇用于 `aiwiki ingest-file` 的中文测试文章。 它应该被保存为 raw，并生成资料卡、建议素材和 processing-summary。
+run_id: 20260608-160603905-085f05
+run_dir: <sample-vault>\09-runs\20260608-160603905-085f05
+files: 8
+processing_summary: 09-runs/20260608-160603905-085f05/processing-summary.md
+wiki_entry: 05-wiki/source-knowledge/local-article.md
+wiki_entry_generation_mode: deterministic_fallback
+wiki_entry_quality: scaffold
+grounding_evidence_available: no
+grounding_evidence_channel: none
+grounding_needs_review: no
+grounding_markers: none
+grounding_claims_with_quotes: 0/0
+source_card: 03-sources/article-cards/local-article.md
+dashboard: dashboards/AIWiki Home.md
+review_queue: dashboards/Review Queue.md
+warnings: 0

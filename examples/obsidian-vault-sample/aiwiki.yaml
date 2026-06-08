@@ -1,0 +1,18 @@
+product: aiwiki
+schema_version: 1
+created_at: "2026-06-08T16:06:03.826Z"
+
+knowledge_base:
+  id: default
+  name: AIWiki
+  language: zh-CN
+
+agent:
+  url_first: true
+  fetch_owner: host_agent
+  cli_fetch_webpage: false
+
+review:
+  wiki_merge_policy: manual
+  claim_policy: suggest_only
+  asset_policy: suggest_only

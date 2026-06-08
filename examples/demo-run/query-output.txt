@@ -1,0 +1,54 @@
+AIWiki 查询: LLM Wiki
+
+结果质量: matches=7, best_score=6, has_wiki_entry=yes
+下一步建议: review_grounding_or_enrich_entry
+查询范围: groups=wiki_entries,topics,source_cards,claims,outlines, limit=10, filters={}
+
+Wiki 条目:
+- LLM Wiki Notes (05-wiki/source-knowledge/llm-wiki-notes.md)
+  score=6; reasons=title,topics,body,path,source_url,relationships,tags; quality=quality:enriched,status:active,generation_mode:agent_enriched,grounding:no_evidence_flag,grounding:needs_review,relationships:present
+  LLM Wiki 把资料整理成可持续维护的本地知识层。
+  related: 03-sources/article-cards/llm-wiki-notes.md; 02-raw/articles/llm-wiki-notes.md; 03-sources/article-cards/llm-wiki-notes; 02-raw/articles/llm-wiki-notes; 09-runs/20260608-160603980-89f570/processing-summary
+  提示: Grounding needs review: unsupported_claims.
+- local-article (05-wiki/source-knowledge/local-article.md)
+  score=2; reasons=path,tags,body; quality=quality:scaffold,status:active,generation_mode:deterministic_fallback,grounding:no_evidence_flag,relationships:present
+  Only a scaffold preview is available; enrich before relying on it as a final answer.
+  related: 03-sources/article-cards/local-article.md; 02-raw/articles/local-article.md; 03-sources/article-cards/local-article; 02-raw/articles/local-article; 09-runs/20260608-160603905-085f05/processing-summary
+  提示: This Wiki Entry is a deterministic fallback; it may need host-agent enrichment.
+
+资料卡:
+- LLM Wiki Notes (03-sources/article-cards/llm-wiki-notes.md)
+  score=4; reasons=title,body,path,source_url,relationships,tags; quality=status:to-review,grounding:no_evidence_flag,grounding:needs_review,relationships:present
+  # LLM Wiki Notes ## Obsidian 链接 - Wiki 条目：[[05-wiki/source-knowledge/llm-wiki-notes|Wiki 条目]] - 原文：[[02-raw/articles/llm-wiki-notes|原文]] - Claim 建议：[[04-claims/_suggestions/llm-wik...
+  related: [[03-sources/article-cards/llm-wiki-notes|资料卡]]; [[04-claims/_suggestions/llm-wiki-notes-claims|Claim 建议]]; [[06-assets/_suggestions/llm-wiki-notes-assets|素材建议]]; [[07-topics/ready/llm-wiki-notes-topics|选题]]; [[08-outputs/outlines/llm-wiki-notes-outline|大纲]]
+  提示: Grounding needs review: unsupported_claims.
+- local-article (03-sources/article-cards/local-article.md)
+  score=1.33; reasons=tags,relationships,body; quality=status:to-review,grounding:no_evidence_flag,relationships:present
+  # local-article ## Obsidian 链接 - Wiki 条目：[[05-wiki/source-knowledge/local-article|Wiki 条目]] - 原文：[[02-raw/articles/local-article|原文]] - 处理记录：[[09-runs/20260608-160603905-085f05/pro...
+  related: [[03-sources/article-cards/local-article|资料卡]]; 05-wiki/source-knowledge/local-article; 02-raw/articles/local-article; 09-runs/20260608-160603905-085f05/processing-summary
+
+选题:
+- LLM Wiki Notes Topics (07-topics/ready/llm-wiki-notes-topics.md)
+  score=5; reasons=title,body,path,source_url,relationships,tags; quality=status:ready,relationships:present
+  # 选题候选 - Wiki 条目：[[05-wiki/source-knowledge/llm-wiki-notes|Wiki 条目]] - 资料卡：[[03-sources/article-cards/llm-wiki-notes|资料卡]] - 大纲：[[08-outputs/outlines/llm-wiki-notes-outline|大纲]] - ...
+  related: [[03-sources/article-cards/llm-wiki-notes|资料卡]]; [[04-claims/_suggestions/llm-wiki-notes-claims|Claim 建议]]; [[06-assets/_suggestions/llm-wiki-notes-assets|素材建议]]; [[07-topics/ready/llm-wiki-notes-topics|选题]]; [[08-outputs/outlines/llm-wiki-notes-outline|大纲]]
+
+Claim 建议:
+- LLM Wiki Notes Claims (04-claims/_suggestions/llm-wiki-notes-claims.md)
+  score=3; reasons=title,body,path,source_url,relationships,tags; quality=status:to-review,grounding:no_evidence_flag,grounding:needs_review,relationships:present
+  # Claim 建议 - Wiki 条目：[[05-wiki/source-knowledge/llm-wiki-notes|Wiki 条目]] - 资料卡：[[03-sources/article-cards/llm-wiki-notes|资料卡]] - 原文：[[02-raw/articles/llm-wiki-notes|原文]] - 待人工审阅：LL...
+  related: [[03-sources/article-cards/llm-wiki-notes|资料卡]]; [[04-claims/_suggestions/llm-wiki-notes-claims|Claim 建议]]; [[06-assets/_suggestions/llm-wiki-notes-assets|素材建议]]; [[07-topics/ready/llm-wiki-notes-topics|选题]]; [[08-outputs/outlines/llm-wiki-notes-outline|大纲]]
+  提示: Grounding needs review: unsupported_claims.
+
+大纲:
+- LLM Wiki Notes Outline (08-outputs/outlines/llm-wiki-notes-outline.md)
+  score=2; reasons=title,body,path,source_url,relationships,tags; quality=status:draft,relationships:present
+  # 草稿大纲 Wiki 条目：[[05-wiki/source-knowledge/llm-wiki-notes|Wiki 条目]] 资料卡：[[03-sources/article-cards/llm-wiki-notes|资料卡]] 原文：[[02-raw/articles/llm-wiki-notes|原文]] 1. 背景 2. 关键观点 3. 证据与...
+  related: [[03-sources/article-cards/llm-wiki-notes|资料卡]]; [[04-claims/_suggestions/llm-wiki-notes-claims|Claim 建议]]; [[06-assets/_suggestions/llm-wiki-notes-assets|素材建议]]; [[07-topics/ready/llm-wiki-notes-topics|选题]]; [[08-outputs/outlines/llm-wiki-notes-outline|大纲]]
+
+原文引用:
+- 无
+
+Agent JSON:
+- aiwiki context "LLM Wiki"
+

@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-06-08T16:06:04.243Z",
+  "summary": {
+    "wiki_entries": 2,
+    "source_cards": 2,
+    "raw_files": 2,
+    "runs": 2
+  },
+  "safe_fixes": {
+    "available": 0,
+    "applied": [],
+    "only_safe_fixes": false
+  },
+  "issues": [
+    {
+      "severity": "warning",
+      "path": "05-wiki/source-knowledge/llm-wiki-notes.md",
+      "category": "grounding_review",
+      "action": "mark_reviewed",
+      "message": "Wiki Entry needs grounding review: unsupported_claims",
+      "suggestion": "Check whether source quotes are present in Raw. Heuristic coverage risks are not confirmed facts."
+    },
+    {
+      "severity": "info",
+      "path": "05-wiki/source-knowledge/local-article.md",
+      "category": "stale_scaffold",
+      "action": "enrich",
+      "message": "Wiki Entry is a deterministic fallback and only contains source trace plus a content preview.",
+      "suggestion": "Ask the host Agent to enrich it with analysis or a full wiki_entry."
+    },
+    {
+      "severity": "info",
+      "category": "duplicate_title",
+      "action": "archive",
+      "message": "Duplicate title: LLM Wiki Notes",
+      "suggestion": "05-wiki/source-knowledge/llm-wiki-notes.md, 03-sources/article-cards/llm-wiki-notes.md, 02-raw/articles/llm-wiki-notes.md"
+    },
+    {
+      "severity": "info",
+      "category": "duplicate_title",
+      "action": "archive",
+      "message": "Duplicate title: local-article",
+      "suggestion": "05-wiki/source-knowledge/local-article.md, 03-sources/article-cards/local-article.md, 02-raw/articles/local-article.md"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+知识库路径: <sample-vault>
+处理次数: 2
+失败次数: 0
+最近处理: 20260608-160603980-89f570
+
+Content stats:
+Wiki entries: 2
+Source cards: 2
+Raw files: 2
+Topics: 1
+Outlines: 1
+fallback_entries: 1
+grounding_review_entries: 1
+recent_lint: none
+lint_status: missing
+last_success: 20260608-160603980-89f570
+system_files: _system/purpose.md=ok, _system/index.md=ok, _system/log.md=ok
+
+Next action:
+next_action: aiwiki query <topic>

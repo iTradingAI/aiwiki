@@ -43,6 +43,15 @@ aiwiki lint
 
 `lint` 会检查缺失链接、重复来源、fallback Wiki 条目、enriched 条目缺字段等问题，并写入 `dashboards/Lint Report.md`。
 
+## 示例
+
+仓库内置了一个由当前 CLI 重新生成的样例：
+
+- `examples/demo-run/`：输入材料、执行命令和关键 CLI 输出。
+- `examples/obsidian-vault-sample/`：可直接查看的样例知识库。
+
+样例展示了核心产物优先的约定：Raw、Source Card、Wiki Entry、Run Summary、Processing Summary 总是最先检查；Claim、Asset、Topic、Outline 只在 payload 有对应内容或明确请求时出现。
+
 ## 快速开始
 
 ### 第一步：安装 AIWiki CLI

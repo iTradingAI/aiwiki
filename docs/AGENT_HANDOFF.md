@@ -45,6 +45,7 @@ aiwiki ingest-agent --payload <utf8-json-file>
 ```
 
 9. 读取 CLI 输出，向用户回复入库状态、摘要、Wiki 条目、质量模式、资料卡和处理记录。
+10. 汇报产物时先说核心产物：Raw、Source Card、Wiki Entry、Run Summary、Processing Summary。Claim、Asset、Topic、Outline 只在本次 CLI 输出或文件中真实存在时再提。
 
 ## 编码要求
 
