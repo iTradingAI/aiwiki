@@ -243,6 +243,51 @@ test("CLI agent sync installs, previews, reports json, and backs up changed skil
   }
 });
 
+test("CLI agent sync installs marker-bounded workspace command guidance", async () => {
+  const root = await tempRoot("aiwiki-cli-agent-sync-workspace");
+  const target = path.join(root, "AGENTS.md");
+  try {
+    await writeFile(target, "# Project Rules\n\nKeep existing instructions.\n", "utf8");
+
+    const staleJson = new MemoryWritable();
+    assert.equal(await runCli(["agent", "check", "--agent", "workspace", "--path", root, "--json"], { stdout: staleJson, stderr: new MemoryWritable() }), 0);
+    const stale = JSON.parse(staleJson.text()) as { targets: Array<{ id: string; state: string }> };
+    assert.equal(stale.targets.find((item) => item.id === "workspace")?.state, "different");
+
+    const dryRunOut = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "workspace", "--path", root, "--dry-run"], { stdout: dryRunOut, stderr: new MemoryWritable() }), 0);
+    assert.match(dryRunOut.text(), /action=would_update/);
+
+    const syncOut = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "workspace", "--path", root, "--yes"], { stdout: syncOut, stderr: new MemoryWritable() }), 0);
+    assert.match(syncOut.text(), /workspace: Workspace AGENTS\.md/);
+    assert.match(syncOut.text(), /action=updated/);
+    assert.match(syncOut.text(), /backup:/);
+
+    const installed = await readFile(target, "utf8");
+    assert.match(installed, /Keep existing instructions/);
+    assert.match(installed, /AIWIKI:AGENT-GUIDANCE:START/);
+    assert.match(installed, /aiwiki setup --path <workspace> --yes/);
+    assert.match(installed, /aiwiki agent check --path <workspace> --json/);
+    assert.match(installed, /aiwiki lint --json --path <workspace>/);
+    assert.match(installed, /aiwiki lint --fix-empty-dirs --json --path <workspace>/);
+    assert.match(installed, /aiwiki ingest-file --file <file> --path <workspace>/);
+    assert.match(installed, /aiwiki ingest-agent --stdin --path <workspace>/);
+    assert.match(installed, /aiwiki status --path <workspace>/);
+    assert.match(installed, /aiwiki query <topic> --path <workspace>/);
+    assert.match(installed, /aiwiki context <topic> --path <workspace>/);
+
+    const currentJson = new MemoryWritable();
+    assert.equal(await runCli(["agent", "check", "--agent", "workspace", "--path", root, "--json"], { stdout: currentJson, stderr: new MemoryWritable() }), 0);
+    const current = JSON.parse(currentJson.text()) as { targets: Array<{ id: string; state: string; installed: boolean }> };
+    const workspace = current.targets.find((item) => item.id === "workspace");
+    assert.equal(workspace?.installed, true);
+    assert.equal(workspace?.state, "current");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI agent install writes Claude prompt command", async () => {
   const claudeHome = await tempRoot("aiwiki-cli-claude-home");
   const previousClaudeHome = process.env.CLAUDE_HOME;

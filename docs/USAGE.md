@@ -61,7 +61,11 @@ aiwiki status
 ```bash
 aiwiki agent sync --yes
 aiwiki agent check --json
+aiwiki agent sync --path <workspace> --yes
+aiwiki agent check --path <workspace> --json
 ```
+
+前两条同步本机宿主 Agent 的 skill/command，后两条在知识库根目录写入或刷新 marker-bounded `AGENTS.md` 指导。这样新的宿主 Agent 进入项目时，会先看到“必须调用 aiwiki CLI”的约束，而不是直接走默认文件搜索流程。
 
 旧的安装向导仍然兼容，但不再作为首选路径：
 
@@ -93,7 +97,9 @@ aiwiki prompt agent
 
 把输出内容安装成宿主 Agent 的 skill，或粘贴到宿主 Agent 的项目/会话说明里。不同 Agent 的安装入口不同，所以 AIWiki 提供自动安装向导和通用协议两条路径。
 
-`aiwiki agent check --json` 用来确认本机检测到哪些宿主 Agent、哪些已经安装 AIWiki 对接文件、哪些还需要运行 `aiwiki agent sync --agent <id> --yes`。
+`aiwiki agent check --json` 用来确认本机检测到哪些宿主 Agent、哪些已经安装 AIWiki 对接文件、哪些还需要运行 `aiwiki agent sync --agent <id> --yes`。`aiwiki agent check --path <workspace> --json` 会同时检查知识库根目录的 `AGENTS.md` 是否包含当前 AIWiki 命令优先指导，缺失或过期时会提示运行 `aiwiki agent sync --path <workspace> --yes`。
+
+如果宿主 Agent 只用 `rg`、`find`、`grep` 或手工读文件来回答 AIWiki 问题，而没有先运行 `aiwiki lint --json`、`aiwiki status`、`aiwiki query` 或 `aiwiki context`，就说明它没有真正使用 AIWiki 的知识库闭环。
 
 ## 3. 日常使用
 

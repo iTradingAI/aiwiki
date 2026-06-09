@@ -64,7 +64,9 @@ aiwiki lint
 我的知识库路径：F:\knowledges
 
 请检查 Node.js >=20，执行 aiwiki setup --path "我的知识库路径" --yes，
-然后运行 aiwiki agent sync --yes 和 aiwiki agent check --json 完成宿主 Agent 对接。
+然后运行 aiwiki agent sync --yes、aiwiki agent check --json、
+aiwiki agent sync --path "我的知识库路径" --yes 和 aiwiki agent check --path "我的知识库路径" --json，
+完成宿主 Agent 与知识库根指导对接。
 最后执行 aiwiki doctor 和 aiwiki status，告诉我实际执行了哪些命令和还差什么手动步骤。
 ```
 
@@ -81,6 +83,8 @@ aiwiki agent check --json
 ```bash
 aiwiki agent sync --yes
 aiwiki agent check --json
+aiwiki agent sync --path "F:\knowledges" --yes
+aiwiki agent check --path "F:\knowledges" --json
 ```
 
 也可以直接输出通用协议：

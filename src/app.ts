@@ -83,6 +83,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
     if (command === "agent" && subcommand === "sync") {
       const result = await syncAgentSkills({
         agentId: flagString(args, "agent"),
+        workspaceRoot: flagString(args, "path"),
         yes: flagBool(args, "yes"),
         dryRun: flagBool(args, "dry-run"),
         json: flagBool(args, "json"),
@@ -97,7 +98,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
     }
 
     if (command === "agent" && subcommand === "check") {
-      await printAgentCheckDetailed(streams.stdout, await discoverAgentTargets(), flagBool(args, "json"));
+      await printAgentCheckDetailed(streams.stdout, await discoverAgentTargets(flagString(args, "path")), flagBool(args, "json"));
       return 0;
     }
 
@@ -320,10 +321,12 @@ function printAgentHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki agent sync --yes");
   writeLine(stream, "  aiwiki agent sync --agent codex --yes");
   writeLine(stream, "  aiwiki agent sync --agent codex --dry-run");
+  writeLine(stream, "  aiwiki agent sync --path <workspace> --yes");
   writeLine(stream, "  aiwiki agent sync --json --yes");
   writeLine(stream, "");
   writeLine(stream, "Status:");
   writeLine(stream, "  aiwiki agent check");
+  writeLine(stream, "  aiwiki agent check --path <workspace> --json");
   writeLine(stream, "  aiwiki agent check --json");
   writeLine(stream, "");
   writeLine(stream, "Compatibility:");
@@ -365,7 +368,7 @@ type AgentTarget = {
   name: string;
   detected: boolean;
   installable: boolean;
-  kind: "skill" | "command" | "prompt";
+  kind: "skill" | "command" | "prompt" | "root_guidance";
   source?: string;
   target?: string;
   note: string;
@@ -397,7 +400,23 @@ type AgentSyncReport = {
   results: AgentSyncItem[];
 };
 
-async function discoverAgentTargets(): Promise<AgentTarget[]> {
+const AIWIKI_AGENT_GUIDANCE_START = "<!-- AIWIKI:AGENT-GUIDANCE:START -->";
+const AIWIKI_AGENT_GUIDANCE_END = "<!-- AIWIKI:AGENT-GUIDANCE:END -->";
+
+const REQUIRED_AGENT_GUIDANCE_TERMS = [
+  "aiwiki setup",
+  "aiwiki agent sync",
+  "aiwiki agent check",
+  "aiwiki lint --json",
+  "aiwiki lint --fix-empty-dirs --json",
+  "aiwiki ingest-file",
+  "aiwiki ingest-agent",
+  "aiwiki status",
+  "aiwiki query",
+  "aiwiki context"
+];
+
+async function discoverAgentTargets(workspaceRoot?: string): Promise<AgentTarget[]> {
   const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
   const skillSource = path.join(packageRoot, "skill", "SKILL.md");
   const promptSource = path.join(packageRoot, "docs", "AGENT_HANDOFF.md");
@@ -407,8 +426,9 @@ async function discoverAgentTargets(): Promise<AgentTarget[]> {
   const claudeHome = process.env.CLAUDE_HOME ? path.resolve(process.env.CLAUDE_HOME) : path.join(os.homedir(), ".claude");
   const opencodeHome = process.env.OPENCODE_HOME ? path.resolve(process.env.OPENCODE_HOME) : path.join(os.homedir(), ".opencode");
   const hermesHome = process.env.HERMES_HOME ? path.resolve(process.env.HERMES_HOME) : path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), "AppData", "Local"), "hermes");
+  const workspace = workspaceRoot ? path.resolve(workspaceRoot) : undefined;
 
-  return [
+  const targets: AgentTarget[] = [
     {
       id: "codex",
       name: "Codex",
@@ -466,6 +486,18 @@ async function discoverAgentTargets(): Promise<AgentTarget[]> {
       note: "已检测到，但暂未确认稳定的 skill 目录。请先使用 aiwiki prompt agent。"
     }
   ];
+  if (workspace) {
+    targets.unshift({
+      id: "workspace",
+      name: "Workspace AGENTS.md",
+      detected: await exists(workspace),
+      installable: true,
+      kind: "root_guidance",
+      target: path.join(workspace, "AGENTS.md"),
+      note: "安装 marker-bounded 根指导，要求宿主 Agent 在整理、检查、入库、查询、复用时优先调用 aiwiki CLI。"
+    });
+  }
+  return targets;
 }
 
 function printAgentList(stream: NodeJS.WritableStream, targets: AgentTarget[]): void {
@@ -509,6 +541,7 @@ async function printAgentCheckDetailed(stream: NodeJS.WritableStream, targets: A
         installable: target.installable,
         installed: target.installed,
         state: target.state,
+        suggested_action: suggestedAgentAction(target),
         source: target.source,
         target: target.target
       }))
@@ -519,12 +552,21 @@ async function printAgentCheckDetailed(stream: NodeJS.WritableStream, targets: A
   writeLine(stream, "AIWiki Agent check");
   for (const target of checked) {
     writeLine(stream, `${target.id}: ${target.name} | detected=${target.detected ? "yes" : "no"} | installed=${target.installed ? "yes" : "no"} | installable=${target.installable ? "yes" : "no"} | state=${target.state}`);
-    if (target.detected && target.installable && (target.state === "missing" || target.state === "different")) {
-      writeLine(stream, `  suggested: aiwiki agent sync --agent ${target.id} --yes`);
-    } else if (target.detected && !target.installable) {
-      writeLine(stream, "  suggested: aiwiki prompt agent");
+    const suggested = suggestedAgentAction(target);
+    if (suggested) {
+      writeLine(stream, `  suggested: ${suggested}`);
     }
   }
+}
+
+function suggestedAgentAction(target: AgentTarget & { state: AgentInstallState }): string | undefined {
+  if (target.detected && target.installable && (target.state === "missing" || target.state === "different")) {
+    return target.id === "workspace" ? `aiwiki agent sync --path "${path.dirname(target.target ?? ".")}" --yes` : `aiwiki agent sync --agent ${target.id} --yes`;
+  }
+  if (target.detected && !target.installable) {
+    return "aiwiki prompt agent";
+  }
+  return undefined;
 }
 
 async function installAgentSkill(options: { agentId?: string; yes: boolean; force: boolean; streams: CliStreams }) {
@@ -588,8 +630,8 @@ async function askQuestion(streams: CliStreams, question: string) {
   }
 }
 
-async function syncAgentSkills(options: { agentId?: string; yes: boolean; dryRun: boolean; json: boolean; streams: CliStreams }): Promise<AgentSyncReport> {
-  const targets = await discoverAgentTargets();
+async function syncAgentSkills(options: { agentId?: string; workspaceRoot?: string; yes: boolean; dryRun: boolean; json: boolean; streams: CliStreams }): Promise<AgentSyncReport> {
+  const targets = await discoverAgentTargets(options.workspaceRoot);
   const selected = options.agentId ? targets.find((target) => target.id === options.agentId) : undefined;
   if (!selected && options.agentId) {
     throw new CliError(`未知宿主 Agent: ${options.agentId}`);
@@ -635,6 +677,9 @@ async function copyInstallFileSafe(source: string, target: string, force: boolea
 }
 
 async function inspectAgentTarget(target: AgentTarget): Promise<AgentInstallState> {
+  if (target.kind === "root_guidance") {
+    return inspectWorkspaceGuidanceTarget(target);
+  }
   if (!target.installable || !target.source || !target.target) {
     return "unsupported";
   }
@@ -657,7 +702,7 @@ async function syncAgentTarget(target: AgentTarget, dryRun: boolean): Promise<Ag
     changed: false,
     dryRun
   };
-  if (state === "unsupported" || !target.source || !target.target) {
+  if (state === "unsupported" || !target.target || (!target.source && target.kind !== "root_guidance")) {
     return { ...base, action: "unsupported", note: target.note };
   }
   if (state === "current") {
@@ -666,8 +711,82 @@ async function syncAgentTarget(target: AgentTarget, dryRun: boolean): Promise<Ag
   if (dryRun) {
     return { ...base, action: state === "missing" ? "would_install" : "would_update", changed: true };
   }
-  const result = await copyInstallFileSafe(target.source, target.target, true);
+  if (target.kind === "root_guidance") {
+    const result = await syncWorkspaceGuidanceTarget(target);
+    return { ...base, action: result.action, backupPath: result.backupPath, changed: result.action !== "current" };
+  }
+  const result = await copyInstallFileSafe(target.source!, target.target, true);
   return { ...base, action: result.action, backupPath: result.backupPath, changed: result.action !== "current" };
+}
+
+async function inspectWorkspaceGuidanceTarget(target: AgentTarget): Promise<AgentInstallState> {
+  if (!target.target || !target.detected) {
+    return "missing";
+  }
+  if (!(await exists(target.target))) {
+    return "missing";
+  }
+  const content = await fs.readFile(target.target, "utf8");
+  const block = extractWorkspaceGuidanceBlock(content);
+  if (!block) {
+    return "different";
+  }
+  return block.trim() === workspaceGuidanceBlock().trim() && REQUIRED_AGENT_GUIDANCE_TERMS.every((term) => block.includes(term)) ? "current" : "different";
+}
+
+async function syncWorkspaceGuidanceTarget(target: AgentTarget): Promise<{ action: AgentSyncAction; backupPath?: string }> {
+  if (!target.target) {
+    return { action: "unsupported" };
+  }
+  const targetExists = await exists(target.target);
+  const existing = targetExists ? await fs.readFile(target.target, "utf8") : "";
+  const next = mergeWorkspaceGuidance(existing);
+  if (targetExists && existing === next) {
+    return { action: "current" };
+  }
+  const backupPath = targetExists ? await backupFile(target.target) : undefined;
+  await fs.mkdir(path.dirname(target.target), { recursive: true });
+  await fs.writeFile(target.target, next, "utf8");
+  return { action: targetExists ? "updated" : "installed", backupPath };
+}
+
+function extractWorkspaceGuidanceBlock(content: string): string | undefined {
+  const start = content.indexOf(AIWIKI_AGENT_GUIDANCE_START);
+  const end = content.indexOf(AIWIKI_AGENT_GUIDANCE_END);
+  if (start === -1 || end === -1 || end < start) {
+    return undefined;
+  }
+  return content.slice(start, end + AIWIKI_AGENT_GUIDANCE_END.length);
+}
+
+function mergeWorkspaceGuidance(existing: string): string {
+  const block = workspaceGuidanceBlock();
+  const start = existing.indexOf(AIWIKI_AGENT_GUIDANCE_START);
+  const end = existing.indexOf(AIWIKI_AGENT_GUIDANCE_END);
+  if (start !== -1 && end !== -1 && end > start) {
+    return `${existing.slice(0, start)}${block}${existing.slice(end + AIWIKI_AGENT_GUIDANCE_END.length)}`;
+  }
+  const trimmed = existing.trimEnd();
+  return `${trimmed}${trimmed ? "\n\n" : ""}${block}\n`;
+}
+
+function workspaceGuidanceBlock(): string {
+  return `${AIWIKI_AGENT_GUIDANCE_START}
+# AIWiki Agent Command Contract
+
+When a user asks to organize, inspect, ingest, query, reuse, or maintain this AIWiki workspace, call the AIWiki CLI first. Do not start with generic file search, grep/find scans, or ad hoc note edits unless the AIWiki command cannot answer the request.
+
+Required command-first loop:
+
+1. Ensure the workspace exists with \`aiwiki setup --path <workspace> --yes\`.
+2. Keep host-Agent guidance current with \`aiwiki agent sync --path <workspace> --yes\` and verify with \`aiwiki agent check --path <workspace> --json\`.
+3. Inspect structure with \`aiwiki lint --json --path <workspace>\`; apply only safe fixes with \`aiwiki lint --fix-empty-dirs --json --path <workspace>\` when allowed, then rerun \`aiwiki lint --json --path <workspace>\`.
+4. Ingest local material with \`aiwiki ingest-file --file <file> --path <workspace>\` or structured Agent material with \`aiwiki ingest-agent --stdin --path <workspace>\`.
+5. Check progress with \`aiwiki status --path <workspace>\`.
+6. Retrieve reusable knowledge with \`aiwiki query <topic> --path <workspace>\` for human-readable output or \`aiwiki context <topic> --path <workspace>\` for Agent JSON.
+
+Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, say which AIWiki command was insufficient and why.
+${AIWIKI_AGENT_GUIDANCE_END}`;
 }
 
 async function sameFileContent(source: string, target: string): Promise<boolean> {

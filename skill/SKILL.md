@@ -3,7 +3,7 @@ name: aiwiki
 description: Agent-first AIWiki workflow for turning one URL/body into local Wiki knowledge files.
 ---
 
-<!-- aiwiki-skill-version: 0.2.19 -->
+<!-- aiwiki-skill-version: 0.2.21 -->
 
 # AIWiki Skill
 
@@ -34,14 +34,41 @@ aiwiki agent sync --json --yes
 aiwiki agent check --json
 ```
 
+For a project or vault workspace, also sync root guidance so future Agents see the command contract before they inspect files:
+
+```bash
+aiwiki agent sync --path <workspace> --yes
+aiwiki agent check --path <workspace> --json
+```
+
 Sync behavior:
 
 - missing installed skill: install the packaged AIWiki skill
 - current installed skill: leave unchanged
 - different installed skill: backup the old file, then overwrite with the packaged skill
+- workspace `AGENTS.md`: append or refresh the marker-bounded AIWiki block without removing user instructions
 - unsupported host: do not write; use `aiwiki prompt agent` as a manual fallback
 
 After sync, tell the user the target path, any backup path, and that the target Agent may need to restart or reload before the new skill is active. Never edit Agent config during `npm install`; sync is the explicit safe step.
+
+## Required Command-First Loop
+
+When the user asks you to organize, inspect, ingest, query, reuse, or maintain an AIWiki workspace, run the AIWiki command surface before generic file search or ad hoc note edits:
+
+```bash
+aiwiki setup --path <workspace> --yes
+aiwiki agent sync --path <workspace> --yes
+aiwiki agent check --path <workspace> --json
+aiwiki lint --json --path <workspace>
+aiwiki lint --fix-empty-dirs --json --path <workspace>
+aiwiki ingest-file --file <file> --path <workspace>
+aiwiki ingest-agent --stdin --path <workspace>
+aiwiki status --path <workspace>
+aiwiki query <topic> --path <workspace>
+aiwiki context <topic> --path <workspace>
+```
+
+Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, explain which AIWiki command was insufficient and why. If you skip the AIWiki commands entirely, the knowledge-base features are not being exercised.
 
 ## Knowledge Base Purpose
 
