@@ -23,28 +23,19 @@ npm version patch --no-git-tag-version
 
 发布前必须先让同一个本地 tarball 在测试服务器通过 smoke test。顺序是：本地验证、版本号、提交、本地 `npm pack`、测试服务器安装 tarball 并跑 CLI smoke，然后才能 `git push` 和 `npm publish`。
 
-发布前确认 npm 登录账号：
+AIWiki 使用 npm Trusted Publishing。npm 发布应由 GitHub Actions 的 `.github/workflows/publish.yml` 完成，不依赖本机 `npm login`、OTP 或长期 `NPM_TOKEN`。
+
+远程测试和 GitHub push 都通过后，触发发布 workflow：
 
 ```bash
-npm whoami
+gh workflow run publish.yml --repo iTradingAI/aiwiki
+gh run watch --repo iTradingAI/aiwiki
 ```
 
-正式发布：
+如需查看最近一次发布任务：
 
 ```bash
-npm publish --access public
-```
-
-如果账号开启了 publish 2FA，普通 token 可能只能 `whoami`，但发布时仍会要求 OTP。此时有两种方式：
-
-```bash
-npm publish --access public --otp <OTP>
-```
-
-或使用 npm Automation token 写入用户级 `.npmrc`：
-
-```bash
-npm config set //registry.npmjs.org/:_authToken "<NPM_AUTOMATION_TOKEN>"
+gh run list --workflow publish.yml --repo iTradingAI/aiwiki --limit 5
 ```
 
 发布后验证：
@@ -53,6 +44,8 @@ npm config set //registry.npmjs.org/:_authToken "<NPM_AUTOMATION_TOKEN>"
 npm view @itradingai/aiwiki version
 npm view @itradingai/aiwiki versions --json
 ```
+
+如果 workflow 提示 Trusted Publishing / OIDC 权限问题，检查 npm 包设置里的 Trusted Publisher 是否指向 `iTradingAI/aiwiki` 和 workflow 文件名 `publish.yml`，并确认 workflow 顶层包含 `permissions: id-token: write`。
 
 ## 包体积
 
