@@ -1,198 +1,205 @@
-# AIWiki 使用说明
+# AIWiki Usage Guide
 
-目标体验：
+AIWiki is meant to be used through an AI assistant.
+
+The target experience is simple:
 
 ```text
-用户只做一次 setup -> 之后只把链接发给 Agent -> Agent 自动调用 AIWiki 入库
+set up once
+  -> send links, files, or notes to your assistant
+  -> the assistant calls AIWiki
+  -> AIWiki writes reusable local Markdown knowledge
 ```
 
-AIWiki CLI 不负责网页抓取。Qclaw、Codex、Claude Code、Cursor、Gemini CLI 等都只是宿主 Agent 的例子；这份文档面向的是通用宿主 Agent 协作。
+AIWiki does not fetch webpages and does not call an LLM. The host assistant reads and understands sources; AIWiki validates, writes, links, queries, and checks the local knowledge base.
 
-AIWiki CLI 也不调用 LLM。高质量 Wiki Entry 来自宿主 Agent 提供的 `analysis` 或 `wiki_entry`；如果没有这些字段，AIWiki 会生成可追溯的 deterministic fallback 条目，只包含来源、反链、正文预览和待补全区。
+## 1. Ask Your Assistant to Install AIWiki
 
-AIWiki 会把证据通道和疑似风险分开记录。`source_quote` 等宿主 Agent 提供的原文引用属于证据通道；`coverage_suspected_incomplete`、`unsupported_claims`、`needs_review` 等属于 AIWiki 生成的启发式复核信号，不等于已经证明内容遗漏。
+Copy this prompt into your assistant:
 
-成功入库的正文会写入稳定的 `content_fingerprint`。如果同一来源同一正文重复入库，AIWiki 会保留新的 run 记录、给出重复 fingerprint warning，并把长期文件改名保存，避免静默覆盖已有知识资产。
+```text
+Please install and configure AIWiki for me.
 
-## 1. 一次性设置
+First check that Node.js is installed and that node --version is >=20.
+If Node.js is missing or older than 20, stop and tell me how to upgrade before running npm install.
 
-发布后直接运行交互式 setup：
+Use this knowledge base path:
 
-```bash
-npx @itradingai/aiwiki@latest setup
+<replace-with-my-aiwiki-path>
+
+Run these commands:
+
+npm install -g @itradingai/aiwiki@latest
+aiwiki setup --path "<replace-with-my-aiwiki-path>" --yes
+aiwiki agent sync --yes
+aiwiki agent sync --path "<replace-with-my-aiwiki-path>" --yes
+aiwiki agent check --json
+aiwiki agent check --path "<replace-with-my-aiwiki-path>" --json
+aiwiki doctor --path "<replace-with-my-aiwiki-path>"
+aiwiki status --path "<replace-with-my-aiwiki-path>"
+
+Then summarize what was installed, what was synced, whether workspace guidance exists, and whether I need to restart or reload the assistant.
 ```
 
-CLI 会询问知识库路径。直接回车会使用默认目录；输入 `y` 后会创建或补齐目录，并设置为默认知识库。
+Example knowledge base paths:
 
-如果你想一行命令完成，也可以运行：
-
-```bash
-npx @itradingai/aiwiki@latest setup --path "F:\knowledge_data\aiwiki" --yes
+```text
+Windows: D:\AIWiki
+macOS/Linux: ~/AIWiki
+Project test: ./aiwiki-test
 ```
 
-本地仓库测试时：
+This creates or repairs the knowledge base, syncs the packaged AIWiki skill into supported assistant environments, and writes workspace-level `AGENTS.md` guidance.
 
-```bash
-cd "<AIWiki 仓库路径>"
-npm install
-npm run build
-npm link
-aiwiki setup --path "F:\knowledge_data\aiwiki-test" --yes
-```
+Expected result:
 
-验证：
+- `aiwiki --version` works
+- `aiwiki doctor --path <workspace>` passes or reports actionable fixes
+- `aiwiki agent check --json` reports supported targets as `installed`, `updated`, or `current`
+- `aiwiki agent check --path <workspace> --json` reports workspace guidance as current
+- `aiwiki status --path <workspace>` shows the workspace state and next action
 
-```bash
-aiwiki doctor
-aiwiki status
-```
+## 2. Agent Sync Layers
 
-`setup` 会做两件事：
-
-- 创建或补齐知识库目录。
-- 写入默认知识库配置到用户目录，例如 `%USERPROFILE%\.aiwiki\config.json`。
-
-之后大多数命令都可以省略 `--path`。
-
-## 2. 让宿主 Agent 学会 AIWiki
-
-初始化知识库之后，先让宿主 Agent 学会 AIWiki。主路径推荐使用幂等同步：
+AIWiki has two sync layers:
 
 ```bash
 aiwiki agent sync --yes
-aiwiki agent check --json
+```
+
+Syncs AIWiki instructions into supported local assistant targets such as Codex, Claude Code, QClaw, and OpenClaw.
+
+```bash
 aiwiki agent sync --path <workspace> --yes
+```
+
+Writes marker-bounded guidance into the knowledge base root so future assistants entering that workspace know to use AIWiki commands before generic file search.
+
+Verify both layers:
+
+```bash
+aiwiki agent check --json
 aiwiki agent check --path <workspace> --json
 ```
 
-前两条同步本机宿主 Agent 的 skill/command，后两条在知识库根目录写入或刷新 marker-bounded `AGENTS.md` 指导。这样新的宿主 Agent 进入项目时，会先看到“必须调用 aiwiki CLI”的约束，而不是直接走默认文件搜索流程。
-
-旧的安装向导仍然兼容，但不再作为首选路径：
-
-```bash
-aiwiki agent install
-```
-
-也可以跳过选择，直接指定目标：
-
-```bash
-aiwiki agent install --agent codex --yes
-aiwiki agent install --agent qclaw --yes
-aiwiki agent install --agent openclaw --yes
-aiwiki agent install --agent claude --yes
-```
-
-当前自动复制范围：
-
-- `codex`：复制到 Codex 用户 skills 目录。
-- `qclaw`：复制到 QClaw skills 目录。
-- `openclaw`：复制到 OpenClaw workspace skills 目录。
-- `claude`：复制为 Claude Code slash-command 提示文件。
-
-`opencode` 和 `hermes` 会被扫描出来，但 AIWiki 暂不自动写入它们的配置。确认官方用户提示/skill 目录后再开放自动安装。现在可先输出通用对接协议：
+For unsupported hosts, print the generic assistant protocol:
 
 ```bash
 aiwiki prompt agent
 ```
 
-把输出内容安装成宿主 Agent 的 skill，或粘贴到宿主 Agent 的项目/会话说明里。不同 Agent 的安装入口不同，所以 AIWiki 提供自动安装向导和通用协议两条路径。
+## 3. Ingest a Source
 
-`aiwiki agent check --json` 用来确认本机检测到哪些宿主 Agent、哪些已经安装 AIWiki 对接文件、哪些还需要运行 `aiwiki agent sync --agent <id> --yes`。`aiwiki agent check --path <workspace> --json` 会同时检查知识库根目录的 `AGENTS.md` 是否包含当前 AIWiki 命令优先指导，缺失或过期时会提示运行 `aiwiki agent sync --path <workspace> --yes`。
+### 10-minute trial route
 
-如果宿主 Agent 只用 `rg`、`find`、`grep` 或手工读文件来回答 AIWiki 问题，而没有先运行 `aiwiki lint --json`、`aiwiki status`、`aiwiki query` 或 `aiwiki context`，就说明它没有真正使用 AIWiki 的知识库闭环。
-
-## 3. 日常使用
-
-宿主 Agent 已经加载 AIWiki 协议后，把下面的话发给它，并替换链接：
+For a first public trial, keep the loop deliberately small:
 
 ```text
-入库 https://example.com/article
+setup
+  -> first source ingest
+  -> inspect generated artifacts
+  -> query/context reuse
+  -> lint/doctor check
+  -> short feedback note
 ```
 
-宿主 Agent 应该自动完成：
+Concrete command surface:
 
-1. 读取网页正文。
-2. 生成 `aiwiki.agent_payload.v1`。
-3. 通过 stdin 调用 `aiwiki ingest-agent --stdin`。
-4. 把 AIWiki CLI 输出的入库结果摘要回复给用户。
+```bash
+aiwiki setup --path <workspace> --yes
+aiwiki doctor --path <workspace>
+aiwiki ingest-file --file <file> --path <workspace>
+aiwiki query "<topic>" --path <workspace>
+aiwiki context "<topic>" --path <workspace>
+aiwiki lint --json --path <workspace>
+```
 
-用户不需要保存 JSON，不需要手动运行 `ingest-agent`，也不需要每次输入知识库路径。
+When the source is a URL, the assistant reads it first and then calls `aiwiki ingest-agent`; AIWiki itself does not crawl the page.
 
-## 4. 宿主 Agent 端应回复什么
-
-AIWiki CLI 会输出 key-value 信息。成功入库时类似：
+Tell your assistant:
 
 ```text
-ingested: yes
-recorded: yes
-fetch_status: ok
-fit_score: 90
-fit_level: high
-source_title: 文章标题
-source_url: https://example.com/article
-summary: 这里是文章前段摘要，方便 Agent 快速告诉用户文章大意。
-run_id: 20260507-153012-abc123
-run_dir: F:\knowledge_data\aiwiki\09-runs\20260507-153012-abc123
-files: 8
-processing_summary: 09-runs/20260507-153012-abc123/processing-summary.md
-wiki_entry: 05-wiki/source-knowledge/article-slug.md
-wiki_entry_generation_mode: agent_enriched
-wiki_entry_quality: enriched
-grounding_evidence_available: yes
-grounding_evidence_channel: host_supplied
-grounding_needs_review: no
-grounding_markers: none
-grounding_claims_with_quotes: 1/1
-source_card: 03-sources/article-cards/article-slug.md
-draft_outline: 09-runs/20260507-153012-abc123/draft-outline.md  # 仅在生成大纲时出现
-dashboard: dashboards/AIWiki Home.md
-review_queue: dashboards/Review Queue.md
-warnings: 0
+Ingest this into AIWiki:
+https://example.com/article
 ```
 
-宿主 Agent 回复用户时建议展示：
+The assistant should:
+
+1. read the source
+2. build an `aiwiki.agent_payload.v1` payload
+3. provide `analysis` or `wiki_entry` when it understands the source
+4. call `aiwiki ingest-agent --stdin`
+5. report the generated Wiki Entry, Source Card, and Processing Summary
+
+For local files, the assistant may call:
+
+```bash
+aiwiki ingest-file --file <file>
+```
+
+If webpage reading fails, the assistant should still record the failure with `fetch_status: "failed"` so the run is traceable.
+
+## 4. Ask the Knowledge Base
+
+Tell your assistant:
 
 ```text
-AIWiki 已完成入库，并生成 Wiki 条目。
-契合度：90 / high
-摘要：……
-Wiki 条目：……
-质量模式：enriched / agent_enriched
-资料卡：……
-处理记录：……
+What does AIWiki know about <topic>?
 ```
 
-网页读取失败但已记录原因时类似：
+The assistant should call:
+
+```bash
+aiwiki context "<topic>"
+```
+
+`context` returns JSON for assistants. It includes query scope, result quality, match reasons, quality signals, and related references.
+
+For human-readable terminal output:
+
+```bash
+aiwiki query "<topic>"
+```
+
+Useful filters:
+
+```bash
+aiwiki context "AI Agent" --type wiki_entries --source-role input --wiki-type source_knowledge --status active --limit 5
+aiwiki query "AI Agent" --type source_cards --status to-review --limit 3
+```
+
+AIWiki retrieval is local Markdown/frontmatter search. It is not vector search, external search, or RAG-over-wiki.
+
+## 5. Check and Maintain the Workspace
+
+Tell your assistant:
 
 ```text
-ingested: no
-recorded: yes
-fetch_status: failed
-fit_score: 0
-fit_level: fetch_failed
-summary: 网页需要登录或宿主 Agent 无法访问正文。
-run_id: 20260507-153012-abc123-fetch-failed
-run_dir: F:\knowledge_data\aiwiki\09-runs\20260507-153012-abc123-fetch-failed
-files: 2
-processing_summary: 09-runs/20260507-153012-abc123-fetch-failed/processing-summary.md
-dashboard: dashboards/AIWiki Home.md
-review_queue: dashboards/Review Queue.md
-warnings: 0
+Check and organize my AIWiki workspace.
 ```
 
-宿主 Agent 回复用户时建议展示：
+The assistant should run:
 
-```text
-未成功入库正文，但已记录失败原因。
-原因：……
-记录目录：……
-处理记录：……
-Obsidian 入口：dashboards/AIWiki Home.md
+```bash
+aiwiki lint --json
 ```
 
-## 5. 成功后会生成什么
+If only safe fixes are available and you allow cleanup:
 
-每次成功 run 先看核心产物：
+```bash
+aiwiki lint --fix-empty-dirs --json
+aiwiki lint --json
+```
+
+Current automatic safe fix:
+
+- remove known empty optional enhancement directories
+
+AIWiki must not delete core directories, unknown directories, non-empty directories, or files as a safe fix.
+
+## 6. Generated Artifacts
+
+Core artifacts:
 
 ```text
 09-runs/<run-id>/payload.json
@@ -205,7 +212,7 @@ Obsidian 入口：dashboards/AIWiki Home.md
 05-wiki/source-knowledge/
 ```
 
-只有 payload 有对应内容或 `request.outputs` 明确请求时，才会出现可选增强产物：
+Optional artifacts appear only when the assistant provides matching content or explicitly requests them:
 
 ```text
 09-runs/<run-id>/creative-assets.md
@@ -217,286 +224,87 @@ Obsidian 入口：dashboards/AIWiki Home.md
 08-outputs/outlines/
 ```
 
-`05-wiki/source-knowledge` 是默认知识层；`09-runs` 用于追溯每次处理。
+Wiki Entry quality modes:
 
-可以直接查看仓库里的 `examples/demo-run/` 和 `examples/obsidian-vault-sample/`，它们由当前 CLI 生成，展示普通本地文件只生成核心产物、enriched Agent payload 才生成可选增强产物。
+- `agent_enriched` / `enriched`: the assistant provided analysis or wiki content.
+- `deterministic_fallback` / `scaffold`: AIWiki created a traceable shell from source content only.
 
-Wiki Entry 有两种质量模式：
+First-run success checklist:
 
-- `agent_enriched` / `enriched`：宿主 Agent 提供了 `analysis` 或 `wiki_entry`。
-- `deterministic_fallback` / `scaffold`：AIWiki 只生成来源、反链、正文预览和待补全区。
+- `09-runs/<run-id>/processing-summary.md` exists
+- a raw record exists under `02-raw/articles/`
+- a Source Card exists under `03-sources/article-cards/`
+- a Wiki Entry exists under `05-wiki/source-knowledge/`
+- `aiwiki query "<topic>" --path <workspace>` returns a relevant match
+- `aiwiki context "<topic>" --path <workspace>` returns machine-readable context for the assistant
+- `aiwiki lint --json --path <workspace>` returns structured workspace feedback
 
-`analysis` 可以继续只传旧字段，也可以补充 `entities`、`concepts`、`tensions`、`reusable_judgments`、`suggested_links`。这些字段会进入 Wiki Entry，帮助用户区分“实体/概念”“可复用判断”“证据边界”和“后续可链接条目”，但不会被 AIWiki 当作已经证实的事实。
+## 7. Obsidian and Dataview
 
-Artifact 角色保持固定：
+AIWiki writes plain Markdown and frontmatter.
 
-- `03-sources/article-cards` 是 trace-first 的资料卡：保留来源、反链、原文预览和 grounding 状态，不承担完整知识正文。
-- `05-wiki/source-knowledge` 是 enriched knowledge surface：宿主 Agent 的 `analysis` / `wiki_entry` 会进入这里。
-- `02-raw/articles` 是原始证据层，后续摘要、Claim 和复核都应能回查这里。
+Obsidian is optional. Dataview is optional. AIWiki does not edit `.obsidian`, install plugins, or require Dataview to query the knowledge base.
 
-Grounding 字段都是 additive，可被旧工具忽略：
+`aiwiki setup` creates dashboard and schema files when missing and preserves user-edited files.
 
-- `grounding_evidence_available`：是否存在可回查的宿主证据。
-- `grounding_evidence_channel`：`host_supplied` 或 `none`。
-- `grounding_needs_review`：是否需要复核。
-- `grounding_markers`：例如 `unsupported_claims`、`source_quote_not_found`、`coverage_suspected_incomplete`。
-- `coverage_suspected_incomplete`：长文提取过少时的启发式疑似标记，不是确定遗漏结论。
+## 8. Troubleshooting
 
-Wiki Entry 还会记录来源角色：
+### The `aiwiki` command is missing
 
-- `source_role: input`：默认值，外部文章、网页、书籍、视频等资料；`represents_user_view: false`。
-- `source_role: output`：用户已发布文章、演讲稿、公众号文章等个人输出；通常可配合 `represents_user_view: true`。
-- `source_role: processing`：用户自己的草稿、笔记、思考过程；默认不直接代表最终观点。
-
-### Obsidian 链接规则
-
-AIWiki 生成的 Markdown 按 Obsidian vault 内路径组织，文件正文会使用 wikilink：
-
-```text
-[[03-sources/article-cards/article-slug|资料卡]]
-[[05-wiki/source-knowledge/article-slug|Wiki 条目]]
-[[02-raw/articles/article-slug|原文]]
-[[09-runs/20260507-153012-abc123/processing-summary|处理记录]]
-```
-
-链接规则：
-- wikilink 使用 vault 相对路径，统一为 `/`，并去掉 `.md` 后缀。
-- `02-raw/articles`、`03-sources/article-cards`、`05-wiki/source-knowledge` 和 `09-runs/<run-id>` 是核心产物；`04-claims/_suggestions`、`06-assets/_suggestions`、`07-topics/ready`、`08-outputs/outlines` 只在 payload 有对应内容或 `request.outputs` 明确请求时生成。
-- `03-sources/article-cards` 只链接本次实际生成的可选增强产物，避免空目录和断链。
-- `09-runs/<run-id>/processing-summary.md` 会把本次生成的 Markdown 文件列成可点击 wikilink；`payload.json` 不是 Markdown，保留普通路径。
-- frontmatter 会写入 `aiwiki_id`、`type`、`status`、`slug`、`source_url`、`content_fingerprint`、`created_at`、`captured_at`、`run_id`、`source_card`、`raw_note`、`run_summary` 等核心字段；`claims_note`、`assets_note`、`topics_note`、`outline_note` 只在对应产物存在时出现。
-
-### Obsidian 数据库入口
-
-`setup` 会创建或补齐 Obsidian 数据库资产：
-
-```text
-dashboards/AIWiki Home.md
-dashboards/Wiki Entries.md
-dashboards/Source Cards.md
-dashboards/Review Queue.md
-dashboards/Recent Runs.md
-dashboards/Topic Pipeline.md
-_system/schemas/aiwiki-frontmatter.md
-_system/templates/source-card.md
-_system/templates/review-note.md
-```
-
-这些文件只在缺失时创建；如果你已经在 Obsidian 中改过 dashboard 或模板，重新运行 `aiwiki setup` 不会覆盖。
-
-不安装 Dataview 也可以使用：
-- 用 `dashboards/AIWiki Home.md` 作为入口。
-- 用 Obsidian Properties 查看字段。
-- 用 Backlinks / Graph View 查看资料卡和原文、Claim、素材、选题、大纲之间的关系。
-
-安装 Dataview 后，dashboard 中的 `dataview` 代码块会渲染成表格，用来查看最近入库、待审队列、选题管线和处理记录。
-
-Dataview 是可选增强，不是 AIWiki 的必需依赖。AIWiki 不会自动修改 `.obsidian` 或安装社区插件；需要时请在 Obsidian 的 Community plugins 中自行安装并启用 Dataview。
-
-## 6. Agent 对接协议
-
-给任意宿主 Agent 的详细协议见：
-
-```text
-docs/AGENT_HANDOFF.md
-```
-
-核心要求：
-
-- Agent 负责读取网页正文。
-- Agent 应尽量提供 `analysis` 或 `wiki_entry`，让 Wiki Entry 进入 enriched 模式。
-- Agent 不要让用户保存 payload。
-- Agent 不要让用户手动运行 `ingest-agent`。
-- Agent 生成 payload 后优先通过 stdin 调用 `aiwiki ingest-agent --stdin`。
-- Agent 最后向用户汇报入库状态、摘要、Wiki 条目、质量模式、资料卡和处理记录。
-
-## 7. 查询和整理
-
-从知识库调度内容：
+Ask your assistant to reinstall globally:
 
 ```bash
-aiwiki context "AI Agent"
-aiwiki query "AI Agent"
+npm install -g @itradingai/aiwiki@latest
+aiwiki --version
 ```
 
-`context` 返回 JSON 给宿主 Agent 使用；`query` 使用同一套检索结果，输出给人看的分组摘要。
+### The assistant still searches files directly
 
-检查知识库结构：
-
-```bash
-aiwiki lint
-```
-
-常用工作台模式：
-
-```bash
-aiwiki lint --severity warning
-aiwiki lint --json
-aiwiki lint --no-write
-aiwiki lint --fix-empty-dirs --json
-```
-
-`lint` 会先输出 `lint_summary`、`safe_fixes`、`top_issue` 和报告路径，再按 Errors / Warnings / Info 分组展示问题。每个问题会尽量给出建议动作，例如 `enrich`、`fix_link`、`reingest`、`archive`、`mark_reviewed` 或 `remove_empty_optional_dir`。`--severity` 只查看指定级别，`--json` 给宿主 Agent 使用，`--no-write` 只在终端检查而不更新 `dashboards/Lint Report.md`。`--fix-empty-dirs --json` 只会删除已知且为空的可选增强目录，并在 `safe_fixes.applied` 里报告删除了什么。
-
-查看下一步建议：
-
-```bash
-aiwiki next
-```
-
-默认情况下，`lint` 输出报告并写入 `dashboards/Lint Report.md`。
-
-## 8. 高级调试
-
-如果 Agent 只能输出 JSON，才需要手动保存 payload：
-
-```bash
-aiwiki ingest-agent --payload "F:\knowledge_data\payload.json"
-```
-
-也可以用 stdin：
-
-```bash
-type "F:\knowledge_data\payload.json" | aiwiki ingest-agent --stdin
-```
-
-本地 Markdown 文件：
-
-```bash
-aiwiki ingest-file --file "F:\knowledge_data\article.md"
-```
-
-命名规则：
-- 本地 `md` 导入时，AIWiki 优先使用文件标题或文件名生成外部文件名。
-- 不会优先从正文内容里的 `# 一级标题` 反推文件名，避免整理后的文件名失去来源可追踪性。
-- 如果文件名本身没有语义，才会继续回退到更弱的兜底命名。
-
-链接加正文文件：
-
-```bash
-aiwiki ingest-url "https://example.com/article" --content-file "F:\knowledge_data\article.md"
-```
-
-注意：`ingest-url` 不会抓网页，只会读取 `--content-file`。
-
-## 9. 常见问题
-
-### 找不到 `aiwiki` 命令
-
-本地仓库测试时重新执行：
-
-```bash
-cd "<AIWiki 仓库路径>"
-npm run build
-npm link
-```
-
-### `doctor` 提示没有默认知识库
-
-运行：
-
-```bash
-aiwiki setup --path "F:\knowledge_data\aiwiki" --yes
-```
-
-### 宿主 Agent 抓不到网页
-
-这是宿主 Agent 的网页读取问题，不是 AIWiki CLI 的问题。让宿主 Agent 生成 `fetch_status=failed` 的 payload，AIWiki 会记录失败原因。
-
-### 想换默认知识库目录
-
-重新运行：
-
-```bash
-aiwiki setup --path "新的知识库路径" --yes
-```
-
-## 10. 最小验收清单
-
-完成一次 Agent 入库测试后，检查：
-
-```bash
-aiwiki status
-```
-
-验收标准：
-
-- `run_count` 增加。
-- `09-runs` 下出现新目录。
-- `processing-summary.md` 存在。
-- 成功读取时，`03-sources/article-cards` 下出现资料卡。
-- 成功读取时，`05-wiki/source-knowledge` 下出现 Wiki Entry。
-- 抓取失败时，`09-runs/<run-id>-fetch-failed` 下出现失败记录。
-# System Purpose Files
-
-`aiwiki setup` now also seeds `_system/purpose.md`, `_system/index.md`, and `_system/log.md` when they are missing. These files give humans and host Agents a stable entry point for the knowledge-base goal, scope, common folders, common commands, and lightweight event notes. Re-running setup preserves user edits.
-
-## Diagnostic Commands
-
-`aiwiki doctor` checks the workspace directories, write permission, and required system files: `_system/purpose.md`, `_system/index.md`, and `_system/log.md`.
-
-`aiwiki status` keeps the existing run-count summary and also reports:
-
-- `fallback_entries`: Wiki entries generated as deterministic fallback/scaffold.
-- `grounding_review_entries`: Wiki entries marked for grounding review.
-- `lint_status`: whether a lint report is missing, clean, or needs attention.
-- `system_files`: readiness of purpose, index, and log files.
-- `next_action`: the recommended next command.
-
-`aiwiki next` uses the same repair order: fix workspace structure first, then lint errors, lint warnings, empty-workspace onboarding, and finally healthy-state query guidance.
-
-## Query and Context Filters
-
-`aiwiki context` and `aiwiki query` use local Markdown/frontmatter search. They do not use vector search, a database, external search, or RAG-over-wiki.
-
-Useful filters:
-
-```bash
-aiwiki context "AI Agent" --type wiki_entries --source-role input --wiki-type source_knowledge --status active --limit 5
-aiwiki query "AI Agent" --type source_cards --status to-review --limit 3
-```
-
-Supported filters:
-
-- `--type`: one result group, such as `wiki_entries`, `source_cards`, `claims`, `topics`, `outlines`, or `raw_refs`.
-- `--source-role`: frontmatter `source_role`, usually `input`, `processing`, or `output`.
-- `--wiki-type`: frontmatter `wiki_type`, such as `source_knowledge` or `personal_knowledge`.
-- `--status`: frontmatter status, such as `active`, `to-review`, `ready`, or `draft`.
-- `--limit`: per-group result limit, clamped from 1 to 50.
-
-The JSON result keeps the stable `schema_version: "aiwiki.context.v1"` and now also includes:
-
-- `query_scope`: filters, limit, and searched groups.
-- `result_quality`: total matches, best score, whether a Wiki Entry was found, and warnings.
-- `recommended_next_action`: for example `use_matches_for_answer`, `review_grounding_or_enrich_entry`, or `broaden_query_or_ingest_source`.
-- Per match: `match_reasons`, `quality_signals`, and `related_refs`.
-
-Use `match_reasons` to explain why a result matched. Use `quality_signals` before answering confidently: scaffold or grounding-review entries should be treated as traceable leads, not final knowledge.
-
-## Agent Skill Sync
-
-AIWiki does not modify Agent configuration during `npm install`. After first install or upgrade, sync the packaged skill explicitly:
+Run:
 
 ```bash
 aiwiki agent sync --yes
-aiwiki agent check
+aiwiki agent sync --path <workspace> --yes
+aiwiki agent check --path <workspace> --json
 ```
 
-For one host Agent:
+Then restart or reload the assistant if needed.
+
+The assistant should use `aiwiki lint`, `aiwiki status`, `aiwiki query`, `aiwiki context`, `aiwiki ingest-file`, or `aiwiki ingest-agent` before falling back to generic file search.
+
+### The assistant cannot read a webpage
+
+That is a host assistant access issue, not an AIWiki crawler failure. Ask the assistant to record a failed fetch payload so the attempt remains traceable.
+
+### You want to move the default workspace
+
+Run:
 
 ```bash
-aiwiki agent sync --agent codex --yes
-aiwiki agent sync --agent claude --yes
+aiwiki setup --path <new-workspace> --yes
+aiwiki agent sync --path <new-workspace> --yes
+aiwiki agent check --path <new-workspace> --json
 ```
 
-Useful Agent-facing options:
+### You want to give trial feedback
+
+Use [`TRIAL_FEEDBACK_TEMPLATE.md`](TRIAL_FEEDBACK_TEMPLATE.md). The template captures setup, first ingest, query/context reuse, lint/doctor clarity, and the user's practical scenario without adding a new AIWiki command.
+
+## 9. Local Development
+
+For repository development:
 
 ```bash
-aiwiki agent sync --dry-run
-aiwiki agent sync --json --yes
-aiwiki agent check --json
-aiwiki agent help
-aiwiki context --help
+npm install
+npm run build
+npm test
+npm link
 ```
 
-`agent sync` is safe for first install and cross-version upgrades. It installs missing targets, leaves current targets unchanged, and backs up changed installed skill files before overwrite. If a backup is created, tell the user the backup path and that rollback means copying the backup file back to the target path.
+Use a temporary test workspace:
+
+```bash
+aiwiki setup --path "./aiwiki-test" --yes
+aiwiki doctor --path "./aiwiki-test"
+aiwiki status --path "./aiwiki-test"
+```

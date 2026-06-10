@@ -1,13 +1,15 @@
 ---
 name: aiwiki
-description: Agent-first AIWiki workflow for turning one URL/body into local Wiki knowledge files.
+description: Local Markdown knowledge base workflow for AI assistants.
 ---
 
-<!-- aiwiki-skill-version: 0.2.21 -->
+<!-- aiwiki-skill-version: 0.2.22 -->
 
 # AIWiki Skill
 
 Use this skill when the user asks an Agent to process one URL, article body, or local text file with the `aiwiki` keyword, or says phrases like `入库 <url>` / `收录 <url>` / `从 AIWiki 里了解 <topic>`.
+
+AIWiki is a local Markdown knowledge base for AI assistants. Save what the assistant reads, ask it later, and keep everything local.
 
 AIWiki CLI does not fetch webpages and does not call an LLM. The host Agent reads and understands the source; AIWiki validates, writes, links, tracks, queries, and lints local Markdown knowledge files.
 
@@ -83,6 +85,8 @@ Before ingesting, querying, linting, or reorganizing material, read `_system/pur
 If the material does not fit the purpose file, do not force it into the knowledge base as confirmed knowledge. Record the mismatch, ask for review when needed, or keep it as a traceable source rather than a claim.
 
 ## Ingest Flow
+
+For first-time public-trial users, keep the path small and concrete: setup the workspace, ingest one source, inspect the generated run summary / Source Card / Wiki Entry, retrieve with query or context, run lint/doctor, then capture feedback with `docs/TRIAL_FEEDBACK_TEMPLATE.md`. Do not invent a new CLI command for feedback.
 
 1. Read the URL, message, attachment, or user-provided body.
 2. Read `_system/purpose.md` and decide whether the material fits this knowledge base.

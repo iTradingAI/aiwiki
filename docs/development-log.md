@@ -2,6 +2,86 @@
 
 This log records queue-driven AIWiki development milestones that should remain visible to future maintainers, not only in automation chat history.
 
+## 2026-06-11 - Public trial path and feedback loop
+
+Status: implemented and locally verified. Pre-delivery remote tarball smoke, GitHub push, Trusted Publishing, registry verification, and post-publish remote sanity are required before queue completion.
+
+Version target: `@itradingai/aiwiki@0.2.22`
+
+### Goal
+
+Make the public trial path concrete enough that a first-time user can complete one useful AIWiki loop without learning the whole product first.
+
+The scoped acceptance criteria were:
+
+- show a 10-minute path from setup to first ingest to query/context reuse;
+- explain what a successful first run should generate;
+- cover installation, first ingest, doctor/lint, query/context, and feedback questions in public docs;
+- give host Agents a small first-use handoff path;
+- provide a minimal feedback template without adding a CLI command;
+- keep the base product boundary: no crawler, WeChat reader, vector search, RAG-over-wiki, RBAC, RSS, scheduled collection, browser plugin, Pro-only command, or multi-KB workflow.
+
+### Implemented
+
+- Added an explicit 10-minute public trial path to the README, usage guide, and showcase.
+- Added first-run success checks for the run folder, Source Card, Wiki Entry, query/context match, and structured lint output.
+- Added `docs/TRIAL_FEEDBACK_TEMPLATE.md` for lightweight public-trial feedback.
+- Updated FAQ coverage for first trial, doctor/lint, query/context, and feedback.
+- Updated Agent handoff and packaged skill guidance so host Agents guide first-time users through one small loop before broad exploration.
+- Included the trial feedback template in the npm package file list.
+
+### Verification
+
+- `npm test`: passed, 61 tests.
+- `npm run release:check`: passed for `@itradingai/aiwiki@0.2.22`, including tests and `scripts/release-check.mjs`.
+- `npm pack --dry-run`: passed for `@itradingai/aiwiki@0.2.22`, 90 files, package size approximately 105 kB. Exact tarball shasum is recorded in the queue evidence instead of this packaged log file to avoid a self-referential hash.
+- Pack inspection confirmed `docs/TRIAL_FEEDBACK_TEMPLATE.md` is included and `docs/assets/` images are still excluded from the npm tarball.
+
+## 2026-06-10 - README and documentation positioning rewrite
+
+Status: implemented and locally verified. Not pushed, published, or remote-server verified in this documentation-only pass.
+
+Version target: no version bump in this pass.
+
+### Goal
+
+Rebuild the public AIWiki documentation around a clearer user-facing position:
+
+- English README is the primary GitHub/npm entry.
+- Chinese documentation is split into dedicated `zh-CN` files.
+- The first-screen message is "AIWiki is a local Markdown knowledge base for AI assistants."
+- The main Quick Start asks users to let an AI assistant install and configure AIWiki.
+- Agent sync remains explicit through `aiwiki agent sync` and `aiwiki agent check`; npm install alone does not silently modify host assistant configuration.
+- The older split story of "manual install" followed by a separate host-Agent connection step is removed from the main README path.
+- Community QR codes remain visible in the README through raw GitHub asset links.
+
+### Implemented
+
+- Rewrote `README.md` as the English public README with hero image, language/docs/npm links, Quick Start assistant prompt, first-use workflow, boundaries, community, and documentation links.
+- Added `README.zh-CN.md` as the Chinese public README.
+- Rewrote English docs: `docs/README.md`, `docs/USAGE.md`, `docs/FAQ.md`, `docs/AGENT_HANDOFF.md`, `docs/SHOWCASE.md`, `docs/ROADMAP.md`, and `docs/RELEASE.md`.
+- Added matching Chinese docs: `docs/README.zh-CN.md`, `docs/USAGE.zh-CN.md`, `docs/FAQ.zh-CN.md`, `docs/AGENT_HANDOFF.zh-CN.md`, `docs/SHOWCASE.zh-CN.md`, `docs/ROADMAP.zh-CN.md`, and `docs/RELEASE.zh-CN.md`.
+- Updated `package.json` description and package file list so the bilingual documentation is included in the npm tarball.
+- Updated `skill/SKILL.md` to use the same product positioning while preserving the command-first AIWiki workflow.
+- Updated CLI tests so bundled Claude handoff installation is verified against the new English `docs/AGENT_HANDOFF.md` contract.
+
+### Verification
+
+- `npm test`: passed, 61 tests.
+- `npm run release:check`: passed, including tests and `scripts/release-check.mjs`.
+- `npm pack --dry-run`: passed for `@itradingai/aiwiki@0.2.21`, 89 files, package size 100.0 kB, shasum `6973ed940edf8f4620b7a3e578ddf3ececa01f45`.
+- Public English docs scan: no Chinese characters found in `README.md`, the English docs, or `package.json`.
+- Deprecated onboarding scan: no `Manual Install`, old `npx ... setup` path, old "second step host Agent" wording, or old first-screen positioning found in the rewritten public docs.
+
+### Follow-up Optimization
+
+- Added npm, Node.js, and license badges to the public README files.
+- Added Node.js >=20 checks to the assistant-install prompts.
+- Added concrete knowledge base path examples for Windows, macOS/Linux, and project-local testing.
+- Added "expected result" sections so users know what a successful install should report.
+- Added practical scenario sections to make the README more readable for first-time users.
+- Added FAQ entries for Node.js version-related installation failures.
+
 ## 2026-06-08 - Base contract cleanup and safe optional directory pruning
 
 Status: implemented and locally verified, committed locally, blocked before GitHub push and npm publication. Test-server verification is now required before both GitHub push and npm publication.

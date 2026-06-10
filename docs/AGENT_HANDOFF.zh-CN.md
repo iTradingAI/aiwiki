@@ -1,0 +1,150 @@
+# AIWiki Agent 接入说明
+
+这份文档写给可以读取资料、生成结构化内容并调用本机命令的宿主 AI 助手。
+
+## 目标
+
+当用户说：
+
+```text
+把这个资料入库到 AIWiki：
+https://example.com/article
+```
+
+助手应该读取资料，生成 AIWiki payload，调用 AIWiki CLI，然后把结果回复给用户。
+
+## 职责边界
+
+```text
+助手：
+  读取资料、理解内容、生成 analysis/wiki_entry、调用 CLI、回复用户
+
+AIWiki CLI：
+  校验 payload、写入本地 Markdown、创建 Wiki Entry、输出 run 状态
+
+用户：
+  提供链接、文件或笔记，最后审阅或复用结果
+```
+
+AIWiki CLI 不抓网页，也不调用 LLM。读取失败时，助手也应该调用 AIWiki 记录失败原因。
+
+## 命令优先契约
+
+在 AIWiki 知识库里工作时，先调用 AIWiki 命令，再考虑通用文件搜索或临时脚本。
+
+先同步知识库根指导：
+
+```bash
+aiwiki agent sync --path <workspace> --yes
+aiwiki agent check --path <workspace> --json
+```
+
+日常闭环按这个顺序使用：
+
+```bash
+aiwiki setup --path <workspace> --yes
+aiwiki lint --json --path <workspace>
+aiwiki lint --fix-empty-dirs --json --path <workspace>
+aiwiki ingest-file --file <file> --path <workspace>
+aiwiki ingest-agent --stdin --path <workspace>
+aiwiki status --path <workspace>
+aiwiki query <topic> --path <workspace>
+aiwiki context <topic> --path <workspace>
+```
+
+只有当对应 AIWiki 命令无法回答问题时，才退回 `rg`、`find`、直接读文件或临时脚本；退回时说明哪个 AIWiki 命令不够用以及原因。
+
+## 入库流程
+
+1. 读取 URL、文件、笔记、附件或用户粘贴的正文。
+2. 如果存在 `_system/purpose.md`，先阅读并判断资料是否适合该知识库。
+3. 生成 `aiwiki.agent_payload.v1`，包含 `source` 和 `request`。
+4. 能理解来源时，尽量提供 `analysis` 或 `wiki_entry`。
+5. 不要在 payload 中包含输出路径。
+6. 如果读取失败，设置 `source.fetch_status` 为 `failed`，并写明 `source.fetch_notes`。
+7. 优先通过 stdin 调用：
+
+```bash
+aiwiki ingest-agent --stdin
+```
+
+如果当前 shell 或助手桥接不能保证 UTF-8 stdin，写入 UTF-8 JSON 文件后调用：
+
+```bash
+aiwiki ingest-agent --payload <utf8-json-file>
+```
+
+## 用户回复
+
+CLI 运行后，读取输出并汇报：
+
+- 入库状态
+- 来源标题或 URL
+- 摘要
+- Wiki Entry 路径
+- Wiki Entry 质量模式
+- Source Card 路径
+- Processing Summary 路径
+- warning
+
+推荐成功回复：
+
+```text
+AIWiki 已完成入库，并创建 Wiki 条目。
+质量：<wiki_entry_quality> / <wiki_entry_generation_mode>
+摘要：<summary>
+Wiki 条目：<wiki_entry>
+资料卡：<source_card>
+处理记录：<processing_summary>
+```
+
+如果 `wiki_entry_quality` 是 `scaffold`，要说明它只是可追踪脚手架，仍需要助手继续补全高质量知识提炼。
+
+## 查询协议
+
+用户问 AIWiki 里某个主题时，调用：
+
+```bash
+aiwiki context "<topic>"
+```
+
+不要默认扫描 `02-raw`，除非 Wiki 结果不足、用户要求核对原文，或来源之间有冲突。
+
+## Lint 协议
+
+用户要求检查、整理或 lint 知识库时，先调用：
+
+```bash
+aiwiki lint --json
+```
+
+如果 `safe_fixes.only_safe_fixes` 为 true 且用户允许整理：
+
+```bash
+aiwiki lint --fix-empty-dirs --json
+aiwiki lint --json
+```
+
+当前唯一自动安全修复是 `remove_empty_optional_dir`，只能删除已知且为空的可选增强目录。
+
+## 升级和修复接入
+
+用户要求安装、更新、升级或修复 AIWiki 接入时，运行：
+
+```bash
+aiwiki agent sync --yes
+aiwiki agent sync --path <workspace> --yes
+aiwiki agent check --json
+aiwiki agent check --path <workspace> --json
+```
+
+同步后汇报目标路径、备份路径和是否需要重启或重新加载助手。
+
+## 禁止事项
+
+- 不要让用户手动保存 payload。
+- 不要让用户每次输入 `--path`。
+- 不要声称 AIWiki 会抓网页。
+- 不要声称 AIWiki 在没有助手分析字段时会自动生成高质量总结。
+- 不要替用户安装 Dataview。
+- 不要修改 `.obsidian`、`community-plugins.json` 或 Obsidian 插件配置。

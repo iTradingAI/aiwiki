@@ -1,41 +1,45 @@
-# AIWiki Agent 对接说明
+# AIWiki Agent Handoff
 
-这份文档写给任何可以读取网页、生成结构化内容并调用本机命令的宿主 Agent。
+This document is for any host assistant that can read sources, produce structured content, and run local commands.
 
-## 目标
+## Goal
 
-当用户说：
-
-```text
-入库 https://example.com/article
-```
-
-Agent 应自动读取网页，生成 payload，通过 AIWiki CLI 写入本地知识库，并把结果摘要回复给用户。
-
-## 职责边界
+When the user says:
 
 ```text
-Agent 负责：读取网页、理解正文、尽量生成 analysis/wiki_entry、调用 CLI、回复用户
-AIWiki CLI 负责：校验 payload、写本地文件、生成 Wiki Entry、输出入库结果
-用户负责：提供链接或正文，最后审阅结果
+Ingest this into AIWiki:
+https://example.com/article
 ```
 
-AIWiki CLI 不做通用网页抓取，也不调用 LLM。网页读取失败时，Agent 仍然要调用 CLI 记录失败原因；高质量 Wiki 内容由宿主 Agent 提供。
+The assistant should read the source, build an AIWiki payload, call the AIWiki CLI, and report the result to the user.
 
-证据和疑似风险要分开：`source_quote` 等能回到原文的字段是宿主提供的 evidence/provenance；`coverage_suspected_incomplete`、`unsupported_claims`、`needs_review` 是 AIWiki 的复核提示，不代表已经证明遗漏或错误。
+## Responsibility Boundary
 
-## 命令优先契约
+```text
+Assistant:
+  reads sources, understands content, creates analysis/wiki_entry, calls CLI, replies to user
 
-宿主 Agent 处理 AIWiki 任务时，必须先调用 AIWiki 自带命令，再考虑通用文件搜索或临时脚本。否则只是绕过了知识库能力，用户看不到 lint、status、query/context 和入库记录的价值。
+AIWiki CLI:
+  validates payloads, writes local Markdown files, creates Wiki Entries, outputs run status
 
-项目或知识库根目录先同步根指导：
+User:
+  provides links, files, or notes, then reviews or reuses the result
+```
+
+AIWiki CLI does not fetch webpages and does not call an LLM. If source reading fails, the assistant should still call AIWiki with a failed-fetch payload so the attempt is traceable.
+
+## Required Command-First Contract
+
+When working inside an AIWiki workspace, call AIWiki commands before generic file search or ad hoc note edits.
+
+First sync workspace guidance:
 
 ```bash
 aiwiki agent sync --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
 ```
 
-日常闭环按这个顺序执行：
+Use this command-first loop:
 
 ```bash
 aiwiki setup --path <workspace> --yes
@@ -48,38 +52,31 @@ aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
 ```
 
-只有当对应 AIWiki 命令无法回答问题时，才退回到 `rg`、`find`、`grep` 或手工读取文件；退回时要说明哪个 AIWiki 命令不够用。
+Use `rg`, `find`, direct file reading, or temporary scripts only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, explain which AIWiki command was insufficient and why.
 
-## 标准流程
+## Ingest Flow
 
-1. 读取用户给的 URL、正文、附件或消息。
-2. 如果读取成功，生成 `fetch_status: "ok"` 的 payload。
-3. 尽量基于正文生成 `analysis` 或 `wiki_entry`。
-4. 如果读取失败，生成 `fetch_status: "failed"` 的 payload，并写清 `fetch_notes`。
-5. 不要让用户保存 payload。
-6. 不要让用户手动运行命令。
-7. 优先通过 stdin 调用：
+For a first-time public trial, guide the user through one small loop: setup, one source ingest, generated-file inspection, query/context reuse, lint/doctor check, then feedback with `docs/TRIAL_FEEDBACK_TEMPLATE.md`. Do not introduce Pro-only flows, crawlers, vector search, or a new feedback command.
+
+1. Read the URL, file, note, attachment, or user-provided body.
+2. Read `_system/purpose.md` when it exists and decide whether the material fits the workspace.
+3. Build an `aiwiki.agent_payload.v1` payload with `source` and `request`.
+4. If you understand the source, also provide `analysis` and/or `wiki_entry`.
+5. Do not include output paths in the payload. The CLI decides where files are written.
+6. If source reading fails, set `source.fetch_status` to `failed` and include `source.fetch_notes`.
+7. Prefer stdin:
 
 ```bash
 aiwiki ingest-agent --stdin
 ```
 
-8. 如果当前 shell、终端或宿主环境无法保证 stdin 是 UTF-8，先把 payload 写成 UTF-8 JSON 文件，再调用：
+If the current shell or assistant bridge cannot guarantee UTF-8 stdin, write a UTF-8 JSON file and call:
 
 ```bash
 aiwiki ingest-agent --payload <utf8-json-file>
 ```
 
-9. 读取 CLI 输出，向用户回复入库状态、摘要、Wiki 条目、质量模式、资料卡和处理记录。
-10. 汇报产物时先说核心产物：Raw、Source Card、Wiki Entry、Run Summary、Processing Summary。Claim、Asset、Topic、Outline 只在本次 CLI 输出或文件中真实存在时再提。
-
-## 编码要求
-
-payload 必须是 UTF-8 JSON。Windows PowerShell、批处理、第三方 Agent shell bridge 可能会把中文 JSON 管道按非 UTF-8 编码传递；遇到中文乱码、`payload must be valid JSON` 或无法确认管道编码时，使用 `--payload <utf8-json-file>`。
-
-AIWiki 会修复常见 UTF-8 mojibake，但这只是兜底；宿主 Agent 仍应尽量传入干净 UTF-8。
-
-## 成功 payload
+## Minimal Payload
 
 ```json
 {
@@ -87,9 +84,9 @@ AIWiki 会修复常见 UTF-8 mojibake，但这只是兜底；宿主 Agent 仍应
   "source": {
     "kind": "url",
     "url": "https://example.com/article",
-    "title": "文章标题",
+    "title": "Article title",
     "content_format": "markdown",
-    "content": "这里是宿主 Agent 读取到的正文内容。",
+    "content": "Article body read by the host assistant.",
     "fetcher": "host-agent",
     "fetch_status": "ok",
     "captured_at": "2026-05-07T10:00:00+08:00",
@@ -97,47 +94,35 @@ AIWiki 会修复常见 UTF-8 mojibake，但这只是兜底；宿主 Agent 仍应
     "represents_user_view": false
   },
   "analysis": {
-    "summary": "一句话总结。",
-    "key_points": [
-      "核心观点 1",
-      "核心观点 2"
-    ],
-    "related_concepts": [
-      "概念 A"
-    ],
-    "claims": [
-      {
-        "claim": "强主张应绑定原文证据",
-        "confidence": "high",
-        "source_quote": "这里是宿主 Agent 读取到的正文内容。"
-      }
-    ]
+    "summary": "One-sentence summary.",
+    "key_points": ["Key point 1", "Key point 2"],
+    "related_concepts": ["Concept A"]
   },
   "request": {
     "mode": "ingest",
-    "outputs": [
-      "source_card",
-      "wiki_entry",
-      "processing_summary"
-    ],
+    "outputs": ["source_card", "wiki_entry", "processing_summary"],
     "language": "zh-CN"
   }
 }
 ```
 
-## Analysis 增强字段
+## Optional Analysis Fields
 
-`analysis` 仍然向后兼容；旧 payload 不需要修改。宿主 Agent 能提供时，可以额外写入这些可选字段：
+When useful, provide:
 
-- `entities`：文章中可复查的人、产品、组织、地点等实体。
-- `concepts`：可沉淀为知识条目的概念、方法或框架。
-- `tensions`：原文中的冲突、取舍、不确定性或反常识点。
-- `reusable_judgments`：可复用判断，建议同时提供 `rationale` 和 `source_quote`。
-- `suggested_links`：建议关联到已有 Wiki 条目的线索和原因。
+- `entities`
+- `concepts`
+- `tensions`
+- `reusable_judgments`
+- `suggested_links`
+- `claims` with `source_quote` when claims need evidence
+- `wiki_entry.title`
+- `wiki_entry.sections`
+- `wiki_entry.markdown`
 
-不能确认的内容不要编造。AIWiki 会为成功入库的正文写入 `content_fingerprint`；重复入库同一来源同一正文时会保留新 run、输出 warning，并避免覆盖已有长期文件。
+Do not invent unsupported facts. Treat AIWiki grounding warnings as review signals, not as confirmed proof that something is wrong.
 
-## 失败 payload
+## Failed Fetch Payload
 
 ```json
 {
@@ -145,161 +130,102 @@ AIWiki 会修复常见 UTF-8 mojibake，但这只是兜底；宿主 Agent 仍应
   "source": {
     "kind": "url",
     "url": "https://example.com/article",
-    "title": "无法读取的文章",
+    "title": "Unreadable article",
     "fetcher": "host-agent",
     "fetch_status": "failed",
-    "fetch_notes": "网页需要登录或宿主 Agent 无法访问正文。",
+    "fetch_notes": "The page requires login or the assistant could not access the body.",
     "captured_at": "2026-05-07T10:00:00+08:00"
   },
   "request": {
     "mode": "record_fetch_failure",
-    "outputs": [
-      "processing_summary"
-    ],
-    "language": "zh-CN"
+    "outputs": ["processing_summary"],
+    "language": "en"
   }
 }
 ```
 
-## 禁止事项
+## User Reply
 
-- 不要在 payload 中包含输出路径。
-- 不要让用户手动保存 payload。
-- 不要让用户每次输入 `--path`。
-- 不要声称网页抓取是 AIWiki CLI 的能力。
-- 不要声称 AIWiki CLI 会在没有 Agent 分析字段时自动高质量总结。
-- 不要在 `fetch_status: "failed"` 时塞入正文内容。
-- 不要替用户安装 Dataview。
-- 不要修改 `.obsidian`、`community-plugins.json` 或 Obsidian 插件配置。
+After the CLI runs, read the command output and report:
 
-## Obsidian + Dataview 边界
+- ingest status
+- source title or URL
+- summary
+- Wiki Entry path
+- Wiki Entry quality mode
+- Source Card path
+- Processing Summary path
+- warnings, if any
 
-AIWiki 生成的知识库不依赖 Dataview。用户不安装 Dataview 时，也可以用 Obsidian 原生 Properties、Backlinks、Search、Graph View 和普通 wikilink 审阅。
-
-Dataview 只是可选增强。用户自行在 Obsidian Community plugins 中安装并启用 Dataview 后，`dashboards/AIWiki Home.md`、`dashboards/Review Queue.md`、`dashboards/Recent Runs.md` 和 `dashboards/Topic Pipeline.md` 会渲染成表格。
-
-## Agent 回复模板
-
-成功时：
+Recommended success reply:
 
 ```text
-AIWiki 已完成入库，并生成 Wiki 条目。
-契合度：<fit_score> / <fit_level>
-摘要：<summary>
-Wiki 条目：<wiki_entry>
-质量模式：<wiki_entry_quality> / <wiki_entry_generation_mode>
-Grounding：<grounding_evidence_channel> / review=<grounding_needs_review> / markers=<grounding_markers>
-资料卡：<source_card>
-处理记录：<processing_summary>
+AIWiki completed the ingest and created a Wiki Entry.
+Quality: <wiki_entry_quality> / <wiki_entry_generation_mode>
+Summary: <summary>
+Wiki Entry: <wiki_entry>
+Source Card: <source_card>
+Processing Summary: <processing_summary>
 ```
 
-失败但已记录时：
+If `wiki_entry_quality` is `scaffold`, say clearly that the entry is a traceable fallback and still needs assistant enrichment.
 
-```text
-未成功入库正文，但已记录失败原因。
-原因：<summary>
-记录目录：<run_dir>
-处理摘要：<processing_summary>
-Obsidian 入口：<dashboard>
-```
+If `fetch_status` is `failed`, say that AIWiki recorded the failure reason but did not ingest readable content.
 
-## Query / Lint
+## Query Protocol
 
-当用户说“从 AIWiki 里了解某个主题”时，调用：
+When the user asks what AIWiki knows about a topic, call:
 
 ```bash
-aiwiki context "<主题>"
+aiwiki context "<topic>"
 ```
 
-`context` 是给宿主 Agent 使用的 JSON。如果用户是在终端里直接想看结果，可以运行：
+Use filters when intent is narrow:
 
 ```bash
-aiwiki query "<主题>"
+aiwiki context "<topic>" --type wiki_entries --status active --limit 5
+aiwiki context "<topic>" --source-role output --limit 5
+aiwiki context "<topic>" --type source_cards --status to-review --limit 5
 ```
 
-当用户说“整理 / 检查知识库”时，先调用 JSON 检查：
+Read these fields before responding:
+
+- `query_scope`
+- `result_quality`
+- `recommended_next_action`
+- `match_reasons`
+- `quality_signals`
+- `related_refs`
+
+Do not scan `02-raw` by default unless the Wiki result is insufficient, the user asks to verify the original text, or sources conflict.
+
+## Lint Protocol
+
+When the user asks to check, organize, or lint the knowledge base, first call:
 
 ```bash
 aiwiki lint --json
 ```
 
-如果 `safe_fixes.only_safe_fixes` 为 `true`，且用户允许整理，可以应用内置安全修复并再次检查：
+If `safe_fixes.only_safe_fixes` is true and the user allows cleanup:
 
 ```bash
 aiwiki lint --fix-empty-dirs --json
 aiwiki lint --json
 ```
 
-只想看某一级别时用：
-
-```bash
-aiwiki lint --severity error
-aiwiki lint --severity warning
-aiwiki lint --severity info
-```
-
-只做临时检查、不改 dashboard 时用：
-
-```bash
-aiwiki lint --no-write
-```
-
-Lint 输出会包含摘要、`safe_fixes`、最高优先级问题、分级报告，以及建议动作。把 `error` 当作必须先修的结构问题，把 `warning` 当作需要处理或复核的维护问题，把 `info` 当作富集、归档或后续整理 backlog。当前唯一可自动应用的 safe fix 是 `remove_empty_optional_dir`，只会删除已知且为空的可选增强目录；不要删除核心目录、未知目录、非空目录或文件。
-
-`context` 返回 JSON，注意其中的 `generation_mode`、`quality` 和 `warnings`。如果结果是 `deterministic_fallback` / `scaffold`，回复时要说明它只是可追溯脚手架，不是高质量知识提炼。
-
-`context` 也可能返回 grounding 字段。回复用户时可以把 `grounding_needs_review: true` 解释为“这条资料需要复核证据或覆盖度”，不要说成“AIWiki 已确认漏掉重点”。
+Only `remove_empty_optional_dir` is auto-safe today. It removes known empty optional enhancement directories and must not delete core directories, unknown directories, non-empty directories, or files.
 
 ## Source Role
 
-默认外部资料使用：
+Use the default role for external material:
 
 ```json
 "source_role": "input",
 "represents_user_view": false
 ```
 
-只有当用户明确导入自己的已发布文章、演讲稿、公众号文章等个人输出时，才使用：
-
-```json
-"source_role": "output",
-"represents_user_view": true
-```
-
-不要把外部资料标成代表用户观点。
-# Knowledge Base Purpose
-
-Before ingesting, querying, or reorganizing material, read `_system/purpose.md` in the target AIWiki workspace. Treat it as the local contract for what belongs in this knowledge base, what should stay out, and how future multi-knowledge-base routing should be handled.
-
-If the material does not fit the purpose file, do not force it into the knowledge base as confirmed knowledge. Record the mismatch, ask for review when needed, or keep it as a traceable source rather than a claim.
-
-## Context JSON for Retrieval
-
-When answering from AIWiki, prefer:
-
-```bash
-aiwiki context "<topic>" --limit 10
-```
-
-Use filters when the user intent is narrow:
-
-```bash
-aiwiki context "<topic>" --type wiki_entries --source-role input --wiki-type source_knowledge --status active
-aiwiki context "<topic>" --type source_cards --status to-review
-```
-
-`context` is local Markdown/frontmatter retrieval only. Do not describe it as vector search, RAG, a database query, or external web search.
-
-Read these fields before responding:
-
-- `query_scope`: what was searched and which filters were applied.
-- `result_quality.total_matches` and `result_quality.has_wiki_entry`: whether the answer is grounded in a Wiki Entry or only in supporting artifacts.
-- `recommended_next_action`: whether to answer, enrich, review grounding, or broaden the query.
-- `match_reasons`: why each result matched, such as title, body, tags, topics, relationships, or source URL.
-- `quality_signals`: scaffold, enriched, status, grounding, and relationship hints.
-- `related_refs`: local wikilinks and frontmatter relationships such as `source_card`, `raw_file`, and run artifacts.
-
-If `quality_signals` contains `quality:scaffold` or `grounding:needs_review`, tell the user the result is a traceable lead that needs enrichment or review. Do not present it as confirmed final knowledge.
+Use `source_role: "output"` with `represents_user_view: true` only when the user is importing their own published writing, talk transcript, newsletter, or similar authored output.
 
 ## Agent Skill Upgrade Flow
 
@@ -307,22 +233,26 @@ When the user asks you to install, update, upgrade, or repair AIWiki integration
 
 ```bash
 aiwiki agent sync --yes
-aiwiki agent check
-```
-
-Use JSON when you need exact state:
-
-```bash
-aiwiki agent sync --json --yes
+aiwiki agent sync --path <workspace> --yes
 aiwiki agent check --json
+aiwiki agent check --path <workspace> --json
 ```
 
 Interpret sync results:
 
-- `installed`: target did not exist and now has the packaged skill.
-- `current`: installed skill already matches the packaged skill.
-- `updated`: installed skill differed; the old file was backed up and replaced.
+- `installed`: target did not exist and now has the packaged skill or guidance.
+- `current`: target already matches the packaged version.
+- `updated`: target differed; the old file was backed up and replaced.
 - `would_install` / `would_update`: dry-run preview only.
 - `unsupported`: no safe automatic target is known; use `aiwiki prompt agent`.
 
-After sync, report the target path, backup path when present, and that the user may need to restart or reload the Agent. Do not claim the new skill is active until the Agent has reloaded it.
+After sync, report the target path, backup path when present, and whether the assistant needs restart or reload. Do not claim the new skill is active until the assistant has reloaded it.
+
+## Prohibited
+
+- Do not ask the user to save payload files.
+- Do not ask the user to type `--path` every time.
+- Do not claim AIWiki fetches webpages.
+- Do not claim AIWiki automatically creates high-quality summaries without assistant-provided analysis.
+- Do not install Dataview for the user.
+- Do not edit `.obsidian`, `community-plugins.json`, or Obsidian plugin configuration.

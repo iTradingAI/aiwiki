@@ -1,54 +1,84 @@
-# AIWiki 发布检查
+# AIWiki Release Notes
 
-发布前先确认本地工作区只包含本次发布需要的改动：
+This document describes the release gate for maintainers.
+
+AIWiki release work must prove the package locally, on the remote test server, through GitHub, and after npm publication.
+
+## Local Checks
+
+Start from a clean, intentional worktree:
 
 ```bash
 git status --short --branch
+npm test
 npm run release:check
 ```
 
-`release:check` 会执行测试、构建、`npm pack --dry-run`、CLI 版本一致性检查，以及一次临时知识库入库检查。
+When package contents, docs, examples, or skill files changed, inspect:
 
-## 版本号
+```bash
+npm pack --dry-run
+```
 
-版本号以 `package.json` 为唯一来源。CLI 的 `aiwiki --version` 会运行时读取 `package.json`，不要在源码里另写一份版本常量。
+The package should contain CLI runtime files, user documentation, examples, and packaged skill files only.
 
-升级版本：
+## Version
+
+`package.json` is the version source. `aiwiki --version` reads it at runtime.
+
+Patch bump by default:
 
 ```bash
 npm version patch --no-git-tag-version
 ```
 
-## npm 发布
+## Pre-delivery Remote Test
 
-发布前必须先让同一个本地 tarball 在测试服务器通过 smoke test。顺序是：本地验证、版本号、提交、本地 `npm pack`、测试服务器安装 tarball 并跑 CLI smoke，然后才能 `git push` 和 `npm publish`。
+Before pushing to GitHub or publishing to npm, build the exact local tarball and test it on the remote server.
 
-AIWiki 使用 npm Trusted Publishing。npm 发布应由 GitHub Actions 的 `.github/workflows/publish.yml` 完成，不依赖本机 `npm login`、OTP 或长期 `NPM_TOKEN`。
+Standard order:
 
-远程测试和 GitHub push 都通过后，触发发布 workflow：
+```text
+local verification
+  -> version bump
+  -> local commit
+  -> npm pack
+  -> install local tarball on remote test server
+  -> run task-specific CLI smoke
+  -> GitHub push
+  -> GitHub Actions publish workflow
+  -> npm registry verification
+  -> post-publish remote sanity
+```
+
+If the remote smoke fails, do not push and do not publish. Fix locally, rebuild, repack, and rerun the remote smoke.
+
+## Publishing
+
+AIWiki uses npm Trusted Publishing. Publication should be done through GitHub Actions:
 
 ```bash
 gh workflow run publish.yml --repo iTradingAI/aiwiki
 gh run watch --repo iTradingAI/aiwiki
 ```
 
-如需查看最近一次发布任务：
+Check recent publish runs:
 
 ```bash
 gh run list --workflow publish.yml --repo iTradingAI/aiwiki --limit 5
 ```
 
-发布后验证：
+Verify the registry:
 
 ```bash
 npm view @itradingai/aiwiki version
 npm view @itradingai/aiwiki versions --json
 ```
 
-如果 workflow 提示 Trusted Publishing / OIDC 权限问题，检查 npm 包设置里的 Trusted Publisher 是否指向 `iTradingAI/aiwiki` 和 workflow 文件名 `publish.yml`，并确认 workflow 顶层包含 `permissions: id-token: write`。
+If Trusted Publishing fails, verify the npm Trusted Publisher settings, repository name, workflow filename, and `id-token: write` permission.
 
-## 包体积
+## Package Images
 
-npm 包只应包含 CLI 运行和用户文档所需文件。README 中的图片使用 GitHub raw 链接展示，`docs/assets/` 不进入 npm 包。
+The README uses GitHub raw URLs for public images so GitHub and npm can render them without bundling `docs/assets/` into the npm package.
 
-如果 `npm pack --dry-run` 输出里出现 `docs/assets/`，说明包内容配置回退了，需要先修复 `package.json.files`。
+If `npm pack --dry-run` includes unexpected assets or private planning files, fix `package.json.files` before publishing.

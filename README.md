@@ -1,291 +1,360 @@
-![AIWiki 宣传图](https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/aiwiki-hero.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/aiwiki-hero.png" alt="AIWiki" width="100%" />
+</p>
+
+<p align="center">
+  <a href="./README.zh-CN.md">Chinese</a> |
+  <a href="./docs/README.md">Docs</a> |
+  <a href="./docs/USAGE.md">Usage</a> |
+  <a href="./docs/FAQ.md">FAQ</a> |
+  <a href="https://www.npmjs.com/package/@itradingai/aiwiki">npm</a>
+</p>
 
 # AIWiki
 
-AIWiki 是一个开源的 Agent-first 本地 LLM-wiki CLI。
+[![npm version](https://img.shields.io/npm/v/@itradingai/aiwiki.svg)](https://www.npmjs.com/package/@itradingai/aiwiki)
+[![Node.js >=20](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-你把文章链接、网页正文或本地文本交给宿主 Agent；宿主 Agent 负责读取和理解内容；AIWiki 负责把结果稳定写进本地 Markdown 知识库，并生成可追踪、可查询、可持续整理的 Wiki 条目。
+**Save what your AI reads. Ask it later. Keep everything local.**
 
-一句话说：AIWiki 不是网页抓取器，而是宿主 Agent 的本地 LLM-wiki 后端。
+AIWiki is a local Markdown knowledge base for AI assistants.
 
-## 它解决什么
+Give your AI assistant a URL, article, file, or note. The assistant reads and understands it. AIWiki turns the result into structured, traceable, reusable Markdown knowledge files.
 
-- 链接和资料散在聊天记录里，后续很难复用。
-- AI 总结过一次内容，但没有沉淀成可查询的知识条目。
-- 想把资料卡、选题、大纲、Wiki 条目放进同一个本地知识库。
-- 想让 Agent 负责理解内容，让 CLI 负责稳定落盘和追踪。
+Use it to build a local AI knowledge base that can be queried, checked, maintained, and reused later.
 
-## 工作流
+## Quick Start
 
-### Ingest：把资料写入本地 Wiki
+Ask your AI assistant to install and configure AIWiki.
 
-```text
-用户给 URL / 正文 / 文件
-  -> 宿主 Agent 读取内容并尽量生成 analysis / wiki_entry
-  -> aiwiki ingest-agent --stdin
-  -> AIWiki 写入 Raw / Source Card / Wiki Entry / Run Summary；有明确内容或请求时再写 Claim / Topic / Outline / Asset
-```
-
-### Query：从 Wiki 调度知识
-
-```bash
-aiwiki context "AI Agent 出海机会"
-aiwiki query "AI Agent 出海机会"
-```
-
-`context` 返回 JSON，主要给宿主 Agent 用；`query` 使用同一套检索结果，输出给人看的摘要。第一版是本地关键词检索，不是向量检索。
-
-### Lint：检查知识库结构
-
-```bash
-aiwiki lint
-```
-
-`lint` 会检查缺失链接、重复来源、fallback Wiki 条目、enriched 条目缺字段等问题，并写入 `dashboards/Lint Report.md`。
-
-## 示例
-
-仓库内置了一个由当前 CLI 重新生成的样例：
-
-- `examples/demo-run/`：输入材料、执行命令和关键 CLI 输出。
-- `examples/obsidian-vault-sample/`：可直接查看的样例知识库。
-
-样例展示了核心产物优先的约定：Raw、Source Card、Wiki Entry、Run Summary、Processing Summary 总是最先检查；Claim、Asset、Topic、Outline 只在 payload 有对应内容或明确请求时出现。
-
-## 快速开始
-
-### 第一步：安装 AIWiki CLI
-
-让 AI 帮你安装时，可以把下面这段交给当前 Agent，改成自己的知识库路径：
+Choose a local folder for your knowledge base. Examples:
 
 ```text
-请帮我安装并配置 AIWiki。
-安装命令：npm install -g @itradingai/aiwiki@latest
-我的知识库路径：F:\knowledges
-
-请检查 Node.js >=20，执行 aiwiki setup --path "我的知识库路径" --yes，
-然后运行 aiwiki agent sync --yes、aiwiki agent check --json、
-aiwiki agent sync --path "我的知识库路径" --yes 和 aiwiki agent check --path "我的知识库路径" --json，
-完成宿主 Agent 与知识库根指导对接。
-最后执行 aiwiki doctor 和 aiwiki status，告诉我实际执行了哪些命令和还差什么手动步骤。
+Windows: D:\AIWiki
+macOS/Linux: ~/AIWiki
+Project test: ./aiwiki-test
 ```
 
-手动安装：
+Copy this prompt into Codex, Claude Code, QClaw, OpenClaw, or another local coding assistant:
+
+```text
+Please install and configure AIWiki for me.
+
+First check that Node.js is installed and that node --version is >=20.
+If Node.js is missing or older than 20, stop and tell me how to upgrade before running npm install.
+
+Use this knowledge base path:
+
+<replace-with-my-aiwiki-path>
+
+Run these commands:
+
+npm install -g @itradingai/aiwiki@latest
+aiwiki setup --path "<replace-with-my-aiwiki-path>" --yes
+aiwiki agent sync --yes
+aiwiki agent sync --path "<replace-with-my-aiwiki-path>" --yes
+aiwiki agent check --json
+aiwiki agent check --path "<replace-with-my-aiwiki-path>" --json
+aiwiki doctor --path "<replace-with-my-aiwiki-path>"
+aiwiki status --path "<replace-with-my-aiwiki-path>"
+
+Then tell me:
+
+1. whether AIWiki was installed successfully
+2. which assistant targets were synced
+3. whether workspace guidance was written
+4. whether I need to restart or reload my assistant
+5. what I should do next
+```
+
+AIWiki has two integration layers:
+
+- `aiwiki agent sync --yes` syncs AIWiki instructions into supported local assistant environments.
+- `aiwiki agent sync --path "<workspace>" --yes` writes workspace-level guidance so assistants entering the knowledge base know to use AIWiki commands first.
+
+After syncing, restart or reload your assistant if needed.
+
+### Expected result
+
+After setup, your assistant should be able to confirm:
+
+- `aiwiki` is installed and reports a version
+- the knowledge base path exists and passes `aiwiki doctor`
+- assistant integration is `installed`, `updated`, or `current`
+- workspace guidance was written by `aiwiki agent sync --path`
+- `aiwiki status` reports the workspace state and next action
+
+## First Use
+
+### 10-minute public trial path
+
+Use this path when you are trying AIWiki for the first time:
+
+1. Run the Quick Start prompt above with a temporary knowledge base path.
+2. Send one article, file, or note to your assistant and ask it to ingest the source into AIWiki.
+3. Ask one question about the ingested topic so the assistant calls `aiwiki context`.
+4. Run `aiwiki query "<topic>"` when you want a direct terminal view.
+5. Ask the assistant to check the workspace with `aiwiki lint --json` and `aiwiki doctor`.
+6. Share feedback with the short template in [`docs/TRIAL_FEEDBACK_TEMPLATE.md`](docs/TRIAL_FEEDBACK_TEMPLATE.md).
+
+The point of the first trial is not to build a large archive. It is to confirm that one source can move from reading, to traceable Markdown files, to later reuse.
+
+### Ingest a source
+
+Tell your assistant:
+
+```text
+Ingest this into AIWiki:
+<url>
+```
+
+Or:
+
+```text
+Save this note into AIWiki:
+<paste your note here>
+```
+
+The assistant reads the source and calls AIWiki to write the result into your local knowledge base.
+
+### Ask your knowledge base
+
+Tell your assistant:
+
+```text
+What does AIWiki know about <topic>?
+```
+
+The assistant should call:
 
 ```bash
-npx @itradingai/aiwiki@latest setup
-aiwiki agent sync --yes
-aiwiki agent check --json
+aiwiki context "<topic>"
 ```
 
-### 第二步：接入宿主 Agent
+For direct terminal output, use:
+
+```bash
+aiwiki query "<topic>"
+```
+
+### Check your workspace
+
+Tell your assistant:
+
+```text
+Check and organize my AIWiki workspace.
+```
+
+The assistant should call:
+
+```bash
+aiwiki lint --json
+```
+
+When only safe fixes are reported and you allow cleanup, the assistant may run:
+
+```bash
+aiwiki lint --fix-empty-dirs --json
+aiwiki lint --json
+```
+
+## What AIWiki Creates
+
+A successful ingest creates a traceable knowledge package:
+
+```text
+02-raw/articles/                  Raw source record
+03-sources/article-cards/         Source card
+05-wiki/source-knowledge/         Reusable wiki entry
+09-runs/<run-id>/                 Processing record
+```
+
+Optional files may also be created when the assistant provides enough structured content:
+
+```text
+04-claims/_suggestions/           Claim candidates
+06-assets/_suggestions/           Reusable ideas or writing assets
+07-topics/ready/                  Topic candidates
+08-outputs/outlines/              Draft outlines
+```
+
+The Wiki Entry is the main reusable knowledge surface. The raw record and source card preserve traceability, so you can always go back from a summary to the source.
+
+A successful first run should leave you with:
+
+- a new folder under `09-runs/`
+- `payload.json` and `processing-summary.md` inside that run folder
+- a Source Card under `03-sources/article-cards/`
+- a reusable Wiki Entry under `05-wiki/source-knowledge/`
+- `aiwiki query "<topic>"` or `aiwiki context "<topic>"` returning a relevant match
+- `aiwiki lint --json` returning structure feedback instead of requiring manual file inspection first
+
+See:
+
+- [`examples/demo-run/`](examples/demo-run/)
+- [`examples/obsidian-vault-sample/`](examples/obsidian-vault-sample/)
+
+## Why AIWiki
+
+Most useful information dies in one of three places:
+
+- bookmarks you never reopen
+- chat summaries you cannot reuse
+- notes that never become output
+
+AIWiki helps your assistant turn reading into a durable local knowledge base.
+
+Instead of saving links and losing context, you get Markdown files that your assistant can query, maintain, and reuse later.
+
+## Practical Scenarios
+
+- **Save research while reading**: send an article to your assistant and let AIWiki create a source card, Wiki Entry, and processing record.
+- **Prepare future writing**: turn useful ideas into reusable concepts, claims, topics, and outline material when the assistant provides enough structure.
+- **Ask across your own archive**: ask what AIWiki knows about a topic and let the assistant retrieve local context before answering.
+
+## How It Works
+
+```text
+User gives a URL, file, note, or text
+  -> AI assistant reads and understands it
+  -> AIWiki writes structured Markdown files
+  -> Assistant retrieves context later with aiwiki context
+  -> AIWiki lint checks structure and consistency
+```
+
+AIWiki separates responsibilities:
+
+- the assistant reads and understands sources
+- AIWiki writes, links, queries, and checks the local knowledge base
+- Markdown remains inspectable, editable, portable, and versionable
+
+Technically, AIWiki is Agent-first: the host assistant reads and understands sources; AIWiki writes, links, queries, and checks the local Markdown knowledge base.
+
+## Inspired By
+
+AIWiki is inspired by two useful ideas:
+
+- **LLM Wiki**, popularized by Andrej Karpathy: compile sources into a persistent, maintainable wiki instead of rediscovering knowledge from raw documents every time.
+- **Content workflow thinking**, seen in creator systems such as Dan Koe's: useful ideas should become reusable building blocks for topics, outlines, writing, and future work.
+
+AIWiki does not simply copy either approach.
+
+It turns them into a practical assistant-driven workflow:
+
+```text
+source
+  -> source card
+  -> wiki entry
+  -> reusable assets
+  -> topics
+  -> outlines
+  -> future work
+```
+
+The goal is simple: make what your assistant reads useful again later.
+
+## Agent Integration
+
+AIWiki is built for assistant-driven workflows.
+
+Supported local assistant targets may include:
+
+- Codex
+- Claude Code
+- QClaw
+- OpenClaw
+
+Your assistant should run:
 
 ```bash
 aiwiki agent sync --yes
+aiwiki agent sync --path "<workspace>" --yes
 aiwiki agent check --json
-aiwiki agent sync --path "F:\knowledges" --yes
-aiwiki agent check --path "F:\knowledges" --json
+aiwiki agent check --path "<workspace>" --json
 ```
 
-也可以直接输出通用协议：
+For unsupported hosts, ask AIWiki to print the generic assistant protocol:
 
 ```bash
 aiwiki prompt agent
 ```
 
-### 第三步：第一次入库
+`npm install` does not silently modify assistant configuration. Sync is explicit, idempotent, and backs up changed installed skill files before overwrite.
 
-对宿主 Agent 发送：
+After syncing, restart or reload the assistant if needed.
 
-```text
-入库 https://example.com/article
-```
+## Obsidian and Dataview
 
-宿主 Agent 读取正文后调用 `aiwiki ingest-agent --stdin`。用户不需要手动保存 payload，也不需要每次输入 `--path`。
+AIWiki writes plain Markdown and frontmatter.
 
-### 第四步：从知识库提问
+Obsidian is optional but useful as a viewing surface. Dataview is an optional dashboard enhancement.
 
-对宿主 Agent 说：
+AIWiki does not require Obsidian, does not auto-install Dataview, and does not edit `.obsidian`.
 
-```text
-从 AIWiki 里帮我了解 xxx
-```
+Review Queue is not the main workflow. AIWiki creates Wiki entries first, then uses lint and assistant workflows to keep the workspace clean.
 
-宿主 Agent 应优先调用：
+## Boundaries
 
-```bash
-aiwiki context "xxx"
-```
+AIWiki is not:
 
-人直接查询时可以运行：
+- a web crawler
+- a WeChat reader
+- a browser extension
+- a built-in LLM
+- a vector database
+- a replacement for every RAG system
+- an Obsidian plugin
+- a default manual review queue
+- a multi-knowledge-base manager
+- an RSS or scheduled collection system
 
-```bash
-aiwiki query "xxx"
-```
+AIWiki receives content already read by your assistant and turns it into a local Markdown knowledge base.
 
-## AIWiki 会生成什么
+## Community
 
-成功入库会生成：
+AIWiki is developed by iTradingAI.
 
-```text
-02-raw/articles/
-03-sources/article-cards/
-05-wiki/source-knowledge/
-09-runs/<run-id>/
-```
+For Chinese users, scan the QR codes below to join the WeChat group or follow the official account.
 
-其中 `02-raw/articles/`、`03-sources/article-cards/`、`05-wiki/source-knowledge/` 和 `09-runs/<run-id>/` 是核心产物。`04-claims/_suggestions/`、`06-assets/_suggestions/`、`07-topics/ready/`、`08-outputs/outlines/` 只在 payload 有对应内容或 `request.outputs` 明确请求时生成。
+| WeChat Group | Official Account |
+| --- | --- |
+| ![Join WeChat group](https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/join-group.png) | ![WeChat official account](https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/wechat-official-account.png) |
 
-### Agent-Enriched Wiki Entry
+## Documentation
 
-如果宿主 Agent 在 payload 中提供了 `analysis` 或 `wiki_entry`，AIWiki 会把这些总结、核心观点、知识点、概念、选题等内容写入 Wiki Entry。
+- [Docs](docs/README.md)
+- [Usage Guide](docs/USAGE.md)
+- [Agent Handoff](docs/AGENT_HANDOFF.md)
+- [FAQ](docs/FAQ.md)
+- [Showcase](docs/SHOWCASE.md)
+- [Trial Feedback Template](docs/TRIAL_FEEDBACK_TEMPLATE.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Release Notes](docs/RELEASE.md)
 
-frontmatter 会标记：
+## Development
 
-```yaml
-generation_mode: "agent_enriched"
-quality: "enriched"
-generated_by: "host_agent"
-llm_enriched: true
-source_role: "input"
-represents_user_view: false
-```
-
-### Deterministic Fallback Wiki Entry
-
-如果宿主 Agent 只提供原文，AIWiki 仍会创建 Wiki Entry，但它只是可追溯脚手架，包含标题、来源、正文预览、反链和待补全区。
-
-frontmatter 会标记：
-
-```yaml
-generation_mode: "deterministic_fallback"
-quality: "scaffold"
-generated_by: "aiwiki_cli"
-llm_enriched: false
-source_role: "input"
-represents_user_view: false
-```
-
-AIWiki CLI 本身不调用 LLM，所以不会在没有 Agent 分析字段时承诺高质量提炼。
-
-## 设计边界
-
-AIWiki 做：
-
-- 接收宿主 Agent payload。
-- 写入本地 Markdown。
-- 生成 frontmatter、wikilink、处理记录。
-- 生成 Wiki Entry 容器。
-- 支持 `context`、`query`、`next` 和 `lint`。
-
-AIWiki 不做：
-
-- 通用网页抓取。
-- 微信公众号读取。
-- 伪造浏览器头。
-- 浏览器插件。
-- CLI 内置 LLM。
-- 自动高质量总结。
-- 默认人工审核流程。
-- 企业级 RBAC。
-- 多知识库。
-- 批量采集 / 定时采集 / RSS。
-
-## Obsidian / Dataview
-
-AIWiki 生成的是标准 Markdown 和 frontmatter，不强依赖 Obsidian。
-
-Obsidian 是推荐查看界面；Dataview 只是可选 dashboard 增强。AIWiki 不会自动安装 Dataview，也不会修改 `.obsidian`。
-
-Review Queue 可以保留为回看入口，但不是 AIWiki 的主流程。
-
-## 常见问题
-
-### AIWiki 会自己抓网页吗？
-
-不会。网页读取由宿主 Agent 完成，AIWiki 负责把 Agent 已经读到的内容写入本地知识库。
-
-### 为什么会生成 05-wiki？
-
-因为 AIWiki 的目标不是只保存资料，而是让资料进入可查询、可维护的 Wiki 知识层。
-
-### 05-wiki 是否代表我的观点？
-
-不一定。外部资料生成的 Wiki 条目默认代表“外部资料的结构化整理”，不代表你的个人观点。
-
-### 什么内容才代表我的观点？
-
-`source_role=output` 用于标记用户已发布文章、演讲稿、公众号文章等个人输出，并可配合 `represents_user_view: true`。外部资料默认是 `source_role: input`、`represents_user_view: false`。
-
-### Dataview 必须安装吗？
-
-不必须。没有 Dataview，也可以用普通 Markdown、Properties、Backlinks、Search 和 Graph View。
-
-### Review Queue 还需要吗？
-
-不是必需流程。它只适合低置信度、来源缺失、内容冲突、个人观点把关等回看场景。
-
-## 文档
-
-- [docs/USAGE.md](docs/USAGE.md)
-- [docs/AGENT_HANDOFF.md](docs/AGENT_HANDOFF.md)
-- [docs/FAQ.md](docs/FAQ.md)
-- [docs/SHOWCASE.md](docs/SHOWCASE.md)
-- [docs/ROADMAP.md](docs/ROADMAP.md)
-- [docs/RELEASE.md](docs/RELEASE.md)
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-- [SECURITY.md](SECURITY.md)
-
-## 本地开发
+For local development:
 
 ```bash
 npm install
 npm run build
 npm test
 npm link
-aiwiki setup --path "F:\knowledge_data\aiwiki-test" --yes
-aiwiki doctor
-aiwiki ingest-agent --payload tests/fixtures/agent_payload.url.valid.json --path "F:\knowledge_data\aiwiki-test"
-aiwiki context "AI Agent" --path "F:\knowledge_data\aiwiki-test"
-aiwiki query "AI Agent" --path "F:\knowledge_data\aiwiki-test"
-aiwiki next --path "F:\knowledge_data\aiwiki-test"
-aiwiki lint --path "F:\knowledge_data\aiwiki-test"
+```
+
+Use a temporary workspace for local testing:
+
+```bash
+aiwiki setup --path "./aiwiki-test" --yes
+aiwiki doctor --path "./aiwiki-test"
+aiwiki status --path "./aiwiki-test"
+aiwiki ingest-agent --payload tests/fixtures/agent_payload.url.valid.json --path "./aiwiki-test"
+aiwiki context "AI Agent" --path "./aiwiki-test"
+aiwiki query "AI Agent" --path "./aiwiki-test"
+aiwiki lint --path "./aiwiki-test"
 ```
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-## Query Filters
-
-AIWiki retrieval is local Markdown/frontmatter search. It is intentionally lightweight: no vector search, no database, no external search, and no RAG-over-wiki.
-
-```bash
-aiwiki context "AI Agent" --type wiki_entries --source-role input --wiki-type source_knowledge --status active --limit 5
-aiwiki query "AI Agent" --type source_cards --status to-review --limit 3
-```
-
-`context` returns Agent-readable JSON with `query_scope`, `result_quality`, `recommended_next_action`, `match_reasons`, `quality_signals`, and `related_refs`. `query` uses the same retrieval path and shows the match reasons and quality hints for humans.
-
-## Agent Skill Sync and Upgrade
-
-AIWiki is Agent-first: after installing or upgrading the npm package, sync the packaged AIWiki skill into the local Agent environment.
-
-First install and later upgrades use the same safe command:
-
-```bash
-npm install -g @itradingai/aiwiki@latest
-aiwiki agent sync --yes
-aiwiki agent check
-```
-
-For one Agent:
-
-```bash
-aiwiki agent sync --agent codex --yes
-aiwiki agent sync --agent claude --yes
-```
-
-`agent sync` is idempotent. Missing targets are installed, current targets are left unchanged, and changed old skill files are backed up before overwrite. Use `--dry-run` to preview and `--json` when an AI Agent needs stable machine-readable status.
-
-After sync, restart or reload the target Agent so it reads the new AIWiki skill. To roll back, copy the generated `.bak-<timestamp>` file back over the target skill file.

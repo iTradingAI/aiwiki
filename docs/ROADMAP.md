@@ -1,43 +1,65 @@
 # AIWiki Roadmap
 
-AIWiki 对外只有一个项目，所以这里写的是能力路线，不是版本分层。
+AIWiki has one public base product: a local Markdown knowledge base for AI assistants.
 
-公开试用和长期运营的完整路线图见：
+The roadmap keeps the base CLI focused. Advanced automation, crawling, multi-knowledge-base workflows, vector search, and team controls belong outside the base scope unless explicitly planned later.
 
-- [AIWiki 长期运营路线图](./20260607-aiwiki-long-term-operating-roadmap.md)
+## Current Focus
 
-## 1. 更稳的入库体验
+### 1. First-use success
 
-- 更顺的 setup 引导
-- 更清晰的 doctor 检查
-- 更稳定的 Agent handoff
-- 更完整的 Obsidian 审阅入口
-- 更容易追查失败原因
-- 更稳定的公开样例，让新用户先看到真实生成的核心产物
+- clearer assistant-first installation prompt
+- safer `agent sync` and workspace guidance
+- better `agent check` diagnostics
+- a clean path from setup to first ingest to first query
 
-## 2. 更完整的内容处理能力
+### 2. Reusable local knowledge
 
-- 更好用的资料卡
-- 更清楚的 Claim / Evidence 建议
-- 更顺手的选题候选
-- 更稳定的大纲生成
-- 更好复用的模板和输出结构
+- clearer Wiki Entry quality signals
+- better query/context explanations
+- more examples showing writing, research, decision, and review workflows
+- stronger distinction between external sources and user-authored output
 
-## 3. 更适合团队和自动化部署
+### 3. Workspace health
 
-- 更多宿主 Agent 接入方式
-- 更适合团队协作的知识库目录
-- 更完善的部署说明
-- 更清楚的诊断和支持入口
-- 更好的服务化落地方式
+- practical lint output for humans and assistants
+- safe automatic fixes only when the fix is narrow and reversible
+- better status and doctor guidance
+- fewer empty optional artifacts in new workspaces
 
-## 4. 服务层能力
+### 4. Public trial assets
 
-公开软件还是 AIWiki 本身。后续如果要做商业化，重点会放在：
+- short use cases users can complete in 5-10 minutes
+- example vaults that match the current CLI behavior
+- WeChat group feedback templates
+- a queue policy that separates user pain from feature creep
 
-- 部署服务
-- 陪跑服务
-- 团队集成服务
-- 技术支持服务
+## Not in the Base Queue
 
-这些都属于服务层，不是把 AIWiki 拆成多个软件版本。
+The base AIWiki CLI is not currently planning:
+
+- web crawling
+- WeChat Official Account reading
+- browser plugins
+- vector search
+- RAG-over-wiki
+- multiple knowledge bases
+- RBAC
+- RSS or scheduled collection
+- default manual review workflow
+- automatic Dataview or Obsidian plugin installation
+
+These may become separate service-layer, integration, or Pro-adjacent projects, but they should not blur the base README promise.
+
+## Operating Principle
+
+AIWiki should stay boring in the right places:
+
+```text
+assistant reads
+AIWiki writes
+Markdown stays local
+context can be reused later
+```
+
+The product gets better when the first ingest, first query, and first maintenance pass become more reliable.

@@ -1,25 +1,51 @@
-# AIWiki 示例展示
+# AIWiki Showcase
 
-这页不是讲概念，直接看一次完整跑通会发生什么。
+This page shows what a real AIWiki run creates.
 
-## 示例 1：一篇文章进知识库
+## 10-minute Trial Walkthrough
 
-### 用户输入
+This is the public-trial happy path:
 
 ```text
-入库 https://example.com/article
+1. Create a temporary knowledge base.
+2. Ingest one readable source.
+3. Inspect the generated run summary, Source Card, and Wiki Entry.
+4. Ask the knowledge base one question.
+5. Run lint/doctor for workspace health.
+6. Send feedback with the trial template.
 ```
 
-### 宿主 Agent 做的事
+Commands for a local-file trial:
 
-1. 读取网页正文或可访问内容。
-2. 组装 `aiwiki.agent_payload.v1`，并尽量提供 `analysis` 或 `wiki_entry`。
-3. 调用 `aiwiki ingest-agent --stdin`。
-4. 把 AIWiki 的处理结果回复给用户。
+```bash
+aiwiki setup --path ./aiwiki-trial --yes
+aiwiki doctor --path ./aiwiki-trial
+aiwiki ingest-file --file ./my-first-source.md --path ./aiwiki-trial
+aiwiki query "my topic" --path ./aiwiki-trial
+aiwiki context "my topic" --path ./aiwiki-trial
+aiwiki lint --json --path ./aiwiki-trial
+```
 
-### AIWiki 会写什么
+For a URL trial, the assistant reads the URL first, then calls `aiwiki ingest-agent` with the content it read.
 
-核心产物优先看这些：
+## Scenario 1: Ingest an Article
+
+User message:
+
+```text
+Ingest this into AIWiki:
+https://example.com/article
+```
+
+Assistant work:
+
+1. read the source
+2. create an `aiwiki.agent_payload.v1` payload
+3. provide `analysis` or `wiki_entry` when possible
+4. call `aiwiki ingest-agent --stdin`
+5. report the generated files
+
+Core output:
 
 ```text
 09-runs/<run-id>/payload.json
@@ -32,7 +58,7 @@
 05-wiki/source-knowledge/<slug>.md
 ```
 
-只有在宿主 Agent 提供了对应内容，或 payload 明确请求时，才会出现可选增强产物：
+Optional output appears only when the assistant provides matching content:
 
 ```text
 09-runs/<run-id>/creative-assets.md
@@ -44,50 +70,38 @@
 08-outputs/outlines/
 ```
 
-仓库里的 `examples/obsidian-vault-sample/` 同时包含一个普通本地文件入库和一个 enriched Agent payload 入库。前者只生成核心产物，后者因为包含 claims、topic candidates、creative assets 和 outline 请求，所以生成可选增强目录。
+## Scenario 2: The Source Cannot Be Read
 
-### 用户在 Obsidian 里怎么看
+Some pages require login or cannot be accessed by the assistant.
 
-- 打开 `dashboards/AIWiki Home.md`
-- 查看 `05-wiki/source-knowledge/<slug>.md`
-- 从 Wiki 条目回到资料卡、原文和处理记录；如果这次入库生成了选题、大纲或 Claim，再继续查看对应可选产物
-- 需要结构检查时运行 `aiwiki lint`
-
-## 示例 2：网页没读到正文
-
-有些页面需要登录，或者宿主 Agent 暂时拿不到正文。这个时候 AIWiki 也不会装死，它会把失败原因记录下来。
-
-### 用户输入
-
-```text
-入库 https://example.com/locked-page
-```
-
-### 结果
+AIWiki should still record the attempt:
 
 ```text
 09-runs/<run-id>/payload.json
 09-runs/<run-id>/processing-summary.md
 ```
 
-### 你会看到什么
+The failure reason is preserved, and the user can retry later when the assistant can access the source.
 
-- 失败原因会写进 `processing-summary.md`
-- 用户仍然能在 Obsidian 里看到这次处理记录
-- 下次只要宿主 Agent 能读到正文，就可以重新入库
+## Scenario 3: Reuse the Knowledge Later
 
-## 这个示例页想说明什么
+User message:
 
-- AIWiki 不是网页爬虫本体
-- 宿主 Agent 负责读取内容
-- 宿主 Agent 负责高质量总结和知识提炼
-- AIWiki 负责稳定写入本地知识库
-- AIWiki 会创建 Wiki Entry；没有 Agent 分析字段时只生成可追溯脚手架
-- 结果始终可追踪、可复盘、可继续写作
+```text
+What does AIWiki know about AI agents?
+```
 
-## 本仓库样例
+Assistant command:
 
-- `examples/demo-run/`：输入、命令和 CLI 输出。
-- `examples/obsidian-vault-sample/`：已经生成好的样例知识库。
+```bash
+aiwiki context "AI agents"
+```
 
-这个样例不依赖爬虫、向量库、RAG 或 Pro 自动化；它只展示基础 CLI 的真实落盘结果。
+The assistant should use the returned JSON, including match reasons and quality signals, before answering.
+
+## Sample Files
+
+- [`../examples/demo-run/`](../examples/demo-run/) records input files, commands, and CLI outputs.
+- [`../examples/obsidian-vault-sample/`](../examples/obsidian-vault-sample/) is a generated sample vault.
+
+The sample does not rely on crawling, vector search, RAG-over-wiki, or Pro automation. It shows the real base CLI file contract.

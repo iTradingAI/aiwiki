@@ -300,13 +300,13 @@ test("CLI agent install writes Claude prompt command", async () => {
     assert.match(out.text(), /已安装: Claude Code/);
 
     const installed = await readFile(target, "utf8");
-    assert.match(installed, /AIWiki Agent 对接说明/);
+    assert.match(installed, /AIWiki Agent Handoff/);
     assert.match(installed, /aiwiki ingest-agent --stdin/);
     assert.match(installed, /wiki_entry/);
     assert.match(installed, /aiwiki context/);
     assert.match(installed, /aiwiki lint/);
-    assert.match(installed, /不要替用户安装 Dataview/);
-    assert.match(installed, /不要修改 `\.obsidian`/);
+    assert.match(installed, /Do not install Dataview for the user/);
+    assert.match(installed, /Do not edit `\.obsidian`/);
   } finally {
     restoreEnv("CLAUDE_HOME", previousClaudeHome);
     await rm(claudeHome, { recursive: true, force: true });

@@ -1,95 +1,74 @@
 # AIWiki FAQ
 
-## AIWiki 是什么？
+## What is AIWiki?
 
-AIWiki 是一个开源的 Agent-first 本地 LLM-wiki CLI。宿主 Agent 负责读取和理解内容，AIWiki 负责把结果稳定写成本地 Markdown 知识库。
+AIWiki is a local Markdown knowledge base for AI assistants. Your assistant reads and understands sources; AIWiki writes structured, traceable, reusable Markdown knowledge files.
 
-## AIWiki 是网页爬虫吗？
+## Is AIWiki a web crawler?
 
-不是。网页读取主要交给宿主 Agent，AIWiki 专注于校验结构化输入、写本地文件、生成 Wiki Entry、提供 context 和 lint。
+No. Web reading belongs to the host assistant. AIWiki receives content the assistant already read and turns it into a local knowledge base.
 
-## AIWiki 会自动高质量总结吗？
+## Does AIWiki call an LLM?
 
-不会。AIWiki CLI 本身不调用 LLM。高质量 Wiki Entry 来自宿主 Agent 在 payload 中提供的 `analysis` 或 `wiki_entry`。
+No. AIWiki CLI does not call an LLM. High-quality summaries and analysis come from the host assistant through `analysis` or `wiki_entry` fields.
 
-## 为什么会生成 05-wiki？
+## Why does installation fail?
 
-因为 AIWiki 的目标不是只保存资料，而是让资料进入可查询、可维护的 Wiki 知识层。成功入库会生成 `05-wiki/source-knowledge/<slug>.md`。
-
-## Wiki Entry 的两种质量模式是什么？
-
-- `agent_enriched` / `enriched`：宿主 Agent 提供了总结、核心观点、知识点等分析结果。
-- `deterministic_fallback` / `scaffold`：AIWiki 只生成标题、来源、正文预览、反链和待补全区。
-
-## 05-wiki 是否代表我的观点？
-
-不一定。外部资料生成的 Wiki Entry 默认代表外部资料的结构化整理，不代表用户个人观点。
-
-## 一定要用 Obsidian 吗？
-
-不一定。AIWiki 生成的是标准 Markdown 和 frontmatter，Obsidian 只是最适合它的审阅界面之一。
-
-## 一定要装 Dataview 吗？
-
-不一定。没有 Dataview，也可以用 Obsidian 原生的 Properties、Backlinks、Search 和 Graph View。
-
-## 宿主 Agent 和 AIWiki 各负责什么？
-
-- 宿主 Agent 负责读取网页、正文或附件，并尽量生成 `analysis` / `wiki_entry`
-- AIWiki 负责校验 payload、写本地知识库、生成 Wiki Entry、输出处理记录
-- 用户负责提供链接或正文，并在需要时让 Agent 继续查询或补全
-
-## 为什么要先让 Agent 学会 AIWiki？
-
-因为大多数用户不想每次手动跑命令。更顺的方式是：把链接发给宿主 Agent，Agent 自动把内容交给 AIWiki，AIWiki 再把结果写进本地知识库。
-
-## 我能不能把它当成一个通用爬虫用？
-
-不建议。AIWiki 的边界不是“抓全网”，而是“把宿主 Agent 已经读到的内容稳定沉淀下来”。
-
-## 我从哪里开始最好？
-
-先跑：
+Check Node.js first:
 
 ```bash
-npx @itradingai/aiwiki@latest setup
-aiwiki agent sync --yes
-aiwiki agent check --json
-aiwiki agent sync --path <workspace> --yes
-aiwiki agent check --path <workspace> --json
+node --version
 ```
 
-然后去看：
+AIWiki requires Node.js 20 or newer. If `node` is missing or older than 20, upgrade Node.js before running `npm install -g @itradingai/aiwiki@latest`.
 
-- [USAGE.md](USAGE.md)
-- [SHOWCASE.md](SHOWCASE.md)
-- [AGENT_HANDOFF.md](AGENT_HANDOFF.md)
+## Why does AIWiki create `05-wiki`?
 
-## 有没有可以直接看的样例？
+Because the goal is not just to save source material. AIWiki creates reusable Wiki Entries that assistants can query later.
 
-有。`examples/demo-run/` 记录输入、命令和 CLI 输出；`examples/obsidian-vault-sample/` 是已经生成好的样例知识库。它展示了核心产物优先，以及可选增强目录只在有内容时出现。
+## What are the two Wiki Entry quality modes?
 
-## 怎么从知识库里查询？
+- `agent_enriched` / `enriched`: the assistant provided analysis or wiki content.
+- `deterministic_fallback` / `scaffold`: AIWiki created a traceable shell from source content only.
 
-让宿主 Agent 调用：
+## Does a Wiki Entry represent my personal opinion?
+
+Not by default. External sources use `source_role: input` and `represents_user_view: false`. Use `source_role: output` and `represents_user_view: true` only for your own published writing, scripts, talks, newsletters, or similar authored output.
+
+## Do I need Obsidian?
+
+No. AIWiki writes plain Markdown and frontmatter. Obsidian is a useful viewing surface, not a requirement.
+
+## Do I need Dataview?
+
+No. Dataview is optional. AIWiki does not install Dataview and does not edit `.obsidian`.
+
+## Why should I sync the assistant first?
+
+Because the intended workflow is assistant-driven. You send a source or question to the assistant; the assistant calls AIWiki commands. Without sync, the assistant may fall back to generic file search and skip AIWiki's ingest, query, status, and lint surfaces.
+
+## Where should I start?
+
+Ask your assistant to run the Quick Start prompt in the main [README](../README.md). Then read the [Usage Guide](USAGE.md).
+
+## What should my first 10-minute trial include?
+
+Use one temporary knowledge base, one source, one query, and one health check:
 
 ```bash
-aiwiki context "主题"
+aiwiki setup --path <workspace> --yes
+aiwiki doctor --path <workspace>
+aiwiki ingest-file --file <file> --path <workspace>
+aiwiki query "<topic>" --path <workspace>
+aiwiki context "<topic>" --path <workspace>
+aiwiki lint --json --path <workspace>
 ```
 
-## 怎么检查知识库结构？
+If the source is a URL, your assistant should read the URL and then call `aiwiki ingest-agent`; AIWiki does not crawl the URL itself.
 
-运行：
+## Why is my assistant still reading files directly?
 
-```bash
-aiwiki lint
-```
-
-如果只是清理旧版本留下的空可选增强目录，可以让 Agent 先运行 `aiwiki lint --json`，确认只有 safe fix 后再运行 `aiwiki lint --fix-empty-dirs --json`。
-
-## 为什么我的 Agent 还是在直接翻文件？
-
-通常是它没有加载 AIWiki skill，或者知识库根目录缺少 AIWiki 的 `AGENTS.md` 指导。先运行：
+Usually the assistant has not loaded the AIWiki skill, or the workspace root is missing AIWiki guidance. Run:
 
 ```bash
 aiwiki agent sync --yes
@@ -97,4 +76,49 @@ aiwiki agent sync --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
 ```
 
-之后再让 Agent 处理 AIWiki 任务。它应该优先调用 `aiwiki lint --json`、`aiwiki status`、`aiwiki query`、`aiwiki context`、`aiwiki ingest-file` 或 `aiwiki ingest-agent`。只有这些命令不够用时，才退回到通用文件搜索。
+Then restart or reload the assistant if needed.
+
+## How do I query the knowledge base?
+
+Ask your assistant:
+
+```text
+What does AIWiki know about <topic>?
+```
+
+The assistant should call:
+
+```bash
+aiwiki context "<topic>"
+```
+
+For human terminal output:
+
+```bash
+aiwiki query "<topic>"
+```
+
+## How do I check the workspace?
+
+Ask your assistant to run:
+
+```bash
+aiwiki lint --json
+```
+
+`aiwiki doctor --path <workspace>` checks whether the workspace is ready and reports actionable setup problems.
+
+When safe fixes are allowed:
+
+```bash
+aiwiki lint --fix-empty-dirs --json
+aiwiki lint --json
+```
+
+## How do I send useful trial feedback?
+
+Use [TRIAL_FEEDBACK_TEMPLATE.md](TRIAL_FEEDBACK_TEMPLATE.md). Focus on whether setup worked, whether the assistant called AIWiki commands, whether generated files were easy to inspect, whether query/context helped, and what real scenario you wanted to use.
+
+## What is out of scope?
+
+AIWiki is not a web crawler, WeChat reader, browser extension, built-in LLM, vector database, RAG replacement, Obsidian plugin, default manual review queue, multi-knowledge-base manager, RSS tool, or scheduled collection system.
