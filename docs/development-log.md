@@ -2,6 +2,35 @@
 
 This log records queue-driven AIWiki development milestones that should remain visible to future maintainers, not only in automation chat history.
 
+## 2026-06-11 - README hero and logo asset refresh
+
+Status: implemented and locally verified. This pass targets GitHub raw image delivery only; no npm publication.
+
+### Goal
+
+Replace the older README hero visual with gpt-image-2 generated brand assets that better match the current AIWiki positioning:
+
+- golden angular AIWiki logo with a four-point star in the center;
+- clear source inputs: Web link, PDF, and Notes;
+- assistant-driven reading and understanding;
+- AIWiki writing structured Markdown;
+- local Markdown knowledge vault and later `aiwiki context` retrieval;
+- separate English and Chinese README hero images.
+
+### Implemented
+
+- Replaced `docs/assets/aiwiki-hero.png` with the English gpt-image-2 generated hero.
+- Added `docs/assets/aiwiki-hero.zh-CN.png` as the Chinese gpt-image-2 generated hero.
+- Added `docs/assets/aiwiki-logo.png` cropped from the gpt-image-2 generated English hero for future brand reuse.
+- Updated `README.zh-CN.md` to use the Chinese raw GitHub hero URL: `docs/assets/aiwiki-hero.zh-CN.png`.
+- Kept README images out of the npm package; README files reference GitHub raw URLs instead.
+
+### Verification
+
+- Local README/doc link check: passed, `broken links: 0`.
+- `npm run release:check`: passed, 61 tests.
+- `npm pack --dry-run`: passed for `@itradingai/aiwiki@0.2.22`; confirmed `docs/assets`, `aiwiki-hero`, `aiwiki-logo`, `join-group`, and `wechat-official-account` were not included in the npm tarball.
+
 ## 2026-06-11 - Public trial path and feedback loop
 
 Status: implemented and locally verified. Pre-delivery remote tarball smoke, GitHub push, Trusted Publishing, registry verification, and post-publish remote sanity are required before queue completion.

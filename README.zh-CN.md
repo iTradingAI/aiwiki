@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/aiwiki-hero.png" alt="AIWiki" width="100%" />
+  <img src="https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/aiwiki-hero.zh-CN.png" alt="AIWiki" width="100%" />
 </p>
 
 <p align="center">
