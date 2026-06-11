@@ -120,6 +120,26 @@ aiwiki lint --json --path <workspace>
 
 When the source is a URL, the assistant reads it first and then calls `aiwiki ingest-agent`; AIWiki itself does not crawl the page.
 
+### Public-trial scenarios
+
+If you do not have a source ready, use the runnable scenario pack:
+
+```bash
+aiwiki setup --path ./aiwiki-trial --yes
+aiwiki ingest-file --file examples/public-trial-scenarios/input/article-research.md --path ./aiwiki-trial
+aiwiki query "source card" --path ./aiwiki-trial
+aiwiki context "article research" --path ./aiwiki-trial
+aiwiki lint --json --path ./aiwiki-trial
+```
+
+The pack includes:
+
+- article research memory
+- topic planning memory
+- project decision memory
+
+See [`../examples/public-trial-scenarios/`](../examples/public-trial-scenarios/) for sample inputs, expected generated artifacts, query/context reuse examples, maintenance value, and WeChat-group-ready copy for each scenario.
+
 Tell your assistant:
 
 ```text

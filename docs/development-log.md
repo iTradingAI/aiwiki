@@ -472,3 +472,19 @@ Then update the queue through `published`, `remote_verified`, and `done`.
 - Lint actions are advisory only. Do not make `archive`, `reingest`, `mark_reviewed`, or related actions mutate files without a separate explicit task.
 - Keep lint local-file-only. Do not add crawling, vector search, RAG-over-wiki, RBAC, RSS, scheduled collection, or browser plugins under this queue item.
 - The original working tree had unrelated `skill/SKILL.md` changes. Publication must use a clean commit export until that WIP is resolved.
+
+## 2026-06-12 - Public trial scenario pack
+
+### Goal
+
+Help first-time AIWiki users try three concrete workflows without inventing their own source material.
+
+### Implemented
+
+- Added `examples/public-trial-scenarios/` with article research, topic planning, and project decision memory samples.
+- Documented the base CLI commands, expected generated artifacts, query/context reuse prompt, long-term maintenance value, and WeChat-group-ready copy for each scenario.
+- Linked the scenario pack from README, docs home, Usage, and Showcase.
+
+### Boundaries
+
+- No crawler, WeChat reader, browser plugin, vector search, RAG-over-wiki, RBAC, RSS, scheduled collection, Pro command, or new dependency was added.

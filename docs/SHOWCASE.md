@@ -103,5 +103,29 @@ The assistant should use the returned JSON, including match reasons and quality 
 
 - [`../examples/demo-run/`](../examples/demo-run/) records input files, commands, and CLI outputs.
 - [`../examples/obsidian-vault-sample/`](../examples/obsidian-vault-sample/) is a generated sample vault.
+- [`../examples/public-trial-scenarios/`](../examples/public-trial-scenarios/) provides three runnable public-trial examples: article research memory, topic planning memory, and project decision memory.
 
 The sample does not rely on crawling, vector search, RAG-over-wiki, or Pro automation. It shows the real base CLI file contract.
+
+## Public Trial Scenario Pack
+
+Use the scenario pack when a user asks, "What should I try first?"
+
+Each scenario includes:
+
+- sample input material
+- base CLI commands
+- expected Raw, Source Card, Wiki Entry, and run artifacts
+- a query/context reuse prompt
+- why the knowledge is worth maintaining over time
+- WeChat-group-ready usage copy
+
+Suggested order:
+
+```text
+article research memory
+  -> topic planning memory
+  -> project decision memory
+```
+
+This order starts from the most common reading workflow, moves into content reuse, and ends with team/project memory. It keeps the trial focused on local Markdown knowledge reuse instead of adding crawling, vectors, or Pro features.

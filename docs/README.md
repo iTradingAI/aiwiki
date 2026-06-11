@@ -30,6 +30,7 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 
 - [`../examples/demo-run/`](../examples/demo-run/) records input files, CLI commands, and outputs from a regenerated run.
 - [`../examples/obsidian-vault-sample/`](../examples/obsidian-vault-sample/) is a sample Markdown vault showing the current core-first artifact contract.
+- [`../examples/public-trial-scenarios/`](../examples/public-trial-scenarios/) contains three public-trial scenarios: article research, topic planning, and project decision memory.
 
 ## Core Workflow
 
@@ -41,6 +42,8 @@ AI assistant reads a source
 ```
 
 For public trials, keep the first loop to one source and one question: setup, ingest, inspect the run artifacts, query/context reuse, lint/doctor, and a short feedback note.
+
+The scenario pack gives users copyable sample inputs, expected generated artifacts, reuse prompts, long-term maintenance value, and WeChat-group-ready copy for each trial path.
 
 ## Important Boundaries
 

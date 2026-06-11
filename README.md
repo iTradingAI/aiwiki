@@ -158,6 +158,7 @@ See:
 
 - [`examples/demo-run/`](examples/demo-run/)
 - [`examples/obsidian-vault-sample/`](examples/obsidian-vault-sample/)
+- [`examples/public-trial-scenarios/`](examples/public-trial-scenarios/)
 
 ## Why AIWiki
 
@@ -177,6 +178,8 @@ Instead of saving links and losing context, you get Markdown files that your ass
 - **Turn useful reading into reusable ideas** such as concepts, claims, topics, and outlines.
 - **Give Codex, Claude Code, or QClaw a stable local knowledge layer** it can query before answering.
 - **Keep summaries traceable** with raw records, source cards, Wiki Entries, and run records.
+
+For a guided first trial, use the [public-trial scenario pack](examples/public-trial-scenarios/). It includes article research, topic planning, and project decision memory samples, with commands, expected artifacts, query/context reuse examples, and WeChat-group-ready usage copy.
 
 ## How It Works
 
@@ -291,6 +294,7 @@ For Chinese users, scan the QR codes below to join the WeChat group or follow th
 - [Agent Handoff](docs/AGENT_HANDOFF.md)
 - [FAQ](docs/FAQ.md)
 - [Showcase](docs/SHOWCASE.md)
+- [Public Trial Scenarios](examples/public-trial-scenarios/)
 - [Trial Feedback Template](docs/TRIAL_FEEDBACK_TEMPLATE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Release Notes](docs/RELEASE.md)
