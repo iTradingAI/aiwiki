@@ -17,6 +17,8 @@ AIWiki does not fetch webpages and does not call an LLM. The host assistant read
 
 Copy this prompt into your assistant:
 
+Before sending it, replace every `<replace-with-my-aiwiki-path>` with your own local folder path, such as `D:\AIWiki` or `~/AIWiki`. Do not leave the placeholder in the commands.
+
 ```text
 Please install and configure AIWiki for me.
 
@@ -26,6 +28,8 @@ If Node.js is missing or older than 20, stop and tell me how to upgrade before r
 Use this knowledge base path:
 
 <replace-with-my-aiwiki-path>
+
+Replace every `<replace-with-my-aiwiki-path>` below with my own local folder path before running commands. If I left the placeholder unchanged, stop and ask me for the real path.
 
 Run these commands:
 

@@ -25,6 +25,7 @@ Close the high-priority public-facing issues identified after the README rewrite
 - Added Security and Privacy and Current Status sections in both README files.
 - Refined practical scenarios around research, reusable ideas, assistant context, and traceability.
 - Reduced community QR display size while keeping the WeChat group and official account visible.
+- Clarified that `<replace-with-my-aiwiki-path>` and `<替换成我的 AIWiki 知识库路径>` are placeholders users must replace with their own local folder path before running commands.
 - Added `.github/workflows/ci.yml` to run build, tests, and `npm pack --dry-run` on Node 20, 22, and 24.
 - Fixed the npm test runner command so CI does not depend on shell glob expansion or newer Node test-runner glob behavior.
 
