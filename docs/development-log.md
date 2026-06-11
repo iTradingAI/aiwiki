@@ -6,6 +6,8 @@ This log records queue-driven AIWiki development milestones that should remain v
 
 Status: implemented and locally verified. Demo GIF recording is intentionally deferred until the P0/P1 documentation and repository trust pass is complete.
 
+Version published: `@itradingai/aiwiki@0.2.23`
+
 ### Goal
 
 Close the high-priority public-facing issues identified after the README rewrite:
@@ -37,6 +39,9 @@ Close the high-priority public-facing issues identified after the README rewrite
 - Pack inspection confirmed `docs/assets`, `aiwiki-hero`, `aiwiki-logo`, `join-group`, and `wechat-official-account` are still excluded from the npm tarball.
 - GitHub About description was updated to match npm/README positioning.
 - Initial CI run exposed Node 20 incompatibility in the quoted test glob; the test helper was added, and the follow-up GitHub Actions CI run passed on Node 20, 22, and 24.
+- Prepublish remote tarball smoke passed on `170.106.73.197` in `/tmp/aiwiki-0.2.23-prepublish-20260611T150959`.
+- GitHub Actions Publish npm run `27330327862` succeeded and npm registry reported `0.2.23`.
+- Postpublish remote npm smoke passed on `170.106.73.197` in `/tmp/aiwiki-0.2.23-postpublish-20260611T151405`.
 
 ## 2026-06-11 - README hero and logo asset refresh
 
