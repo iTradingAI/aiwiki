@@ -28,7 +28,7 @@ Use it to build a local AI knowledge base that can be queried, checked, maintain
 
 Ask your AI assistant to install and configure AIWiki.
 
-Choose a local folder for your knowledge base. Examples:
+1. Choose a local folder for your knowledge base.
 
 ```text
 Windows: D:\AIWiki
@@ -36,7 +36,7 @@ macOS/Linux: ~/AIWiki
 Project test: ./aiwiki-test
 ```
 
-Copy this prompt into Codex, Claude Code, QClaw, OpenClaw, or another local coding assistant:
+2. Copy this prompt into Codex, Claude Code, QClaw, OpenClaw, or another local coding assistant.
 
 ```text
 Please install and configure AIWiki for me.
@@ -68,37 +68,13 @@ Then tell me:
 5. what I should do next
 ```
 
-AIWiki has two integration layers:
+3. Restart or reload your assistant if needed.
 
-- `aiwiki agent sync --yes` syncs AIWiki instructions into supported local assistant environments.
-- `aiwiki agent sync --path "<workspace>" --yes` writes workspace-level guidance so assistants entering the knowledge base know to use AIWiki commands first.
-
-After syncing, restart or reload your assistant if needed.
-
-### Expected result
-
-After setup, your assistant should be able to confirm:
-
-- `aiwiki` is installed and reports a version
-- the knowledge base path exists and passes `aiwiki doctor`
-- assistant integration is `installed`, `updated`, or `current`
-- workspace guidance was written by `aiwiki agent sync --path`
-- `aiwiki status` reports the workspace state and next action
+If assistant sync fails, open an [Agent Integration issue](https://github.com/iTradingAI/aiwiki/issues/new?template=agent_integration.md) and include the output of `aiwiki agent check --json` and `aiwiki doctor --path "<workspace>"`.
 
 ## First Use
 
-### 10-minute public trial path
-
-Use this path when you are trying AIWiki for the first time:
-
-1. Run the Quick Start prompt above with a temporary knowledge base path.
-2. Send one article, file, or note to your assistant and ask it to ingest the source into AIWiki.
-3. Ask one question about the ingested topic so the assistant calls `aiwiki context`.
-4. Run `aiwiki query "<topic>"` when you want a direct terminal view.
-5. Ask the assistant to check the workspace with `aiwiki lint --json` and `aiwiki doctor`.
-6. Share feedback with the short template in [`docs/TRIAL_FEEDBACK_TEMPLATE.md`](docs/TRIAL_FEEDBACK_TEMPLATE.md).
-
-The point of the first trial is not to build a large archive. It is to confirm that one source can move from reading, to traceable Markdown files, to later reuse.
+Trying AIWiki for the first time? Use the short trial route in the [Usage Guide](docs/USAGE.md#3-ingest-a-source).
 
 ### Ingest a source
 
@@ -152,13 +128,6 @@ The assistant should call:
 aiwiki lint --json
 ```
 
-When only safe fixes are reported and you allow cleanup, the assistant may run:
-
-```bash
-aiwiki lint --fix-empty-dirs --json
-aiwiki lint --json
-```
-
 ## What AIWiki Creates
 
 A successful ingest creates a traceable knowledge package:
@@ -181,15 +150,6 @@ Optional files may also be created when the assistant provides enough structured
 
 The Wiki Entry is the main reusable knowledge surface. The raw record and source card preserve traceability, so you can always go back from a summary to the source.
 
-A successful first run should leave you with:
-
-- a new folder under `09-runs/`
-- `payload.json` and `processing-summary.md` inside that run folder
-- a Source Card under `03-sources/article-cards/`
-- a reusable Wiki Entry under `05-wiki/source-knowledge/`
-- `aiwiki query "<topic>"` or `aiwiki context "<topic>"` returning a relevant match
-- `aiwiki lint --json` returning structure feedback instead of requiring manual file inspection first
-
 See:
 
 - [`examples/demo-run/`](examples/demo-run/)
@@ -209,9 +169,10 @@ Instead of saving links and losing context, you get Markdown files that your ass
 
 ## Practical Scenarios
 
-- **Save research while reading**: send an article to your assistant and let AIWiki create a source card, Wiki Entry, and processing record.
-- **Prepare future writing**: turn useful ideas into reusable concepts, claims, topics, and outline material when the assistant provides enough structure.
-- **Ask across your own archive**: ask what AIWiki knows about a topic and let the assistant retrieve local context before answering.
+- **Build a personal research wiki** from articles, PDFs, files, and notes.
+- **Turn useful reading into reusable ideas** such as concepts, claims, topics, and outlines.
+- **Give Codex, Claude Code, or QClaw a stable local knowledge layer** it can query before answering.
+- **Keep summaries traceable** with raw records, source cards, Wiki Entries, and run records.
 
 ## How It Works
 
@@ -256,33 +217,9 @@ The goal is simple: make what your assistant reads useful again later.
 
 ## Agent Integration
 
-AIWiki is built for assistant-driven workflows.
+AIWiki is built for assistant-driven workflows. `aiwiki agent sync --yes` syncs packaged AIWiki instructions into supported local assistant environments, and `aiwiki agent sync --path "<workspace>" --yes` writes workspace guidance so assistants entering the knowledge base use AIWiki commands first.
 
-Supported local assistant targets may include:
-
-- Codex
-- Claude Code
-- QClaw
-- OpenClaw
-
-Your assistant should run:
-
-```bash
-aiwiki agent sync --yes
-aiwiki agent sync --path "<workspace>" --yes
-aiwiki agent check --json
-aiwiki agent check --path "<workspace>" --json
-```
-
-For unsupported hosts, ask AIWiki to print the generic assistant protocol:
-
-```bash
-aiwiki prompt agent
-```
-
-`npm install` does not silently modify assistant configuration. Sync is explicit, idempotent, and backs up changed installed skill files before overwrite.
-
-After syncing, restart or reload the assistant if needed.
+See [Agent Handoff](docs/AGENT_HANDOFF.md) for the full command-first contract.
 
 ## Obsidian and Dataview
 
@@ -293,6 +230,27 @@ Obsidian is optional but useful as a viewing surface. Dataview is an optional da
 AIWiki does not require Obsidian, does not auto-install Dataview, and does not edit `.obsidian`.
 
 Review Queue is not the main workflow. AIWiki creates Wiki entries first, then uses lint and assistant workflows to keep the workspace clean.
+
+## Security and Privacy
+
+- AIWiki writes local Markdown and JSON files.
+- AIWiki does not upload your knowledge base.
+- AIWiki does not include a built-in LLM.
+- AIWiki does not crawl the web by itself.
+- `npm install` does not modify assistant configuration.
+- Agent integration is explicit through `aiwiki agent sync`.
+
+## Current Status
+
+AIWiki currently focuses on:
+
+- one local AIWiki knowledge base
+- local Markdown and frontmatter retrieval
+- assistant-driven ingest
+- Source Cards and Wiki Entries
+- `context`, `query`, `lint`, `status`, and `doctor` workflows
+
+Semantic search, vector indexing, browser clipping, RSS collection, and enterprise permissions are intentionally out of scope for now.
 
 ## Boundaries
 
@@ -317,9 +275,10 @@ AIWiki is developed by iTradingAI.
 
 For Chinese users, scan the QR codes below to join the WeChat group or follow the official account.
 
-| WeChat Group | Official Account |
-| --- | --- |
-| ![Join WeChat group](https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/join-group.png) | ![WeChat official account](https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/wechat-official-account.png) |
+<p>
+  <img src="https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/join-group.png" alt="Join WeChat group" width="220" />
+  <img src="https://raw.githubusercontent.com/iTradingAI/aiwiki/main/docs/assets/wechat-official-account.png" alt="WeChat official account" width="220" />
+</p>
 
 ## Documentation
 

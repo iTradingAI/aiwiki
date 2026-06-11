@@ -2,6 +2,39 @@
 
 This log records queue-driven AIWiki development milestones that should remain visible to future maintainers, not only in automation chat history.
 
+## 2026-06-11 - Repository trust and README P0/P1 polish
+
+Status: implemented and locally verified. Demo GIF recording is intentionally deferred until the P0/P1 documentation and repository trust pass is complete.
+
+### Goal
+
+Close the high-priority public-facing issues identified after the README rewrite:
+
+- keep GitHub About, npm metadata, and README positioning aligned;
+- make README shorter and push detailed procedures into docs;
+- document security and privacy boundaries;
+- add CI coverage for build, test, and package inspection;
+- make Agent sync failure reporting easier;
+- keep WeChat community entry visible without overwhelming the README.
+
+### Implemented
+
+- Compressed the English and Chinese README quick-start flows around the assistant-driven install prompt.
+- Moved detailed first-use, lint, and trial-route guidance toward the usage guides.
+- Added Agent sync failure issue guidance with `agent check` and `doctor` evidence.
+- Added Security and Privacy and Current Status sections in both README files.
+- Refined practical scenarios around research, reusable ideas, assistant context, and traceability.
+- Reduced community QR display size while keeping the WeChat group and official account visible.
+- Added `.github/workflows/ci.yml` to run build, tests, and `npm pack --dry-run` on Node 20, 22, and 24.
+
+### Verification
+
+- Local README/doc link check: passed, `broken links: 0`.
+- `npm run release:check`: passed, 61 tests.
+- `npm pack --dry-run --json`: passed for `@itradingai/aiwiki@0.2.22`, 90 files, package size approximately 106 kB.
+- Pack inspection confirmed `docs/assets`, `aiwiki-hero`, `aiwiki-logo`, `join-group`, and `wechat-official-account` are still excluded from the npm tarball.
+- GitHub About description was updated to match npm/README positioning.
+
 ## 2026-06-11 - README hero and logo asset refresh
 
 Status: implemented and locally verified. This pass targets GitHub raw image delivery only; no npm publication.
