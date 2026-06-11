@@ -35,7 +35,7 @@ Close the high-priority public-facing issues identified after the README rewrite
 - `npm pack --dry-run --json`: passed for `@itradingai/aiwiki@0.2.22`, 90 files, package size approximately 106 kB.
 - Pack inspection confirmed `docs/assets`, `aiwiki-hero`, `aiwiki-logo`, `join-group`, and `wechat-official-account` are still excluded from the npm tarball.
 - GitHub About description was updated to match npm/README positioning.
-- Initial CI run exposed Node 20 incompatibility in the quoted test glob; the test helper was added and CI should be rechecked after push.
+- Initial CI run exposed Node 20 incompatibility in the quoted test glob; the test helper was added, and the follow-up GitHub Actions CI run passed on Node 20, 22, and 24.
 
 ## 2026-06-11 - README hero and logo asset refresh
 
