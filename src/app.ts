@@ -350,7 +350,7 @@ function printContextHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  --status active|to-review|ready|draft");
   writeLine(stream, "  --limit <1-50>");
   writeLine(stream, "");
-  writeLine(stream, "context JSON includes query_scope, result_quality, recommended_next_action, match_reasons, quality_signals, and related_refs.");
+  writeLine(stream, "context JSON includes query_scope, result_quality, recommended_next_action, match_reasons, quality_signals, related_refs, and reuse_guidance.");
 }
 
 function parseLintSeverity(value: string | undefined): LintSeverity | undefined {
@@ -967,6 +967,14 @@ function renderQuery(context: ContextResult): string {
     `结果质量: matches=${context.result_quality.total_matches}, best_score=${context.result_quality.best_score}, has_wiki_entry=${context.result_quality.has_wiki_entry ? "yes" : "no"}`,
     `下一步建议: ${context.recommended_next_action}`,
     `查询范围: groups=${context.query_scope.searched_groups.join(",") || "none"}, limit=${context.query_scope.limit}, filters=${JSON.stringify(context.query_scope.filters)}`,
+    ""
+  );
+  lines.push(
+    "Reuse workflows:",
+    `- writing: ${context.reuse_guidance.writing}`,
+    `- research: ${context.reuse_guidance.research}`,
+    `- decision: ${context.reuse_guidance.decision}`,
+    `- review: ${context.reuse_guidance.review}`,
     ""
   );
   appendQueryGroup(lines, "Wiki 条目", context.matches.wiki_entries);

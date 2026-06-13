@@ -465,6 +465,7 @@ test("CLI context returns JSON matches with wiki quality", async () => {
       query_scope: { filters: Record<string, string>; limit: number };
       result_quality: { total_matches: number; has_wiki_entry: boolean };
       recommended_next_action: string;
+      reuse_guidance: { writing: string; research: string; decision: string; review: string };
       matches: {
         wiki_entries: Array<{ path: string; quality: string; grounding_needs_review?: boolean; grounding_markers: string[]; warnings: string[]; match_reasons: string[]; quality_signals: string[]; related_refs: string[] }>;
         raw_refs: unknown[];
@@ -474,6 +475,10 @@ test("CLI context returns JSON matches with wiki quality", async () => {
     assert.equal(parsed.query_scope.limit, 10);
     assert.equal(parsed.result_quality.has_wiki_entry, true);
     assert.equal(parsed.recommended_next_action, "review_grounding_or_enrich_entry");
+    assert.match(parsed.reuse_guidance.writing, /outlines/);
+    assert.match(parsed.reuse_guidance.research, /Source Cards/);
+    assert.match(parsed.reuse_guidance.decision, /prior judgments/);
+    assert.match(parsed.reuse_guidance.review, /quality_signals/);
     assert.equal(parsed.matches.wiki_entries[0]?.path, "05-wiki/source-knowledge/ai-agent-workflow-notes.md");
     assert.equal(parsed.matches.wiki_entries[0]?.quality, "scaffold");
     assert.equal(parsed.matches.wiki_entries[0]?.grounding_needs_review, false);
@@ -526,6 +531,10 @@ test("CLI query renders human-readable context without changing context JSON", a
     assert.equal(await runCli(["query", "AI Agent", "--path", root], { stdout: queryOut, stderr: new MemoryWritable() }), 0);
     assert.match(queryOut.text(), /AIWiki 查询: AI Agent/);
     assert.match(queryOut.text(), /结果质量: matches=/);
+    assert.match(queryOut.text(), /Reuse workflows:/);
+    assert.match(queryOut.text(), /writing:/);
+    assert.match(queryOut.text(), /decision:/);
+    assert.match(queryOut.text(), /review:/);
     assert.match(queryOut.text(), /reasons=/);
     assert.match(queryOut.text(), /quality=/);
     assert.match(queryOut.text(), /Wiki 条目/);

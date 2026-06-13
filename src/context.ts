@@ -65,6 +65,12 @@ export type ContextResult = {
     raw_refs: MatchItem[];
   };
   suggested_answer_structure: string[];
+  reuse_guidance: {
+    writing: string;
+    research: string;
+    decision: string;
+    review: string;
+  };
   warnings: string[];
 };
 
@@ -114,6 +120,7 @@ export async function buildContext(
       raw_refs: []
     },
     suggested_answer_structure: ["topic overview", "core claims", "available evidence", "reuse judgment", "next action"],
+    reuse_guidance: reuseGuidance(),
     warnings: []
   };
 
@@ -343,6 +350,15 @@ function qualitySignals(item: { quality?: string; generationMode?: string; groun
   if (item.groundingNeedsReview) signals.push("grounding:needs_review");
   if (item.relatedRefs.length) signals.push("relationships:present");
   return signals;
+}
+
+function reuseGuidance(): ContextResult["reuse_guidance"] {
+  return {
+    writing: "Use matched Wiki Entries for angles, outlines, and source-backed points; check quality_signals before drafting.",
+    research: "Start from Wiki Entries, then inspect related_refs and Source Cards when evidence or source context matters.",
+    decision: "Use matches to recover constraints, prior judgments, and rejected alternatives before making or revising a choice.",
+    review: "Use result_quality, match_reasons, quality_signals, and warnings to decide whether the knowledge is ready or needs enrichment."
+  };
 }
 
 function finalizeQuality(result: ContextResult): void {

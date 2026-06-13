@@ -174,6 +174,8 @@ If `fetch_status` is `failed`, say that AIWiki recorded the failure reason but d
 
 ## Query Protocol
 
+Call AIWiki context before writing, researching, deciding, or reviewing when the user asks you to reuse knowledge from this workspace. This includes drafting from prior notes, comparing evidence, recovering project constraints, checking rejected alternatives, or validating whether a match is strong enough to cite.
+
 When the user asks what AIWiki knows about a topic, call:
 
 ```bash
@@ -196,6 +198,7 @@ Read these fields before responding:
 - `match_reasons`
 - `quality_signals`
 - `related_refs`
+- `reuse_guidance`
 
 Do not scan `02-raw` by default unless the Wiki result is insufficient, the user asks to verify the original text, or sources conflict.
 

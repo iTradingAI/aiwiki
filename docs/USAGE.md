@@ -185,6 +185,13 @@ For human-readable terminal output:
 aiwiki query "<topic>"
 ```
 
+Use query/context before the assistant writes, researches, decides, or reviews:
+
+- Writing: retrieve prior angles, outlines, source-backed points, and quality warnings before drafting.
+- Research: start from Wiki Entries, then follow `related_refs` and Source Cards when evidence matters.
+- Decisions: recover constraints, prior judgments, and rejected alternatives before changing direction.
+- Review: check `result_quality`, `match_reasons`, `quality_signals`, and warnings before treating a match as reusable knowledge.
+
 Useful filters:
 
 ```bash

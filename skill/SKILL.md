@@ -3,7 +3,7 @@ name: aiwiki
 description: Local Markdown knowledge base workflow for AI assistants.
 ---
 
-<!-- aiwiki-skill-version: 0.2.22 -->
+<!-- aiwiki-skill-version: 0.2.25 -->
 
 # AIWiki Skill
 
@@ -202,6 +202,8 @@ If `fetch_status` is `failed`, say that AIWiki recorded the failure reason but d
 
 ## Query Protocol
 
+Call AIWiki context before writing, researching, deciding, or reviewing when the user asks you to reuse knowledge from this workspace. This includes drafting from prior notes, comparing evidence, recovering project constraints, checking rejected alternatives, or validating whether a match is strong enough to cite.
+
 When the user asks to understand a topic from AIWiki, call:
 
 ```bash
@@ -224,6 +226,7 @@ Use the returned JSON to answer. Prefer Wiki Entries first, but read these field
 - `match_reasons`: why each result matched
 - `quality_signals`: scaffold, enriched, grounding, status, and relationship hints
 - `related_refs`: local wikilinks and frontmatter relationships
+- `reuse_guidance`: how to apply the result to writing, research, decisions, and review
 
 Do not scan `02-raw` by default unless the Wiki result is insufficient, the user asks to verify the original text, or sources conflict.
 
