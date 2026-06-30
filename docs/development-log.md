@@ -2,6 +2,32 @@
 
 This log records queue-driven AIWiki development milestones that should remain visible to future maintainers, not only in automation chat history.
 
+## 2026-06-30 - Operating feedback loop and queue governance
+
+Status: implemented and locally verified for `AIWIKI-011`; remote prepublish smoke, Trusted Publishing, and postpublish remote smoke are still required before queue completion.
+
+Version target: `@itradingai/aiwiki@0.2.26`
+
+### Goal
+
+Connect public trial feedback, low-feedback periods, monthly roadmap review, and queue entry decisions without adding telemetry or expanding the base CLI.
+
+### Implemented
+
+- Added an operating feedback loop with weekly feedback classification, monthly roadmap review, queue entry criteria, low-feedback handling, and telemetry boundary.
+- Added Chinese operating-loop documentation for WeChat-group-facing operations.
+- Expanded trial feedback so each note can be classified as installation, first-use, ingest-result, directory, query-reuse, or feature-request.
+- Linked FAQ, Showcase, Roadmap, docs indexes, and the long-term operating roadmap to the feedback governance process.
+- Updated the human task board with the AIWIKI-011 execution requirements and boundaries.
+
+### Verification
+
+- Local README/doc link check: passed, `broken links: 0`.
+- `npm run release:check`: passed, 61 tests.
+- `npm pack --dry-run --json`: passed for `@itradingai/aiwiki@0.2.26`, 96 files, shasum `ad5d9bbb74dc809b7dfc87c6c4b6d1ee23e94e66`.
+- Pack inspection confirmed `docs/OPERATING_FEEDBACK_LOOP.md`, `docs/OPERATING_FEEDBACK_LOOP.zh-CN.md`, and `docs/TRIAL_FEEDBACK_TEMPLATE.md` are included.
+- Pack inspection confirmed README image assets remain excluded from the npm tarball.
+
 ## 2026-06-11 - Repository trust and README P0/P1 polish
 
 Status: implemented and locally verified. Demo GIF recording is intentionally deferred until the P0/P1 documentation and repository trust pass is complete.

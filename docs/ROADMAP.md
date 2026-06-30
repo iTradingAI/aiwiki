@@ -33,6 +33,7 @@ The roadmap keeps the base CLI focused. Advanced automation, crawling, multi-kno
 - example vaults that match the current CLI behavior
 - WeChat group feedback templates
 - a queue policy that separates user pain from feature creep
+- weekly feedback classification and monthly roadmap review through [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md)
 
 ## Not in the Base Queue
 
@@ -63,3 +64,9 @@ context can be reused later
 ```
 
 The product gets better when the first ingest, first query, and first maintenance pass become more reliable.
+
+## Feedback Governance
+
+Public feedback is classified before it becomes work. The base queue uses keep, defer, Pro, reject, and no-change decisions to avoid turning every group comment into feature creep.
+
+Low feedback means AIWiki should publish clearer trial tasks and cases, not add telemetry or expand the base boundary.

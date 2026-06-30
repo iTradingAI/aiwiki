@@ -13,6 +13,7 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 - [Agent Handoff](AGENT_HANDOFF.md)
 - [Showcase](SHOWCASE.md)
 - [Trial Feedback Template](TRIAL_FEEDBACK_TEMPLATE.md)
+- [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md)
 - [Roadmap](ROADMAP.md)
 - [Release Notes](RELEASE.md)
 
@@ -44,6 +45,8 @@ AI assistant reads a source
 For public trials, keep the first loop to one source and one question: setup, ingest, inspect the run artifacts, query/context reuse, lint/doctor, and a short feedback note.
 
 The scenario pack gives users copyable sample inputs, expected generated artifacts, reuse prompts, long-term maintenance value, and WeChat-group-ready copy for each trial path.
+
+Use the [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md) to classify trial feedback into installation, first-use, ingest-result, directory, query-reuse, and feature-request signals before promoting anything into the managed queue.
 
 ## Important Boundaries
 

@@ -13,6 +13,7 @@ This is the public-trial happy path:
 4. Ask the knowledge base one question.
 5. Run lint/doctor for workspace health.
 6. Send feedback with the trial template.
+7. Classify the signal before it enters the queue.
 ```
 
 Commands for a local-file trial:
@@ -27,6 +28,8 @@ aiwiki lint --json --path ./aiwiki-trial
 ```
 
 For a URL trial, the assistant reads the URL first, then calls `aiwiki ingest-agent` with the content it read.
+
+After the walkthrough, use [TRIAL_FEEDBACK_TEMPLATE.md](TRIAL_FEEDBACK_TEMPLATE.md) and [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md). Classify the result as installation, first-use, ingest-result, directory, query-reuse, or feature-request before making roadmap decisions.
 
 ## Scenario 1: Ingest an Article
 

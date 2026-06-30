@@ -101,3 +101,13 @@ aiwiki lint --json
 ## 哪些能力不在范围内？
 
 AIWiki 不是网页爬虫、微信读取器、浏览器插件、内置 LLM、向量数据库、RAG 替代品、Obsidian 插件、默认人工审核队列、多知识库管理器、RSS 工具或定时采集系统。
+
+## 怎么提交有用的试用反馈？
+
+使用 [TRIAL_FEEDBACK_TEMPLATE.md](TRIAL_FEEDBACK_TEMPLATE.md)。重点说明安装是否成功、助手是否调用了 AIWiki 命令、生成文件是否容易检查、query/context 是否有帮助，以及你想用 AIWiki 解决的真实场景。
+
+提交前先按 [运营反馈闭环](OPERATING_FEEDBACK_LOOP.zh-CN.md) 分类：安装、首次使用、入库结果、目录理解、查询和复用、功能请求。
+
+## 反馈会直接变成功能吗？
+
+不会。反馈先进入 keep / defer / Pro / reject / no-change 判断。基础版队列只接收能提升首次使用成功率、降低理解成本、提升本地知识复用、让 Agent 更稳定调用 AIWiki 命令、减少重复支持问题，且不扩大基础版边界的任务。爬虫、向量检索、浏览器插件、多知识库、RSS、RBAC 和遥测都需要单独规划。

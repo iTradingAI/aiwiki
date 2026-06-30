@@ -119,6 +119,12 @@ aiwiki lint --json
 
 Use [TRIAL_FEEDBACK_TEMPLATE.md](TRIAL_FEEDBACK_TEMPLATE.md). Focus on whether setup worked, whether the assistant called AIWiki commands, whether generated files were easy to inspect, whether query/context helped, and what real scenario you wanted to use.
 
+Classify feedback before turning it into a task. The operating categories are installation, first-use, ingest-result, directory, query-reuse, and feature-request. See [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md).
+
+## Does feedback automatically become a feature?
+
+No. Feedback is first classified as keep, defer, Pro, reject, or no-change. A base-queue candidate must improve first-use success, reduce understanding cost, improve local reuse, improve command-first Agent behavior, reduce repeated support, or preserve the base boundary. Crawling, vector search, browser plugins, multi-KB, RSS, RBAC, and telemetry do not enter the base queue without a separate plan.
+
 ## What is out of scope?
 
 AIWiki is not a web crawler, WeChat reader, browser extension, built-in LLM, vector database, RAG replacement, Obsidian plugin, default manual review queue, multi-knowledge-base manager, RSS tool, or scheduled collection system.

@@ -12,6 +12,7 @@ AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 - [常见问题](FAQ.zh-CN.md)
 - [Agent 接入说明](AGENT_HANDOFF.zh-CN.md)
 - [案例展示](SHOWCASE.zh-CN.md)
+- [运营反馈闭环](OPERATING_FEEDBACK_LOOP.zh-CN.md)
 - [路线图](ROADMAP.zh-CN.md)
 - [发布说明](RELEASE.zh-CN.md)
 
@@ -32,3 +33,5 @@ AI 助手读取资料
 ## 重要边界
 
 AIWiki 不抓网页、不调用 LLM、不自动安装 Obsidian 插件、不做向量检索、不管理多个知识库。宿主 AI 助手负责读取和理解资料；AIWiki 负责写入、链接、查询和检查本地 Markdown 知识库。
+
+公开试用反馈先按 [运营反馈闭环](OPERATING_FEEDBACK_LOOP.zh-CN.md) 分类，再判断是否进入开发队列，避免把群反馈直接变成功能蔓延。

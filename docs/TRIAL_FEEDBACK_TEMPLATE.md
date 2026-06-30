@@ -47,3 +47,24 @@ Example: saving article research before writing a WeChat post.
 - Needs assistant guidance improvement
 - Needs CLI behavior improvement
 - Not a fit for my workflow
+
+## Signal Classification
+
+Mark the strongest category before turning this into a task:
+
+- installation: Node.js / npm / global command / assistant reload / path setup
+- first-use: unclear next step after setup
+- ingest-result: generated files or failure record unclear
+- directory: could not find or understand run/source/wiki files
+- query-reuse: `query` / `context` did not make reuse clear
+- feature-request: asks for crawling, multi-KB, vector search, RBAC, RSS, browser plugin, or another new capability
+
+Suggested decision:
+
+- keep
+- defer
+- Pro
+- reject
+- no-change
+
+See [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md) before promoting feedback into the managed queue.

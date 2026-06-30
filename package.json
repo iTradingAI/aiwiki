@@ -1,6 +1,6 @@
 {
   "name": "@itradingai/aiwiki",
-  "version": "0.2.25",
+  "version": "0.2.26",
   "type": "module",
   "description": "Local Markdown knowledge base for AI assistants. Save what your AI reads, ask it later, and keep everything local.",
   "license": "MIT",
@@ -46,6 +46,8 @@
     "docs/FAQ.md",
     "docs/FAQ.zh-CN.md",
     "docs/OBSIDIAN_DATAVIEW_PLAN.md",
+    "docs/OPERATING_FEEDBACK_LOOP.md",
+    "docs/OPERATING_FEEDBACK_LOOP.zh-CN.md",
     "docs/README.md",
     "docs/README.zh-CN.md",
     "docs/RELEASE.md",
