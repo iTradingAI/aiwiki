@@ -201,14 +201,34 @@ test("records host supplied evidence as grounding without review markers", async
     const result = await ingestPayload(root, await readFixture("agent_payload.analysis.grounded.json"));
     const wikiEntry = await readFile(path.join(root, "05-wiki", "source-knowledge", "grounded-notes.md"), "utf8");
     const claims = await readFile(path.join(root, "04-claims", "_suggestions", "grounded-notes-claims.md"), "utf8");
+    const sourceCard = await readFile(path.join(root, "03-sources", "article-cards", "grounded-notes.md"), "utf8");
+    const summary = await readFile(path.join(result.runDir, "processing-summary.md"), "utf8");
 
     assert.match(wikiEntry, /^grounding_evidence_available: true$/m);
     assert.match(wikiEntry, /^grounding_evidence_channel: "host_supplied"$/m);
     assert.match(wikiEntry, /^grounding_needs_review: false$/m);
+    assert.match(wikiEntry, /^capsule_id: "src_[a-f0-9]{16}"$/m);
+    assert.match(wikiEntry, /^artifact_role: "primary"$/m);
+    assert.match(wikiEntry, /^visibility: "primary"$/m);
+    assert.match(wikiEntry, /^description: ".+"$/m);
+    assert.match(wikiEntry, /^resource: ".+"$/m);
+    assert.match(wikiEntry, /^timestamp: ".+"$/m);
+    assert.match(wikiEntry, /^knowledge_status: "active"$/m);
+    assert.match(wikiEntry, /^confidence_level: "high"$/m);
+    assert.match(wikiEntry, /^evidence_refs: \["03-sources\/article-cards\/grounded-notes\.md", "02-raw\/articles\/grounded-notes\.md", "09-runs\/.+\/processing-summary\.md"\]$/m);
+    assert.match(wikiEntry, /^relationships:$/m);
+    assert.match(wikiEntry, /## 来源与证据/);
     assert.doesNotMatch(wikiEntry, /## Grounding 复核/);
+    assert.match(sourceCard, /^capsule_id: "src_[a-f0-9]{16}"$/m);
+    assert.match(sourceCard, /^artifact_role: "source_card"$/m);
+    assert.match(sourceCard, /^visibility: "supporting"$/m);
     assert.match(claims, /evidence_status: host_quote_found/);
+    assert.match(summary, /^artifact_role: "run_log"$/m);
+    assert.match(summary, /^visibility: "debug"$/m);
     assert.equal(result.agentReport.grounding.evidence_available, true);
     assert.equal(result.agentReport.grounding.needs_review, false);
+    assert.equal(result.agentReport.keyFiles.dashboard, "dashboards/AIWiki Home.md");
+    assert.equal(result.agentReport.keyFiles.reviewQueue, "dashboards/Review Queue.md");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

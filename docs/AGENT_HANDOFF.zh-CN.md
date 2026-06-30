@@ -108,6 +108,28 @@ Wiki 条目：<wiki_entry>
 aiwiki context "<topic>"
 ```
 
+默认 context 保持 `aiwiki.context.v1`，用于兼容已有助手集成。需要按来源对象组织答案时，显式调用 capsule 视图：
+
+```bash
+aiwiki context "<topic>" --view capsule
+```
+
+用户要求查看来源包、来源链路、生命周期状态或 OKF readiness 时，使用：
+
+```bash
+aiwiki show "<topic>"
+aiwiki show --id <capsule_id>
+aiwiki show --artifact-path <artifact.md> --path <workspace>
+```
+
+读取 capsule context 时，先看：
+
+- `capsules`
+- `result_quality.has_primary`
+- `result_quality.okf_ready_count`
+- `missing_context`
+- 每个 capsule 内的 lifecycle warnings 和 OKF readiness warnings
+
 不要默认扫描 `02-raw`，除非 Wiki 结果不足、用户要求核对原文，或来源之间有冲突。
 
 ## Lint 协议
@@ -116,6 +138,15 @@ aiwiki context "<topic>"
 
 ```bash
 aiwiki lint --json
+```
+
+只有在用户要求深层健康检查、发布前验证或 Source Capsule 校验时，才运行 capsule 相关检查：
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+aiwiki lint --strict --json
 ```
 
 如果 `safe_fixes.only_safe_fixes` 为 true 且用户允许整理：

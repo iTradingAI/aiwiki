@@ -3,7 +3,7 @@ name: aiwiki
 description: Local Markdown knowledge base workflow for AI assistants.
 ---
 
-<!-- aiwiki-skill-version: 0.2.25 -->
+<!-- aiwiki-skill-version: 0.3.0 -->
 
 # AIWiki Skill
 
@@ -210,6 +210,20 @@ When the user asks to understand a topic from AIWiki, call:
 aiwiki context "<topic>"
 ```
 
+Default context remains `aiwiki.context.v1` for compatibility. When the user needs a low-entropy source package, provenance, lifecycle state, or OKF readiness, call:
+
+```bash
+aiwiki context "<topic>" --view capsule
+```
+
+For one-source inspection, use:
+
+```bash
+aiwiki show "<topic>"
+aiwiki show --id <capsule_id>
+aiwiki show --artifact-path <artifact.md> --path <workspace>
+```
+
 Use filters when the user's intent is clear:
 
 ```bash
@@ -228,6 +242,8 @@ Use the returned JSON to answer. Prefer Wiki Entries first, but read these field
 - `related_refs`: local wikilinks and frontmatter relationships
 - `reuse_guidance`: how to apply the result to writing, research, decisions, and review
 
+For capsule context, read `capsules`, `result_quality.has_primary`, `result_quality.okf_ready_count`, `missing_context`, lifecycle warnings, and OKF readiness warnings before answering.
+
 Do not scan `02-raw` by default unless the Wiki result is insufficient, the user asks to verify the original text, or sources conflict.
 
 If `quality_signals` contains `quality:scaffold` or `grounding:needs_review`, tell the user the result is a traceable lead that needs enrichment or review. Do not present it as final confirmed knowledge.
@@ -238,7 +254,7 @@ For direct human terminal output, use:
 aiwiki query "<topic>"
 ```
 
-`query` renders the same retrieval basis as `context`; do not treat it as a separate search system.
+`query` defaults to Source Capsule view. Use `aiwiki query "<topic>" --view files` only when the user needs the older file-level match list for troubleshooting or detailed inspection.
 
 ## Lint Protocol
 
@@ -246,6 +262,15 @@ When the user asks to整理 / 检查 / lint the knowledge base, first call JSON 
 
 ```bash
 aiwiki lint --json
+```
+
+Run capsule-aware checks only when the user asks for deeper health, release readiness, or Source Capsule validation:
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+aiwiki lint --strict --json
 ```
 
 If `safe_fixes.only_safe_fixes` is true and the user has allowed cleanup, apply the built-in safe fix and rerun JSON lint:

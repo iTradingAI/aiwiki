@@ -16,6 +16,7 @@ Use this file as the human and Agent entry point for the knowledge base.
 ## Dashboards
 
 - [[dashboards/AIWiki Home|AIWiki Home]]
+- [[dashboards/Source Capsules|Source Capsules]]
 - [[dashboards/Review Queue|Review Queue]]
 - [[dashboards/Recent Runs|Recent Runs]]
 - [[dashboards/Lint Report|Lint Report]]
@@ -31,7 +32,9 @@ Use this file as the human and Agent entry point for the knowledge base.
 ```bash
 aiwiki status
 aiwiki next
+aiwiki show "<topic>"
 aiwiki query "<topic>"
 aiwiki context "<topic>"
+aiwiki context "<topic>" --view capsule
 aiwiki lint
 ```

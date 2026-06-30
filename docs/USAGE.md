@@ -177,12 +177,35 @@ The assistant should call:
 aiwiki context "<topic>"
 ```
 
-`context` returns JSON for assistants. It includes query scope, result quality, match reasons, quality signals, and related references.
+Default `context` returns the stable `aiwiki.context.v1` JSON for assistants. It includes query scope, result quality, match reasons, quality signals, and related references.
+
+For the 0.3.0 Source Capsule object view, call:
+
+```bash
+aiwiki context "<topic>" --view capsule
+```
+
+Capsule context returns `aiwiki.context.capsule.v1` with grouped source packages, lifecycle warnings, OKF readiness, missing context, and the recommended next action.
 
 For human-readable terminal output:
 
 ```bash
 aiwiki query "<topic>"
+```
+
+`query` defaults to Source Capsule view. It groups the Wiki Entry, Source Card, Raw file, optional suggestions, and run record for the same source. Use the file view only when you need the older file-group output:
+
+```bash
+aiwiki query "<topic>" --view files
+```
+
+To inspect one capsule:
+
+```bash
+aiwiki show "<topic>"
+aiwiki show --id <capsule_id>
+aiwiki show --artifact-path <artifact.md> --path <workspace>
+aiwiki show "<topic>" --json
 ```
 
 Use query/context before the assistant writes, researches, decides, or reviews:
@@ -196,7 +219,7 @@ Useful filters:
 
 ```bash
 aiwiki context "AI Agent" --type wiki_entries --source-role input --wiki-type source_knowledge --status active --limit 5
-aiwiki query "AI Agent" --type source_cards --status to-review --limit 3
+aiwiki query "AI Agent" --view files --type source_cards --status to-review --limit 3
 ```
 
 AIWiki retrieval is local Markdown/frontmatter search. It is not vector search, external search, or RAG-over-wiki.
@@ -214,6 +237,19 @@ The assistant should run:
 ```bash
 aiwiki lint --json
 ```
+
+Default lint stays file/structure-oriented and remains quiet for legacy workspaces that do not yet have capsule metadata.
+
+For 0.3.0 checks:
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+aiwiki lint --strict --json
+```
+
+Use `--strict` for release or CI-style checks, not as the default user cleanup pass.
 
 If only safe fixes are available and you allow cleanup:
 
@@ -260,6 +296,16 @@ Wiki Entry quality modes:
 - `agent_enriched` / `enriched`: the assistant provided analysis or wiki content.
 - `deterministic_fallback` / `scaffold`: AIWiki created a traceable shell from source content only.
 
+Source Capsule metadata is additive. New artifacts may include:
+
+- `capsule_id`, `artifact_role`, `visibility`
+- `knowledge_status`, `confidence_level`, `confidence_score`, `staleness`
+- `evidence_refs`, `evidence_count`, `last_confirmed`
+- `relationships`, `supersedes`, `superseded_by`, `contradicted_by`
+- OKF-ready fields such as `resource`, `description`, and `timestamp`
+
+Old workspaces do not need a bulk migration. Capsule commands can infer grouping from paths, source URLs, content fingerprints, and run IDs when explicit `capsule_id` is absent.
+
 First-run success checklist:
 
 - `09-runs/<run-id>/processing-summary.md` exists
@@ -267,7 +313,9 @@ First-run success checklist:
 - a Source Card exists under `03-sources/article-cards/`
 - a Wiki Entry exists under `05-wiki/source-knowledge/`
 - `aiwiki query "<topic>" --path <workspace>` returns a relevant match
+- `aiwiki show "<topic>" --path <workspace>` opens one Source Capsule
 - `aiwiki context "<topic>" --path <workspace>` returns machine-readable context for the assistant
+- `aiwiki context "<topic>" --view capsule --path <workspace>` returns capsule JSON for the assistant
 - `aiwiki lint --json --path <workspace>` returns structured workspace feedback
 
 ## 7. Obsidian and Dataview

@@ -5,6 +5,7 @@ AIWiki 的 Obsidian 入口。Dataview 是可选增强；未安装时仍可使用
 ## 原生链接入口
 
 - [[dashboards/Wiki Entries|Wiki 条目]]
+- [[dashboards/Source Capsules|来源包]]
 - [[dashboards/Source Cards|资料卡]]
 - [[dashboards/Review Queue|待审队列]]
 - [[dashboards/Recent Runs|最近处理]]

@@ -118,6 +118,7 @@ Use this file as the human and Agent entry point for the knowledge base.
 ## Dashboards
 
 - [[dashboards/AIWiki Home|AIWiki Home]]
+- [[dashboards/Source Capsules|Source Capsules]]
 - [[dashboards/Review Queue|Review Queue]]
 - [[dashboards/Recent Runs|Recent Runs]]
 - [[dashboards/Lint Report|Lint Report]]
@@ -133,8 +134,10 @@ Use this file as the human and Agent entry point for the knowledge base.
 \`\`\`bash
 aiwiki status
 aiwiki next
+aiwiki show "<topic>"
 aiwiki query "<topic>"
 aiwiki context "<topic>"
+aiwiki context "<topic>" --view capsule
 aiwiki lint
 \`\`\`
 `
@@ -160,6 +163,7 @@ AIWiki 的 Obsidian 入口。Dataview 是可选增强；未安装时仍可使用
 ## 原生链接入口
 
 - [[dashboards/Wiki Entries|Wiki 条目]]
+- [[dashboards/Source Capsules|来源包]]
 - [[dashboards/Source Cards|资料卡]]
 - [[dashboards/Review Queue|待审队列]]
 - [[dashboards/Recent Runs|最近处理]]
@@ -183,6 +187,42 @@ TABLE type, status, source_card, raw_note, run_summary
 FROM "03-sources/article-cards" or "04-claims/_suggestions" or "06-assets/_suggestions" or "08-outputs/outlines"
 WHERE status = "to-review"
 SORT created_at DESC
+\`\`\`
+`
+  },
+  {
+    path: "dashboards/Source Capsules.md",
+    content: `# Source Capsules
+
+Source Capsules group the Wiki Entry, Source Card, Raw record, optional suggestions, and run summary that came from the same source.
+
+Use this dashboard with Obsidian native links and Properties. Dataview is optional.
+
+## CLI
+
+\`\`\`bash
+aiwiki show "<topic>"
+aiwiki query "<topic>"
+aiwiki context "<topic>" --view capsule
+aiwiki lint --capsules
+\`\`\`
+
+## Capsule Entries
+
+\`\`\`dataview
+TABLE capsule_id, knowledge_status, confidence_level, staleness, evidence_count, source_card, raw_note, run_summary
+FROM "05-wiki/source-knowledge"
+WHERE capsule_id
+SORT file.mtime DESC
+\`\`\`
+
+## Capsule Evidence
+
+\`\`\`dataview
+TABLE capsule_id, type, artifact_role, visibility, source_url, created_at
+FROM "02-raw/articles" or "03-sources/article-cards" or "04-claims/_suggestions" or "06-assets/_suggestions" or "07-topics/ready" or "08-outputs/outlines" or "09-runs"
+WHERE capsule_id
+SORT capsule_id ASC, created_at DESC
 \`\`\`
 `
   },
@@ -277,6 +317,25 @@ AIWiki 使用 Obsidian 原生 Properties 作为基础数据库层，Dataview 只
 - \`run_id\`: 本次处理记录目录名。
 - \`source_card\`, \`raw_note\`, \`claims_note\`, \`assets_note\`, \`topics_note\`, \`outline_note\`, \`run_summary\`: Obsidian 内部链接字符串。
 - \`tags\`: AIWiki 类型标签。
+
+## Source Capsule Fields
+
+- \`capsule_id\`: 同一来源包的稳定 ID。
+- \`artifact_role\`: \`primary\`, \`raw_source\`, \`source_card\`, \`claim_suggestions\`, \`asset_suggestions\`, \`topic_suggestions\`, \`outline\`, \`run_log\`, \`unknown\`。
+- \`visibility\`: \`primary\`, \`supporting\`, \`debug\`。
+- \`description\`: 面向复用的简短说明。
+- \`resource\`: OKF-ready 资源标识。
+- \`timestamp\`: 当前 artifact 对应的时间戳。
+- \`knowledge_status\`: \`active\`, \`draft\`, \`stale\`, \`superseded\`, \`archived\`。
+- \`confidence_level\`: \`low\`, \`medium\`, \`high\`。
+- \`confidence_score\`: 0 到 1 的置信分数。
+- \`last_confirmed\`, \`valid_from\`, \`valid_until\`: 生命周期时间字段。
+- \`staleness\`: \`fresh\`, \`aging\`, \`stale\`, \`unknown\`。
+- \`evidence_count\`: 可追踪证据数量。
+- \`evidence_refs\`: 指向证据 artifact 的链接。
+- \`access_count\`, \`last_accessed\`: 复用观察字段。
+- \`supersedes\`, \`superseded_by\`, \`contradicted_by\`: 关系字段。
+- \`relationships\`: typed relationship 列表，用于 Agent 判断来源之间的关系。
 
 ## Rule
 

@@ -15,6 +15,8 @@ AIWiki 基础版只有一个公开产品定位：给 AI 助手使用的本地 Ma
 
 ### 2. 本地知识复用
 
+- Source Capsule 作为默认低噪音的人类查询视图
+- `aiwiki context --view capsule` 作为 Agent 对象级复用入口
 - 更清楚的 Wiki Entry 质量信号
 - 更好解释 query/context 的结果
 - 更多写作、研究、决策、回顾场景案例
@@ -23,6 +25,7 @@ AIWiki 基础版只有一个公开产品定位：给 AI 助手使用的本地 Ma
 ### 3. 知识库健康
 
 - 给人和 AI 助手都能读懂的 lint 输出
+- 显式开启的 capsule、lifecycle 和 OKF-ready lint 检查
 - 只在窄范围、可逆时提供自动安全修复
 - 更好的 status 和 doctor 引导
 - 新知识库减少空洞可选产物
@@ -44,6 +47,7 @@ AIWiki 基础版只有一个公开产品定位：给 AI 助手使用的本地 Ma
 - 浏览器插件
 - 向量检索
 - RAG-over-wiki
+- OKF 导入导出
 - 多知识库
 - RBAC
 - RSS 或定时采集
@@ -59,6 +63,7 @@ AIWiki 应该在关键地方保持稳定朴素：
 ```text
 助手负责阅读
 AIWiki 负责写入
+Source Capsule 组织每个来源
 Markdown 保持本地
 上下文以后还能复用
 ```

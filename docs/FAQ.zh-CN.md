@@ -77,11 +77,33 @@ AIWiki 里关于 <主题> 有什么？
 aiwiki context "<主题>"
 ```
 
+如果需要按来源聚合的 Source Capsule JSON：
+
+```bash
+aiwiki context "<主题>" --view capsule
+```
+
 人在终端里查询可以用：
 
 ```bash
 aiwiki query "<主题>"
 ```
+
+`aiwiki query` 默认显示 Source Capsule 视图。需要旧的文件级匹配列表时，使用 `aiwiki query "<主题>" --view files`。
+
+查看一个来源包：
+
+```bash
+aiwiki show "<主题>"
+aiwiki show --id <capsule_id>
+aiwiki show --artifact-path <artifact.md> --path <workspace>
+```
+
+## Source Capsule 是什么？
+
+Source Capsule 是 AIWiki 对“一个来源”的逻辑对象。它把同一来源生成的 Wiki Entry、Source Card、Raw、可选 claim/topic/outline/assets 文件和运行记录组织在一起。
+
+旧知识库不需要迁移。缺少显式 `capsule_id` 时，AIWiki 会从路径、来源 URL、内容指纹和 run ID 推断聚合关系。
 
 ## 怎么检查知识库？
 
@@ -97,6 +119,16 @@ aiwiki lint --json
 aiwiki lint --fix-empty-dirs --json
 aiwiki lint --json
 ```
+
+需要 capsule 相关检查时：
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+```
+
+`aiwiki lint --strict --json` 适合发布或 CI 风格验证，不应作为普通用户整理知识库的默认路径。
 
 ## 哪些能力不在范围内？
 

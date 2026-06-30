@@ -38,9 +38,12 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 ```text
 AI assistant reads a source
   -> AIWiki writes local Markdown artifacts
+  -> AIWiki groups them as a Source Capsule
   -> assistant retrieves context with aiwiki context
   -> aiwiki lint checks structure and consistency
 ```
+
+In 0.3.0, human `aiwiki query` output defaults to Source Capsules. Agent integrations can keep using stable `aiwiki.context.v1`, or request capsule JSON with `aiwiki context "<topic>" --view capsule`.
 
 For public trials, keep the first loop to one source and one question: setup, ingest, inspect the run artifacts, query/context reuse, lint/doctor, and a short feedback note.
 

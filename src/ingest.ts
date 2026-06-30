@@ -39,6 +39,7 @@ export type AgentReport = {
 };
 
 type ArtifactLinks = {
+  capsuleId: string;
   slug: string;
   runId: string;
   createdAt: string;
@@ -277,6 +278,14 @@ async function writeSummary(
     "---",
     `aiwiki_id: "${escapeYaml(`${slug}:run:${runId}`)}"`,
     `type: "processing_summary"`,
+    ...(links ? capsuleMetadataFrontmatter(links, {
+      role: "run_log",
+      visibility: "debug",
+      description: `Processing summary for ${payload.source.title ?? "Untitled"}.`,
+      knowledgeStatus: payload.source.fetch_status === "failed" ? "needs_review" : "active",
+      confidenceLevel: payload.source.fetch_status === "failed" ? "low" : "medium",
+      evidenceRefs: [links.raw, links.sourceCard]
+    }) : []),
     `status: "${payload.source.fetch_status === "failed" ? "fetch-failed" : "to-review"}"`,
     `slug: "${escapeYaml(slug)}"`,
     `title: "${escapeYaml(payload.source.title ?? "Untitled")}"`,
@@ -324,6 +333,14 @@ function contentFile(payload: NormalizedPayload, content: string, links: Artifac
     `aiwiki_id: "${escapeYaml(`${links.slug}:raw`)}"`,
     `title: "${escapeYaml(payload.source.title ?? "Untitled")}"`,
     `type: "raw_article"`,
+    ...capsuleMetadataFrontmatter(links, {
+      role: "raw_source",
+      visibility: "supporting",
+      description: `Raw source captured for ${payload.source.title ?? "Untitled"}.`,
+      knowledgeStatus: "active",
+      confidenceLevel: "high",
+      evidenceRefs: [links.sourceCard, links.runSummary]
+    }),
     `status: "to-review"`,
     `slug: "${escapeYaml(links.slug)}"`,
     `source_type: "${escapeYaml(payload.source.kind)}"`,
@@ -355,6 +372,14 @@ function sourceCard(payload: NormalizedPayload, runId: string, links: ArtifactLi
     `aiwiki_id: "${escapeYaml(`${links.slug}:source-card`)}"`,
     `title: "${escapeYaml(payload.source.title ?? "Untitled")}"`,
     `type: "source_card"`,
+    ...capsuleMetadataFrontmatter(links, {
+      role: "source_card",
+      visibility: "supporting",
+      description: payload.analysis?.summary ?? `Source card for ${payload.source.title ?? "Untitled"}.`,
+      knowledgeStatus: grounding.needs_review ? "needs_review" : "active",
+      confidenceLevel: grounding.evidence_available ? "high" : "medium",
+      evidenceRefs: [links.raw, links.runSummary]
+    }),
     `status: "to-review"`,
     `slug: "${escapeYaml(links.slug)}"`,
     `source_type: "${escapeYaml(payload.source.kind)}"`,
@@ -412,6 +437,14 @@ function claims(payload: NormalizedPayload, links: ArtifactLinks, grounding: Gro
     `aiwiki_id: "${escapeYaml(`${links.slug}:claims`)}"`,
     `title: "${escapeYaml(payload.source.title ?? "Untitled")} Claims"`,
     `type: "claim_suggestions"`,
+    ...capsuleMetadataFrontmatter(links, {
+      role: "claim_suggestions",
+      visibility: "supporting",
+      description: `Claim suggestions for ${payload.source.title ?? "Untitled"}.`,
+      knowledgeStatus: "needs_review",
+      confidenceLevel: grounding.evidence_available ? "medium" : "low",
+      evidenceRefs: [links.raw, links.sourceCard, links.runSummary]
+    }),
     `status: "to-review"`,
     `slug: "${escapeYaml(links.slug)}"`,
     `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
@@ -456,6 +489,14 @@ function creativeAssets(payload: NormalizedPayload, links: ArtifactLinks): strin
     `aiwiki_id: "${escapeYaml(`${links.slug}:assets`)}"`,
     `title: "${escapeYaml(payload.source.title ?? "Untitled")} Assets"`,
     `type: "asset_suggestions"`,
+    ...capsuleMetadataFrontmatter(links, {
+      role: "asset_suggestions",
+      visibility: "supporting",
+      description: `Creative asset suggestions for ${payload.source.title ?? "Untitled"}.`,
+      knowledgeStatus: "needs_review",
+      confidenceLevel: "medium",
+      evidenceRefs: [links.raw, links.sourceCard, links.runSummary]
+    }),
     `status: "to-review"`,
     `slug: "${escapeYaml(links.slug)}"`,
     `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
@@ -484,6 +525,14 @@ function topics(payload: NormalizedPayload, links: ArtifactLinks): string {
     `aiwiki_id: "${escapeYaml(`${links.slug}:topics`)}"`,
     `title: "${escapeYaml(payload.source.title ?? "Untitled")} Topics"`,
     `type: "topic_candidates"`,
+    ...capsuleMetadataFrontmatter(links, {
+      role: "topic_suggestions",
+      visibility: "supporting",
+      description: `Topic candidates for ${payload.source.title ?? "Untitled"}.`,
+      knowledgeStatus: "active",
+      confidenceLevel: "medium",
+      evidenceRefs: [links.raw, links.sourceCard, links.runSummary]
+    }),
     `status: "ready"`,
     `slug: "${escapeYaml(links.slug)}"`,
     `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
@@ -512,6 +561,14 @@ function outline(payload: NormalizedPayload, links: ArtifactLinks): string {
     `aiwiki_id: "${escapeYaml(`${links.slug}:outline`)}"`,
     `title: "${escapeYaml(payload.source.title ?? "Untitled")} Outline"`,
     `type: "draft_outline"`,
+    ...capsuleMetadataFrontmatter(links, {
+      role: "outline",
+      visibility: "supporting",
+      description: `Draft outline for ${payload.source.title ?? "Untitled"}.`,
+      knowledgeStatus: "needs_review",
+      confidenceLevel: "medium",
+      evidenceRefs: [links.raw, links.sourceCard, links.runSummary]
+    }),
     `status: "draft"`,
     `slug: "${escapeYaml(links.slug)}"`,
     `source_url: "${escapeYaml(payload.source.url ?? "")}"`,
@@ -660,6 +717,7 @@ function buildArtifactLinks(
   longTermTargets: LongTermTargets
 ): ArtifactLinks {
   return {
+    capsuleId: createCapsuleId(contentFingerprint),
     slug,
     runId: runDirName,
     createdAt,
@@ -673,6 +731,10 @@ function buildArtifactLinks(
     outline: longTermTargets.outline ? relativePath(root, longTermTargets.outline) : undefined,
     runSummary: `09-runs/${runDirName}/processing-summary.md`
   };
+}
+
+function createCapsuleId(contentFingerprint: string): string {
+  return `src_${contentFingerprint.replace(/^sha256:/, "").slice(0, 16)}`;
 }
 
 function createContentFingerprint(content: string): string {
@@ -690,6 +752,61 @@ function relationshipFrontmatter(links: ArtifactLinks): string[] {
     ...(links.outline ? [`outline_note: "${escapeYaml(obsidianLink(links.outline, "大纲"))}"`] : []),
     `run_summary: "${escapeYaml(obsidianLink(links.runSummary, "处理记录"))}"`
   ];
+}
+
+function capsuleMetadataFrontmatter(
+  links: ArtifactLinks,
+  options: {
+    role: string;
+    visibility: "primary" | "supporting" | "debug";
+    description: string;
+    knowledgeStatus: string;
+    confidenceLevel: string;
+    evidenceRefs: string[];
+  }
+): string[] {
+  return [
+    `capsule_id: "${escapeYaml(links.capsuleId)}"`,
+    `artifact_role: "${escapeYaml(options.role)}"`,
+    `visibility: "${options.visibility}"`,
+    `description: "${escapeYaml(options.description)}"`,
+    `resource: "${escapeYaml(links.raw)}"`,
+    `timestamp: "${escapeYaml(links.createdAt)}"`,
+    `knowledge_status: "${escapeYaml(options.knowledgeStatus)}"`,
+    `confidence_level: "${escapeYaml(options.confidenceLevel)}"`,
+    "confidence_score: null",
+    `last_confirmed: "${escapeYaml(links.createdAt)}"`,
+    `valid_from: "${escapeYaml(links.createdAt)}"`,
+    "valid_until: null",
+    `staleness: "fresh"`,
+    `evidence_count: ${options.evidenceRefs.length}`,
+    `evidence_refs: ${yamlStringArray(options.evidenceRefs)}`,
+    "access_count: 0",
+    "last_accessed: null",
+    "supersedes: []",
+    "superseded_by: []",
+    "contradicted_by: []",
+    ...relationshipObjectFrontmatter(links)
+  ];
+}
+
+function relationshipObjectFrontmatter(links: ArtifactLinks): string[] {
+  return [
+    "relationships:",
+    '  - type: "derived_from"',
+    `    target: "${escapeYaml(links.raw)}"`,
+    '    confidence_level: "high"',
+    '  - type: "related_to"',
+    `    target: "${escapeYaml(links.sourceCard)}"`,
+    '    confidence_level: "medium"',
+    '  - type: "mentions"',
+    `    target: "${escapeYaml(links.runSummary)}"`,
+    '    confidence_level: "medium"'
+  ];
+}
+
+function yamlStringArray(values: string[]): string {
+  return `[${values.map((value) => `"${escapeYaml(value)}"`).join(", ")}]`;
 }
 
 function obsidianFileReference(root: string, file: string) {

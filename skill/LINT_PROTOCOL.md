@@ -15,23 +15,34 @@ Use this protocol when the user asks:
 aiwiki lint --json
 ```
 
-2. If `safe_fixes.only_safe_fixes` is true and the user allows cleanup, apply the built-in safe fix and rerun JSON lint:
+2. Run capsule-aware checks only when the user asks for deeper health, release readiness, or Source Capsule validation:
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+aiwiki lint --strict --json
+```
+
+Default lint must stay quiet for legacy workspaces that do not have capsule metadata. Use `--strict` for release or CI-style validation, not as the ordinary user cleanup path.
+
+3. If `safe_fixes.only_safe_fixes` is true and the user allows cleanup, apply the built-in safe fix and rerun JSON lint:
 
 ```bash
 aiwiki lint --fix-empty-dirs --json
 aiwiki lint --json
 ```
 
-3. Read the terminal report.
-4. Mention the report path, usually:
+4. Read the terminal report.
+5. Mention the report path, usually:
 
 ```text
 dashboards/Lint Report.md
 ```
 
-5. Explain warnings and errors as structure-health feedback.
-6. Do not frame lint as "the user must manually audit every note".
-7. If `aiwiki next` recommends `aiwiki agent sync --yes`, treat Agent skill setup as the next operational step before asking the user to ingest or query more material.
+6. Explain warnings and errors as structure-health feedback.
+7. Do not frame lint as "the user must manually audit every note".
+8. If `aiwiki next` recommends `aiwiki agent sync --yes`, treat Agent skill setup as the next operational step before asking the user to ingest or query more material.
 
 ## Issue Meaning
 
@@ -39,6 +50,10 @@ dashboards/Lint Report.md
 - `warning`: likely fix needed, such as missing source fields or stale fallback entries.
 - `info`: useful inventory, such as deterministic fallback count or duplicate titles.
 - `safe_fixes`: machine-readable count of safe fixes available/applied; `only_safe_fixes` means all current issues are safe to apply with the supported fixer.
+- `capsule_missing_primary`: the capsule has no primary Wiki Entry.
+- `capsule_duplicate_primary`: more than one artifact claims primary visibility or role.
+- `lifecycle`: lifecycle state, confidence, evidence, or relationship metadata needs review.
+- `okf_readiness`: the capsule is not ready for OKF-style reuse because resource, description, timestamp, evidence, or citation fields are missing.
 
 ## Repair Guidance
 

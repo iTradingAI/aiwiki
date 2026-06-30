@@ -112,10 +112,26 @@ The assistant should call:
 aiwiki context "<topic>"
 ```
 
+For Source Capsule JSON, use:
+
+```bash
+aiwiki context "<topic>" --view capsule
+```
+
 For direct terminal output, use:
 
 ```bash
 aiwiki query "<topic>"
+```
+
+`query` defaults to the low-entropy Source Capsule view. Use `aiwiki query "<topic>" --view files` when you need the older file-group view for troubleshooting or detailed inspection.
+
+To inspect one source package directly:
+
+```bash
+aiwiki show "<topic>"
+aiwiki show --id <capsule_id>
+aiwiki show --artifact-path <artifact.md> --path <workspace>
 ```
 
 ### Check your workspace
@@ -130,6 +146,15 @@ The assistant should call:
 
 ```bash
 aiwiki lint --json
+```
+
+For the 0.3.0 Source Capsule layer, deeper checks are opt-in:
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+aiwiki lint --strict --json
 ```
 
 ## What AIWiki Creates
@@ -153,6 +178,8 @@ Optional files may also be created when the assistant provides enough structured
 ```
 
 The Wiki Entry is the main reusable knowledge surface. The raw record and source card preserve traceability, so you can always go back from a summary to the source.
+
+AIWiki 0.3.0 also treats those files as one logical Source Capsule. A capsule groups the Wiki Entry, Source Card, Raw file, optional suggestions, and run record around the same source. New artifacts include additive metadata such as `capsule_id`, `artifact_role`, `visibility`, lifecycle status, relationship fields, and OKF-ready fields. Old workspaces do not need a bulk migration; AIWiki can infer capsules from the existing Markdown layout.
 
 See:
 

@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-import { frontmatterArray, frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmatter.js";
+import { frontmatterArray, frontmatterBoolean, frontmatterString, parseMarkdown, type FrontmatterValue } from "./frontmatter.js";
 import { relativePath } from "./paths.js";
 import { exists } from "./workspace.js";
 
@@ -304,7 +304,7 @@ function normalizeType(value: string): string {
   return value.replace(/-/g, "_").toLowerCase();
 }
 
-function relatedReferences(frontmatter: Record<string, string | boolean | string[]>, body: string): string[] {
+function relatedReferences(frontmatter: Record<string, FrontmatterValue>, body: string): string[] {
   const refs = [
     frontmatterString(frontmatter, "source_card"),
     frontmatterString(frontmatter, "raw_file"),

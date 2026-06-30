@@ -22,6 +22,13 @@ npm pack --dry-run
 
 npm 包只应包含 CLI 运行文件、用户文档、示例和 packaged skill。
 
+对 0.3.0 Source Capsule 发布，dry-run 还必须确认：
+
+- `dist/src` 包含 capsule 运行模块。
+- public docs 和 `skill/` 协议文件已经包含 Source Capsule 说明。
+- 内部 0.3.0 规划文件默认不打进包，除非后续明确改变发布决策。
+- `.omx`、`.npm-cache`、临时 smoke 目录和私有规划产物不在包里。
+
 ## 版本
 
 `package.json` 是版本来源。`aiwiki --version` 运行时读取它。
@@ -52,6 +59,29 @@ npm version patch --no-git-tag-version
 ```
 
 如果远端 smoke 失败，不推 GitHub，不发布 npm。先本地修复，重新构建、打包、远端验证。
+
+0.3.0 smoke 必须用同一个 packed tarball 覆盖新增和兼容命令面：
+
+```bash
+aiwiki show "<主题>" --path <workspace>
+aiwiki show "<主题>" --json --path <workspace>
+aiwiki query "<主题>" --path <workspace>
+aiwiki query "<主题>" --view files --path <workspace>
+aiwiki context "<主题>" --path <workspace>
+aiwiki context "<主题>" --view capsule --path <workspace>
+aiwiki lint --capsules --path <workspace>
+aiwiki lint --lifecycle --path <workspace>
+aiwiki lint --okf --path <workspace>
+aiwiki status --path <workspace>
+```
+
+稳定契约：
+
+- 默认 `context` 仍然是 `schema_version: "aiwiki.context.v1"`。
+- capsule context 返回 `schema_version: "aiwiki.context.capsule.v1"`。
+- 默认 `query` 是 capsule 视图。
+- `query --view files` 仍然可用。
+- capsule lint 模式可以运行，但旧知识库缺少 capsule 元数据不应变成默认 lint 噪音。
 
 ## 发布
 

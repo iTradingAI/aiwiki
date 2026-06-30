@@ -18,9 +18,12 @@ test("help exposes only base commands", async () => {
   assert.match(text, /aiwiki agent check --json/);
   assert.match(text, /aiwiki ingest-agent --stdin/);
   assert.match(text, /aiwiki ingest-file --file <file>/);
+  assert.match(text, /aiwiki show <query>/);
   assert.match(text, /aiwiki context <query>/);
   assert.match(text, /aiwiki query <query>/);
   assert.match(text, /aiwiki lint/);
+  assert.match(text, /aiwiki lint --capsules --json/);
+  assert.match(text, /aiwiki lint --strict --json/);
   assert.match(text, /aiwiki lint --fix-empty-dirs --json/);
   assert.doesNotMatch(text, /aiwiki init/);
   assert.doesNotMatch(text, /aiwiki agent install/);
@@ -42,6 +45,8 @@ test("agent and context help explain sync and filters", async () => {
 
   const contextOut = new MemoryWritable();
   assert.equal(await runCli(["context", "--help"], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
+  assert.match(contextOut.text(), /aiwiki show <topic>/);
+  assert.match(contextOut.text(), /--view capsule/);
   assert.match(contextOut.text(), /--source-role/);
   assert.match(contextOut.text(), /result_quality/);
 });
@@ -112,7 +117,7 @@ test("CLI setup stores default workspace for no-path commands", async () => {
     assert.equal(await runCli(["setup", "--path", root, "--yes"], { stdout: setupOut, stderr: new MemoryWritable() }), 0);
     assert.match(setupOut.text(), /默认知识库:/);
     assert.match(setupOut.text(), /用户配置:/);
-    assert.match(setupOut.text(), /新建数据库文件数: 12/);
+    assert.match(setupOut.text(), /新建数据库文件数: 13/);
     assert.match(setupOut.text(), /Obsidian 入口: dashboards\/AIWiki Home\.md/);
     assert.match(setupOut.text(), /aiwiki agent sync --yes/);
     assert.match(setupOut.text(), /aiwiki ingest-agent --stdin/);
@@ -493,6 +498,48 @@ test("CLI context returns JSON matches with wiki quality", async () => {
   }
 });
 
+test("CLI context supports capsule view without changing default v1 schema", async () => {
+  const root = await tempRoot("aiwiki-cli-context-capsule");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.analysis.grounded.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+
+    const defaultOut = new MemoryWritable();
+    assert.equal(await runCli(["context", "Grounded", "--path", root], { stdout: defaultOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(defaultOut.text()) as { schema_version: string }).schema_version, "aiwiki.context.v1");
+
+    const capsuleOut = new MemoryWritable();
+    assert.equal(await runCli(["context", "Grounded", "--view", "capsule", "--path", root], { stdout: capsuleOut, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(capsuleOut.text()) as {
+      schema_version: string;
+      query_scope: { view: string; filters: { type?: string; status?: string } };
+      capsules: Array<{ id: string; primary?: { path: string }; okf: { ready: boolean } }>;
+      recommended_next_action: string;
+    };
+    assert.equal(parsed.schema_version, "aiwiki.context.capsule.v1");
+    assert.equal(parsed.query_scope.view, "capsule");
+    assert.equal(parsed.capsules.length, 1);
+    assert.match(parsed.capsules[0]?.id ?? "", /^src_/);
+    assert.equal(parsed.capsules[0]?.primary?.path, "05-wiki/source-knowledge/grounded-notes.md");
+    assert.equal(parsed.capsules[0]?.okf.ready, true);
+    assert.equal(parsed.recommended_next_action, "use_capsules_for_answer");
+
+    const filteredOut = new MemoryWritable();
+    assert.equal(await runCli(["context", "Grounded", "--view", "capsule", "--type", "wiki_entries", "--status", "active", "--path", root], { stdout: filteredOut, stderr: new MemoryWritable() }), 0);
+    const filtered = JSON.parse(filteredOut.text()) as { query_scope: { filters: { type: string; status: string } }; capsules: unknown[] };
+    assert.deepEqual(filtered.query_scope.filters, { type: "wiki_entries", status: "active" });
+    assert.equal(filtered.capsules.length, 1);
+
+    const noMatchOut = new MemoryWritable();
+    assert.equal(await runCli(["context", "Grounded", "--view", "capsule", "--type", "source_cards", "--status", "ready", "--path", root], { stdout: noMatchOut, stderr: new MemoryWritable() }), 0);
+    const noMatch = JSON.parse(noMatchOut.text()) as { capsules: unknown[]; missing_context: string[] };
+    assert.equal(noMatch.capsules.length, 0);
+    assert.ok(noMatch.missing_context.includes("matching_capsule"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI context supports filters and limit for Agent JSON", async () => {
   const root = await tempRoot("aiwiki-cli-context-filters");
   try {
@@ -522,7 +569,7 @@ test("CLI context supports filters and limit for Agent JSON", async () => {
   }
 });
 
-test("CLI query renders human-readable context without changing context JSON", async () => {
+test("CLI query defaults to capsule view and preserves file view", async () => {
   const root = await tempRoot("aiwiki-cli-query");
   try {
     await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
@@ -530,20 +577,66 @@ test("CLI query renders human-readable context without changing context JSON", a
     const queryOut = new MemoryWritable();
     assert.equal(await runCli(["query", "AI Agent", "--path", root], { stdout: queryOut, stderr: new MemoryWritable() }), 0);
     assert.match(queryOut.text(), /AIWiki 查询: AI Agent/);
-    assert.match(queryOut.text(), /结果质量: matches=/);
-    assert.match(queryOut.text(), /Reuse workflows:/);
-    assert.match(queryOut.text(), /writing:/);
-    assert.match(queryOut.text(), /decision:/);
-    assert.match(queryOut.text(), /review:/);
-    assert.match(queryOut.text(), /reasons=/);
-    assert.match(queryOut.text(), /quality=/);
-    assert.match(queryOut.text(), /Wiki 条目/);
-    assert.match(queryOut.text(), /05-wiki\/source-knowledge\/ai-agent-workflow-notes\.md/);
+    assert.match(queryOut.text(), /Source Capsules:/);
+    assert.match(queryOut.text(), /view: capsule/);
+    assert.match(queryOut.text(), /primary=05-wiki\/source-knowledge\/ai-agent-workflow-notes\.md/);
+
+    const filteredQueryOut = new MemoryWritable();
+    assert.equal(await runCli(["query", "AI Agent", "--type", "source_cards", "--status", "ready", "--path", root], { stdout: filteredQueryOut, stderr: new MemoryWritable() }), 0);
+    assert.match(filteredQueryOut.text(), /Source Capsules: 0/);
+    assert.doesNotMatch(filteredQueryOut.text(), /primary=05-wiki\/source-knowledge\/ai-agent-workflow-notes\.md/);
+
+    const fileViewOut = new MemoryWritable();
+    assert.equal(await runCli(["query", "AI Agent", "--view", "files", "--path", root], { stdout: fileViewOut, stderr: new MemoryWritable() }), 0);
+    assert.match(fileViewOut.text(), /AIWiki 查询: AI Agent/);
+    assert.match(fileViewOut.text(), /结果质量: matches=/);
+    assert.match(fileViewOut.text(), /Reuse workflows:/);
+    assert.match(fileViewOut.text(), /writing:/);
+    assert.match(fileViewOut.text(), /decision:/);
+    assert.match(fileViewOut.text(), /review:/);
+    assert.match(fileViewOut.text(), /reasons=/);
+    assert.match(fileViewOut.text(), /quality=/);
+    assert.match(fileViewOut.text(), /Wiki 条目/);
+    assert.match(fileViewOut.text(), /05-wiki\/source-knowledge\/ai-agent-workflow-notes\.md/);
 
     const contextOut = new MemoryWritable();
     assert.equal(await runCli(["context", "AI Agent", "--path", root], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
     const parsed = JSON.parse(contextOut.text()) as { schema_version: string };
     assert.equal(parsed.schema_version, "aiwiki.context.v1");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI show displays one Source Capsule by query, id, and json", async () => {
+  const root = await tempRoot("aiwiki-cli-show");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.analysis.grounded.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+
+    const showOut = new MemoryWritable();
+    assert.equal(await runCli(["show", "Grounded", "--path", root], { stdout: showOut, stderr: new MemoryWritable() }), 0);
+    assert.match(showOut.text(), /Source Capsule: Grounded Notes/);
+    assert.match(showOut.text(), /primary: 05-wiki\/source-knowledge\/grounded-notes\.md/);
+    assert.match(showOut.text(), /OKF readiness:/);
+
+    const jsonOut = new MemoryWritable();
+    assert.equal(await runCli(["show", "Grounded", "--json", "--path", root], { stdout: jsonOut, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(jsonOut.text()) as { id: string; primary?: { path: string }; artifacts: Array<{ path: string }> };
+    assert.match(parsed.id, /^src_/);
+    assert.equal(parsed.primary?.path, "05-wiki/source-knowledge/grounded-notes.md");
+
+    const idOut = new MemoryWritable();
+    assert.equal(await runCli(["show", "--id", parsed.id, "--path", root], { stdout: idOut, stderr: new MemoryWritable() }), 0);
+    assert.match(idOut.text(), new RegExp(`id: ${parsed.id}`));
+
+    const artifactOut = new MemoryWritable();
+    assert.equal(await runCli(["show", "--artifact-path", "05-wiki/source-knowledge/grounded-notes.md", "--path", root], { stdout: artifactOut, stderr: new MemoryWritable() }), 0);
+    assert.match(artifactOut.text(), /Source Capsule: Grounded Notes/);
+
+    const legacyPathOut = new MemoryWritable();
+    assert.equal(await runCli(["show", "--path", "05-wiki/source-knowledge/grounded-notes.md", "--workspace", root], { stdout: legacyPathOut, stderr: new MemoryWritable() }), 0);
+    assert.match(legacyPathOut.text(), /Source Capsule: Grounded Notes/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -671,6 +764,55 @@ test("CLI lint supports severity json and no-write modes", async () => {
   }
 });
 
+test("CLI lint supports capsule lifecycle OKF and strict modes", async () => {
+  const root = await tempRoot("aiwiki-cli-lint-capsule-modes");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const orphanPath = path.join(root, "03-sources", "article-cards", "orphan-capsule.md");
+    await writeFile(orphanPath, `---
+title: "Orphan Capsule"
+type: "source_card"
+status: "to-review"
+capsule_id: "src_orphan"
+artifact_role: "source_card"
+visibility: "supporting"
+created_at: "2026-06-30T00:00:00.000Z"
+knowledge_status: "active"
+confidence_level: "medium"
+valid_until: "2000-01-01T00:00:00.000Z"
+staleness: "fresh"
+evidence_count: 0
+---
+
+# Orphan Capsule
+
+Source card without a matching Wiki Entry.
+`, "utf8");
+
+    const capsuleOut = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--capsules", "--json", "--path", root], { stdout: capsuleOut, stderr: new MemoryWritable() }), 0);
+    const capsuleReport = JSON.parse(capsuleOut.text()) as { issues: Array<{ severity: string; category?: string }> };
+    assert.equal(capsuleReport.issues.some((issue) => issue.category === "capsule_missing_primary" && issue.severity === "warning"), true);
+
+    const lifecycleOut = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--lifecycle", "--json", "--path", root], { stdout: lifecycleOut, stderr: new MemoryWritable() }), 0);
+    const lifecycleReport = JSON.parse(lifecycleOut.text()) as { issues: Array<{ category?: string; message?: string }> };
+    assert.equal(lifecycleReport.issues.some((issue) => issue.category === "lifecycle" && /active_but_valid_until_expired/.test(issue.message ?? "")), true);
+
+    const okfOut = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--okf", "--json", "--path", root], { stdout: okfOut, stderr: new MemoryWritable() }), 0);
+    const okfReport = JSON.parse(okfOut.text()) as { issues: Array<{ category?: string; message?: string }> };
+    assert.equal(okfReport.issues.some((issue) => issue.category === "okf_readiness" && /okf_missing/.test(issue.message ?? "")), true);
+
+    const strictOut = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--strict", "--json", "--path", root], { stdout: strictOut, stderr: new MemoryWritable() }), 0);
+    const strictReport = JSON.parse(strictOut.text()) as { issues: Array<{ severity: string; category?: string }> };
+    assert.equal(strictReport.issues.some((issue) => issue.category === "capsule_missing_primary" && issue.severity === "error"), true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI lint fix-empty-dirs removes only known empty optional directories", async () => {
   const root = await tempRoot("aiwiki-cli-lint-empty-dirs");
   try {
@@ -752,9 +894,21 @@ test("CLI status reports diagnostic counters and next action", async () => {
     assert.equal(await runCli(["status", "--path", root], { stdout: out, stderr: new MemoryWritable() }), 0);
     assert.match(out.text(), /fallback_entries: 0/);
     assert.match(out.text(), /grounding_review_entries: 0/);
+    assert.match(out.text(), /capsule_count: 0/);
+    assert.match(out.text(), /capsule_with_primary_count: 0/);
+    assert.match(out.text(), /entropy_risk: low/);
+    assert.match(out.text(), /lifecycle_risk: low/);
+    assert.match(out.text(), /okf_ready_count: 0/);
     assert.match(out.text(), /lint_status: missing/);
     assert.match(out.text(), /system_files: _system\/purpose\.md=ok/);
     assert.match(out.text(), /next_action: aiwiki agent sync --yes/);
+
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.analysis.grounded.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const afterIngest = new MemoryWritable();
+    assert.equal(await runCli(["status", "--path", root], { stdout: afterIngest, stderr: new MemoryWritable() }), 0);
+    assert.match(afterIngest.text(), /capsule_count: 1/);
+    assert.match(afterIngest.text(), /capsule_with_primary_count: 1/);
+    assert.match(afterIngest.text(), /okf_ready_count: 1/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

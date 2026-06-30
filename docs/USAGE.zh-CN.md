@@ -129,12 +129,35 @@ AIWiki 里关于 <主题> 有什么？
 aiwiki context "<主题>"
 ```
 
-`context` 返回给助手使用的 JSON，包含查询范围、结果质量、匹配原因、质量信号和相关引用。
+默认 `context` 返回稳定的 `aiwiki.context.v1` JSON，包含查询范围、结果质量、匹配原因、质量信号和相关引用。
+
+如果需要 0.3.0 的 Source Capsule 对象视图，调用：
+
+```bash
+aiwiki context "<主题>" --view capsule
+```
+
+Capsule context 返回 `aiwiki.context.capsule.v1`，里面包含按来源聚合后的 capsule、生命周期警告、OKF readiness、缺失上下文和下一步建议。
 
 人在终端里看结果可以用：
 
 ```bash
 aiwiki query "<主题>"
+```
+
+`query` 默认显示 Source Capsule 视图，把同一来源的 Wiki Entry、Source Card、Raw、可选建议文件和运行记录组织在一起。需要旧的文件分组输出时再使用：
+
+```bash
+aiwiki query "<主题>" --view files
+```
+
+查看单个 capsule：
+
+```bash
+aiwiki show "<主题>"
+aiwiki show --id <capsule_id>
+aiwiki show --artifact-path <artifact.md> --path <workspace>
+aiwiki show "<主题>" --json
 ```
 
 ## 5. 检查和维护知识库
@@ -150,6 +173,19 @@ aiwiki query "<主题>"
 ```bash
 aiwiki lint --json
 ```
+
+默认 lint 仍然只做文件和结构检查，不会因为旧知识库没有 capsule 元数据就制造噪音。
+
+0.3.0 的深层检查需要显式开启：
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+aiwiki lint --strict --json
+```
+
+`--strict` 适合发布或 CI 风格检查，不应作为普通用户整理知识库的默认入口。
 
 如果只有安全修复，并且你允许整理：
 
@@ -191,6 +227,16 @@ Wiki Entry 有两种质量模式：
 
 - `agent_enriched` / `enriched`：助手提供了分析或 Wiki 内容。
 - `deterministic_fallback` / `scaffold`：AIWiki 只根据来源内容生成可追踪脚手架。
+
+Source Capsule 元数据是增量字段。新生成文件可能包含：
+
+- `capsule_id`、`artifact_role`、`visibility`
+- `knowledge_status`、`confidence_level`、`confidence_score`、`staleness`
+- `evidence_refs`、`evidence_count`、`last_confirmed`
+- `relationships`、`supersedes`、`superseded_by`、`contradicted_by`
+- OKF-ready 字段，例如 `resource`、`description`、`timestamp`
+
+旧知识库不需要批量迁移。缺少显式 `capsule_id` 时，capsule 命令会从路径、来源 URL、内容指纹和 run ID 推断聚合关系。
 
 ## 7. Obsidian 和 Dataview
 

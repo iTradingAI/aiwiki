@@ -10,6 +10,10 @@ Use this note when an Agent finishes `aiwiki agent sync`.
 - `aiwiki context` supports `--type`, `--source-role`, `--wiki-type`, `--status`, and `--limit`.
 - Context JSON includes `query_scope`, `result_quality`, `recommended_next_action`, `match_reasons`, `quality_signals`, and `related_refs`.
 - Scaffold or grounding-review matches are traceable leads, not final confirmed knowledge.
+- 0.3.0 adds Source Capsule commands: `aiwiki show`, default capsule `aiwiki query`, and `aiwiki context --view capsule`.
+- `aiwiki query "<topic>" --view files` preserves the older file-level query output.
+- Capsule-aware lint is opt-in through `aiwiki lint --capsules`, `--lifecycle`, `--okf`, and `--strict`.
+- Source Capsule metadata is additive; old workspaces do not require bulk migration.
 
 ## Agent Reply After Sync
 

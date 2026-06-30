@@ -2,6 +2,35 @@
 
 This log records queue-driven AIWiki development milestones that should remain visible to future maintainers, not only in automation chat history.
 
+## 2026-06-30 - Source Capsule object layer 0.3.0
+
+Status: implemented, locally verified, and pre-GitHub remote-smoke verified for `@itradingai/aiwiki@0.3.0`.
+
+Version target: `@itradingai/aiwiki@0.3.0`
+
+### Goal
+
+Upgrade AIWiki from file-centric Markdown artifact retrieval to a Source Capsule object layer while preserving the base CLI boundary, physical folders, default `aiwiki.context.v1`, and one-knowledge-base scope.
+
+### Implemented
+
+- Added Source Capsule runtime modules for artifact discovery, grouping, query rendering, direct `show`, capsule context, lifecycle state, relationships, OKF-ready projection, and capsule-aware lint.
+- Added additive capsule, lifecycle, relationship, and OKF-ready metadata to new ingest artifacts and Wiki Entries.
+- Changed human `query` output to capsule view by default while preserving old file-level output with `--view files`.
+- Kept default `context` on `aiwiki.context.v1` and added `context --view capsule` for `aiwiki.context.capsule.v1`.
+- Added opt-in `lint --capsules`, `--lifecycle`, `--okf`, and `--strict` checks; default lint stays legacy-compatible.
+- Added status capsule metrics and Source Capsules workspace/dashboard seeds.
+- Updated README, usage, FAQ, Agent handoff, roadmap, release docs, examples, and skill protocols.
+
+### Verification
+
+- `npm run release:check`: passed, 76 tests.
+- `npm pack --dry-run --json --ignore-scripts`: passed for `@itradingai/aiwiki@0.3.0`, 106 files. The exact tarball shasum is recorded in the release command output for the final pack artifact.
+- Pack inspection confirmed new capsule runtime modules, Source Capsules dashboard, public docs, and skill files are included.
+- Pack inspection confirmed internal 0.3.0 planning docs, `.omx`, and `.npm-cache` are excluded.
+- Exact local tarball smoke passed from a clean temp install with `itradingai-aiwiki-0.3.0.tgz`; verified version, `show`, `show --artifact-path`, default capsule query, capsule query filters, `query --view files`, default context v1, capsule context v1, capsule context filters, capsule lint modes, and status capsule metrics.
+- Pre-GitHub remote tarball smoke passed on `170.106.73.197` in `/tmp/aiwiki-030-prepublish-20260630T213753` using the exact local tarball; result file `/tmp/aiwiki-030-prepublish-20260630T213753/result.json`.
+
 ## 2026-06-30 - Operating feedback loop and queue governance
 
 Status: implemented and locally verified for `AIWIKI-011`; remote prepublish smoke, Trusted Publishing, and postpublish remote smoke are still required before queue completion.

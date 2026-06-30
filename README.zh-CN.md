@@ -108,10 +108,26 @@ AIWiki 里关于 <主题> 有什么？
 aiwiki context "<主题>"
 ```
 
+如果需要 Source Capsule 结构化 JSON，使用：
+
+```bash
+aiwiki context "<主题>" --view capsule
+```
+
 如果人在终端里直接查询，可以用：
 
 ```bash
 aiwiki query "<主题>"
+```
+
+`query` 默认显示低噪音的 Source Capsule 视图。如果需要旧的文件分组视图用于排查或细看文件匹配，使用 `aiwiki query "<主题>" --view files`。
+
+如果要直接查看某一个来源包：
+
+```bash
+aiwiki show "<主题>"
+aiwiki show --id <capsule_id>
+aiwiki show --artifact-path <artifact.md> --path <workspace>
 ```
 
 ### 检查知识库
@@ -126,6 +142,15 @@ aiwiki query "<主题>"
 
 ```bash
 aiwiki lint --json
+```
+
+0.3.0 的 Source Capsule 层检查是显式开启的：
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+aiwiki lint --strict --json
 ```
 
 如果你想让助手进一步整理知识库，可以参考 [使用指南](docs/USAGE.zh-CN.md) 里的检查流程。
@@ -151,6 +176,8 @@ aiwiki lint --json
 ```
 
 Wiki Entry 是主要复用层；Raw 和 Source Card 保留来源和追踪关系，方便以后回查。
+
+AIWiki 0.3.0 还会把这些文件视为一个逻辑 Source Capsule。一个 capsule 会把同一来源的 Wiki Entry、Source Card、Raw、可选建议文件和运行记录组织在一起。新生成文件会增加 `capsule_id`、`artifact_role`、`visibility`、生命周期状态、关系字段和 OKF-ready 字段。旧知识库不需要批量迁移；AIWiki 会从现有 Markdown 目录推断 capsule。
 
 可直接查看：
 

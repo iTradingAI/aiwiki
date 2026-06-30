@@ -12,12 +12,13 @@ test("init creates layout and keeps existing config", async () => {
     const first = await initWorkspace(root);
     assert.equal(first.createdConfig, true);
     assert.equal(first.createdDirs.length, 9);
-    assert.equal(first.seededFiles.filter((file) => file.created).length, 12);
+    assert.equal(first.seededFiles.filter((file) => file.created).length, 13);
 
     const configPath = path.join(root, "aiwiki.yaml");
     const original = await readFile(configPath, "utf8");
     const dashboardPath = path.join(root, "dashboards", "AIWiki Home.md");
     const reviewQueuePath = path.join(root, "dashboards", "Review Queue.md");
+    const sourceCapsulesPath = path.join(root, "dashboards", "Source Capsules.md");
     const purposePath = path.join(root, "_system", "purpose.md");
     const indexPath = path.join(root, "_system", "index.md");
     const logPath = path.join(root, "_system", "log.md");
@@ -38,6 +39,7 @@ test("init creates layout and keeps existing config", async () => {
     assert.equal(await readFile(purposePath, "utf8"), customPurpose);
     assert.match(await readFile(indexPath, "utf8"), /AIWiki System Index/);
     assert.match(await readFile(logPath, "utf8"), /AIWiki System Log/);
+    assert.match(await readFile(sourceCapsulesPath, "utf8"), /Source Capsules/);
     assert.match(await readFile(path.join(root, "_system", "schemas", "aiwiki-frontmatter.md"), "utf8"), /Dataview/);
 
     const summary = await directorySummary(root);

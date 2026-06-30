@@ -15,6 +15,8 @@ The roadmap keeps the base CLI focused. Advanced automation, crawling, multi-kno
 
 ### 2. Reusable local knowledge
 
+- Source Capsule as the default low-entropy human query view
+- explicit `aiwiki context --view capsule` for Agent object-level reuse
 - clearer Wiki Entry quality signals
 - better query/context explanations
 - more examples showing writing, research, decision, and review workflows
@@ -23,6 +25,7 @@ The roadmap keeps the base CLI focused. Advanced automation, crawling, multi-kno
 ### 3. Workspace health
 
 - practical lint output for humans and assistants
+- opt-in capsule, lifecycle, and OKF-ready lint checks
 - safe automatic fixes only when the fix is narrow and reversible
 - better status and doctor guidance
 - fewer empty optional artifacts in new workspaces
@@ -44,6 +47,7 @@ The base AIWiki CLI is not currently planning:
 - browser plugins
 - vector search
 - RAG-over-wiki
+- OKF export/import
 - multiple knowledge bases
 - RBAC
 - RSS or scheduled collection
@@ -59,6 +63,7 @@ AIWiki should stay boring in the right places:
 ```text
 assistant reads
 AIWiki writes
+Source Capsules group each source
 Markdown stays local
 context can be reused later
 ```

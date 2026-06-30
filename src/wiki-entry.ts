@@ -11,6 +11,7 @@ export type WikiEntryRenderResult = {
 };
 
 export type WikiEntryLinks = {
+  capsuleId: string;
   slug: string;
   runId: string;
   createdAt: string;
@@ -51,6 +52,7 @@ function wikiFrontmatter(
     "---",
     `aiwiki_id: "${escapeYaml(`${links.slug}:wiki-entry`)}"`,
     `type: "wiki_entry"`,
+    ...wikiCapsuleFrontmatter(payload, links, title, grounding),
     `wiki_type: "${wikiType(payload)}"`,
     `source_role: "${payload.source.source_role}"`,
     `represents_user_view: ${payload.source.represents_user_view ? "true" : "false"}`,
@@ -228,12 +230,55 @@ function listOrFallback(values: string[], fallback: string): string[] {
 
 function sourceSection(links: WikiEntryLinks): string {
   return [
-    "## 来源",
+    "## 来源与证据",
     "",
     `- Source Card: ${obsidianLink(links.sourceCard, "资料卡")}`,
     `- Raw: ${obsidianLink(links.raw, "原文")}`,
     `- Run: ${obsidianLink(links.runSummary, "处理记录")}`
   ].join("\n");
+}
+
+function wikiCapsuleFrontmatter(
+  payload: NormalizedPayload,
+  links: WikiEntryLinks,
+  title: string,
+  grounding: GroundingReport
+): string[] {
+  const description = payload.wiki_entry?.summary ?? payload.analysis?.summary ?? `Wiki entry for ${title}.`;
+  const evidenceRefs = [links.sourceCard, links.raw, links.runSummary];
+  return [
+    `capsule_id: "${escapeYaml(links.capsuleId)}"`,
+    `artifact_role: "primary"`,
+    `visibility: "primary"`,
+    `description: "${escapeYaml(description)}"`,
+    `resource: "${escapeYaml(payload.source.url ?? links.raw)}"`,
+    `timestamp: "${escapeYaml(links.createdAt)}"`,
+    `knowledge_status: "active"`,
+    `confidence_level: "${grounding.evidence_available ? "high" : "medium"}"`,
+    "confidence_score: null",
+    `last_confirmed: "${escapeYaml(links.createdAt)}"`,
+    `valid_from: "${escapeYaml(links.createdAt)}"`,
+    "valid_until: null",
+    `staleness: "fresh"`,
+    `evidence_count: ${evidenceRefs.length}`,
+    `evidence_refs: ${yamlStringArray(evidenceRefs)}`,
+    "access_count: 0",
+    "last_accessed: null",
+    "supersedes: []",
+    "superseded_by: []",
+    "contradicted_by: []",
+    "relationships:",
+    '  - type: "derived_from"',
+    `    target: "${escapeYaml(links.raw)}"`,
+    '    confidence_level: "high"',
+    '  - type: "supports"',
+    `    target: "${escapeYaml(links.sourceCard)}"`,
+    `    evidence: "${escapeYaml(grounding.evidence_channel)}"`,
+    `    confidence_level: "${grounding.evidence_available ? "high" : "medium"}"`,
+    '  - type: "mentions"',
+    `    target: "${escapeYaml(links.runSummary)}"`,
+    '    confidence_level: "medium"'
+  ];
 }
 
 function appendGroundingReview(sections: string[], grounding: GroundingReport): void {

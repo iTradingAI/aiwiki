@@ -5,10 +5,15 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
 import { flagBool, flagString, parseArgs, type ParsedArgs } from "./args.js";
+import { buildCapsuleContext } from "./capsule-context.js";
+import { buildCapsules, capsuleMetrics } from "./capsule.js";
+import type { CapsuleLintOptions } from "./capsule-lint.js";
 import { buildContext, type ContextFilters, type ContextResult } from "./context.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "./ingest.js";
 import { attachAppliedSafeFixes, filterLintReport, lintWorkspace, removeEmptyOptionalDirs, renderLintReport, renderLintSummary, writeLintReport, type LintSeverity } from "./lint.js";
 import { CliError, CliStreams, writeLine } from "./output.js";
+import { renderCapsuleQuery } from "./query-view.js";
+import { showCapsule } from "./show.js";
 import {
   confirmInit,
   directorySummary,
@@ -36,7 +41,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       printAgentHelp(streams.stdout);
       return 0;
     }
-    if ((command === "context" || command === "query") && args.flags.has("help")) {
+    if ((command === "context" || command === "query" || command === "show") && args.flags.has("help")) {
       printContextHelp(streams.stdout);
       return 0;
     }
@@ -187,6 +192,10 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       if (!query) {
         throw new CliError("请提供查询主题。");
       }
+      if (capsuleViewRequested(args)) {
+        writeLine(streams.stdout, JSON.stringify(await buildCapsuleContext(root, query, contextOptions(args)), null, 2));
+        return 0;
+      }
       writeLine(streams.stdout, JSON.stringify(await buildContext(root, query, contextOptions(args)), null, 2));
       return 0;
     }
@@ -197,7 +206,27 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       if (!query) {
         throw new CliError("请提供查询主题。");
       }
+      const view = queryView(args);
+      if (view === "capsule") {
+        writeLine(streams.stdout, await renderCapsuleQuery(root, query, contextOptions(args)));
+        return 0;
+      }
       writeLine(streams.stdout, renderQuery(await buildContext(root, query, contextOptions(args))));
+      return 0;
+    }
+
+    if (command === "show") {
+      const { rootPath, artifactPath } = showPathOptions(args);
+      const root = await resolveWorkspace(rootPath);
+      const query = args.positional.slice(1).join(" ").trim();
+      writeLine(streams.stdout, await showCapsule(root, {
+        query: query || undefined,
+        id: flagString(args, "id"),
+        artifactPath,
+        json: flagBool(args, "json"),
+        debug: flagBool(args, "debug"),
+        allArtifacts: flagBool(args, "all-artifacts")
+      }));
       return 0;
     }
 
@@ -214,7 +243,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       const root = await resolveWorkspace(flagString(args, "path"));
       const severity = parseLintSeverity(flagString(args, "severity"));
       const appliedSafeFixes = flagBool(args, "fix-empty-dirs") ? await removeEmptyOptionalDirs(root) : [];
-      const report = filterLintReport(attachAppliedSafeFixes(await lintWorkspace(root), appliedSafeFixes), severity);
+      const report = filterLintReport(attachAppliedSafeFixes(await lintWorkspace(root, new Date().toISOString(), lintOptions(args)), appliedSafeFixes), severity);
       if (flagBool(args, "json")) {
         writeLine(streams.stdout, JSON.stringify(report, null, 2));
         return 0;
@@ -308,9 +337,12 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki ingest-file --file <file>");
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
+  writeLine(stream, "  aiwiki show <query>");
   writeLine(stream, "  aiwiki context <query>");
   writeLine(stream, "  aiwiki query <query>");
   writeLine(stream, "  aiwiki lint");
+  writeLine(stream, "  aiwiki lint --capsules --json");
+  writeLine(stream, "  aiwiki lint --strict --json");
   writeLine(stream, "  aiwiki lint --fix-empty-dirs --json");
 }
 
@@ -340,8 +372,13 @@ function printContextHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "AIWiki context/query");
   writeLine(stream, "");
   writeLine(stream, "Local Markdown/frontmatter retrieval for host Agents and humans:");
+  writeLine(stream, "  aiwiki show <topic>");
+  writeLine(stream, "  aiwiki show --id <capsule_id>");
+  writeLine(stream, "  aiwiki show --artifact-path <artifact.md> --path <workspace>");
   writeLine(stream, "  aiwiki context <topic> --limit 10");
-  writeLine(stream, "  aiwiki query <topic> --type wiki_entries --status active");
+  writeLine(stream, "  aiwiki context <topic> --view capsule");
+  writeLine(stream, "  aiwiki query <topic> --view capsule");
+  writeLine(stream, "  aiwiki query <topic> --view files --type wiki_entries --status active");
   writeLine(stream, "");
   writeLine(stream, "Filters:");
   writeLine(stream, "  --type wiki_entries|source_cards|claims|topics|outlines|raw_refs");
@@ -361,6 +398,15 @@ function parseLintSeverity(value: string | undefined): LintSeverity | undefined 
     return value;
   }
   throw new CliError("lint --severity must be error, warning, or info");
+}
+
+function lintOptions(args: ParsedArgs): CapsuleLintOptions {
+  return {
+    capsules: flagBool(args, "capsules"),
+    lifecycle: flagBool(args, "lifecycle"),
+    okf: flagBool(args, "okf"),
+    strict: flagBool(args, "strict")
+  };
 }
 
 type AgentTarget = {
@@ -784,6 +830,8 @@ Required command-first loop:
 4. Ingest local material with \`aiwiki ingest-file --file <file> --path <workspace>\` or structured Agent material with \`aiwiki ingest-agent --stdin --path <workspace>\`.
 5. Check progress with \`aiwiki status --path <workspace>\`.
 6. Retrieve reusable knowledge with \`aiwiki query <topic> --path <workspace>\` for human-readable output or \`aiwiki context <topic> --path <workspace>\` for Agent JSON.
+7. Use Source Capsule views when the user asks for one source package, provenance, lifecycle state, or OKF readiness: \`aiwiki show <topic> --path <workspace>\`, \`aiwiki query <topic> --path <workspace>\`, or \`aiwiki context <topic> --view capsule --path <workspace>\`.
+8. Use \`aiwiki query <topic> --view files --path <workspace>\` only when the older file-level match list is needed.
 
 Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, say which AIWiki command was insufficient and why.
 ${AIWIKI_AGENT_GUIDANCE_END}`;
@@ -836,8 +884,8 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "流程：读取网页正文；尽量生成 analysis/wiki_entry；生成 aiwiki.agent_payload.v1；通过 stdin 调用 `aiwiki ingest-agent --stdin`；读取 CLI 输出；向用户汇报 ingested、summary、wiki_entry、wiki_entry_quality、source_card、processing_summary。");
   writeLine(stream, "回复措辞：成功时说“AIWiki 已完成入库，并生成 Wiki 条目。” 如果 wiki_entry_quality=scaffold，说明该条目只是可追溯脚手架，仍需宿主 Agent 后续补全。Dataview 是可选增强，不要替用户安装插件或修改 .obsidian。");
   writeLine(stream, "");
-  writeLine(stream, "查询：当用户要求从 AIWiki 里了解某个主题时，调用 `aiwiki context <主题>`。");
-  writeLine(stream, "整理：当用户要求检查或整理知识库时，先调用 `aiwiki lint --json`；若只有 safe fix 且用户允许整理，再调用 `aiwiki lint --fix-empty-dirs --json`，随后重跑 `aiwiki lint --json`。");
+  writeLine(stream, "查询：当用户要求从 AIWiki 里了解某个主题时，调用 `aiwiki context <主题>`；需要来源包、生命周期或 OKF readiness 时，调用 `aiwiki context <主题> --view capsule` 或 `aiwiki show <主题>`。");
+  writeLine(stream, "整理：当用户要求检查或整理知识库时，先调用 `aiwiki lint --json`；深层 capsule 检查使用 `aiwiki lint --capsules --json`、`--lifecycle`、`--okf` 或 `--strict`；若只有 safe fix 且用户允许整理，再调用 `aiwiki lint --fix-empty-dirs --json`，随后重跑 `aiwiki lint --json`。");
   writeLine(stream, "");
   writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取；声称 AIWiki CLI 会在没有 Agent 分析字段时自动高质量总结。");
 }
@@ -845,6 +893,7 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
 async function printStatusDetails(stream: NodeJS.WritableStream, root: string, runCount: number): Promise<void> {
   const counts = await contentCounts(root);
   const summary = await statusSummary(root);
+  const metrics = capsuleMetrics(await buildCapsules(root));
   const lintPath = path.join(root, "dashboards", "Lint Report.md");
   writeLine(stream, "");
   writeLine(stream, "Content stats:");
@@ -855,6 +904,11 @@ async function printStatusDetails(stream: NodeJS.WritableStream, root: string, r
   writeLine(stream, `Outlines: ${counts.outlines}`);
   writeLine(stream, `fallback_entries: ${summary.fallbackCount}`);
   writeLine(stream, `grounding_review_entries: ${summary.groundingReviewCount}`);
+  writeLine(stream, `capsule_count: ${metrics.capsule_count}`);
+  writeLine(stream, `capsule_with_primary_count: ${metrics.capsule_with_primary_count}`);
+  writeLine(stream, `entropy_risk: ${metrics.entropy_risk}`);
+  writeLine(stream, `lifecycle_risk: ${metrics.lifecycle_risk}`);
+  writeLine(stream, `okf_ready_count: ${metrics.okf_ready_count}`);
   writeLine(stream, `recent_lint: ${await exists(lintPath) ? await relativeMtime(root, lintPath) : "none"}`);
   writeLine(stream, `lint_status: ${summary.lintStatus}`);
   if (summary.lastSuccessRunId) {
@@ -959,6 +1013,41 @@ function contextOptions(args: ParsedArgs): { filters: ContextFilters; limit?: nu
     },
     limit: limit === undefined ? undefined : Number(limit)
   };
+}
+
+function capsuleViewRequested(args: ParsedArgs): boolean {
+  const view = flagString(args, "view");
+  return view === "capsule" || flagBool(args, "capsules");
+}
+
+function queryView(args: ParsedArgs): "capsule" | "files" {
+  const view = flagString(args, "view");
+  if (!view || view === "capsule") {
+    return "capsule";
+  }
+  if (view === "files") {
+    return "files";
+  }
+  throw new CliError("query --view must be capsule or files");
+}
+
+function showPathOptions(args: ParsedArgs): { rootPath?: string; artifactPath?: string } {
+  const explicitArtifact = flagString(args, "artifact-path");
+  if (explicitArtifact) {
+    return { rootPath: flagString(args, "path"), artifactPath: explicitArtifact };
+  }
+  const pathFlag = flagString(args, "path");
+  const hasSelector = Boolean(flagString(args, "id") || args.positional.slice(1).join(" ").trim());
+  if (pathFlag && !hasSelector && looksLikeArtifactPath(pathFlag)) {
+    return { rootPath: flagString(args, "workspace"), artifactPath: pathFlag };
+  }
+  return { rootPath: pathFlag };
+}
+
+function looksLikeArtifactPath(value: string): boolean {
+  const normalized = value.replace(/\\/g, "/");
+  return normalized.toLowerCase().endsWith(".md")
+    || /^(02-raw|03-sources|04-claims|05-wiki|06-assets|07-topics|08-outputs|09-runs)\//.test(normalized);
 }
 
 function renderQuery(context: ContextResult): string {

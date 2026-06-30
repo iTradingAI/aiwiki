@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { capsuleLintIssues, type CapsuleLintOptions } from "./capsule-lint.js";
 import { frontmatterArray, frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmatter.js";
 import { relativePath, safeJoin } from "./paths.js";
 import { exists, OPTIONAL_DIRS, OPTIONAL_PARENT_DIRS } from "./workspace.js";
@@ -48,7 +49,7 @@ type Note = {
   frontmatter: ReturnType<typeof parseMarkdown>["frontmatter"];
 };
 
-export async function lintWorkspace(rootPath: string, now = new Date().toISOString()): Promise<LintReport> {
+export async function lintWorkspace(rootPath: string, now = new Date().toISOString(), options: CapsuleLintOptions = {}): Promise<LintReport> {
   const root = path.resolve(rootPath);
   const wikiEntries = await readNotes(root, "05-wiki/source-knowledge");
   const sourceCards = await readNotes(root, "03-sources/article-cards");
@@ -177,6 +178,7 @@ export async function lintWorkspace(rootPath: string, now = new Date().toISOStri
   issues.push(...duplicateIssues(sourceCards, "source_url", "Duplicate URL"));
   issues.push(...duplicateTitles(allNotes));
   issues.push(...brokenLinkIssues(root, allNotes));
+  issues.push(...await capsuleLintIssues(root, options));
 
   return {
     generated_at: now,

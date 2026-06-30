@@ -26,9 +26,12 @@ AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 ```text
 AI 助手读取资料
   -> AIWiki 写入本地 Markdown 知识文件
+  -> AIWiki 把同一来源组织成 Source Capsule
   -> 助手用 aiwiki context 取回上下文
   -> aiwiki lint 检查结构和一致性
 ```
+
+在 0.3.0 中，`aiwiki query` 默认显示 Source Capsule。Agent 集成可以继续使用稳定的 `aiwiki.context.v1`，需要 capsule JSON 时显式调用 `aiwiki context "<主题>" --view capsule`。
 
 ## 重要边界
 

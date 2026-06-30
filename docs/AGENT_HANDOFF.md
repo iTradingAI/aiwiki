@@ -182,6 +182,20 @@ When the user asks what AIWiki knows about a topic, call:
 aiwiki context "<topic>"
 ```
 
+Default context stays on `aiwiki.context.v1` for compatibility. When the answer should be source-object oriented, call the capsule view:
+
+```bash
+aiwiki context "<topic>" --view capsule
+```
+
+Use direct capsule inspection when the user asks for the source package, provenance, lifecycle state, or OKF readiness of a result:
+
+```bash
+aiwiki show "<topic>"
+aiwiki show --id <capsule_id>
+aiwiki show --artifact-path <artifact.md> --path <workspace>
+```
+
 Use filters when intent is narrow:
 
 ```bash
@@ -200,6 +214,14 @@ Read these fields before responding:
 - `related_refs`
 - `reuse_guidance`
 
+For capsule context, read:
+
+- `capsules`
+- `result_quality.has_primary`
+- `result_quality.okf_ready_count`
+- `missing_context`
+- lifecycle warnings and OKF readiness warnings inside each capsule
+
 Do not scan `02-raw` by default unless the Wiki result is insufficient, the user asks to verify the original text, or sources conflict.
 
 ## Lint Protocol
@@ -208,6 +230,15 @@ When the user asks to check, organize, or lint the knowledge base, first call:
 
 ```bash
 aiwiki lint --json
+```
+
+Run capsule-aware checks only when the user asks for deeper health, release readiness, or Source Capsule validation:
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+aiwiki lint --strict --json
 ```
 
 If `safe_fixes.only_safe_fixes` is true and the user allows cleanup:

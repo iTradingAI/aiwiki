@@ -92,11 +92,33 @@ The assistant should call:
 aiwiki context "<topic>"
 ```
 
+For grouped Source Capsule JSON:
+
+```bash
+aiwiki context "<topic>" --view capsule
+```
+
 For human terminal output:
 
 ```bash
 aiwiki query "<topic>"
 ```
+
+`aiwiki query` defaults to Source Capsule view. Use `aiwiki query "<topic>" --view files` when you need the older file-level match list.
+
+To inspect one source package:
+
+```bash
+aiwiki show "<topic>"
+aiwiki show --id <capsule_id>
+aiwiki show --artifact-path <artifact.md> --path <workspace>
+```
+
+## What is a Source Capsule?
+
+A Source Capsule is AIWiki's logical object for one source. It groups the Wiki Entry, Source Card, Raw file, optional claim/topic/outline/assets files, and run record that came from the same source.
+
+Old workspaces do not need migration. If explicit `capsule_id` metadata is missing, AIWiki infers grouping from paths, source URLs, content fingerprints, and run IDs.
 
 ## How do I check the workspace?
 
@@ -114,6 +136,16 @@ When safe fixes are allowed:
 aiwiki lint --fix-empty-dirs --json
 aiwiki lint --json
 ```
+
+For capsule-aware checks:
+
+```bash
+aiwiki lint --capsules --json
+aiwiki lint --lifecycle --json
+aiwiki lint --okf --json
+```
+
+Use `aiwiki lint --strict --json` for release or CI-style validation, not as the default cleanup path for normal users.
 
 ## How do I send useful trial feedback?
 
