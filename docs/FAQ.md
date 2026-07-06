@@ -72,11 +72,11 @@ Usually the assistant has not loaded the AIWiki skill, or the workspace root is 
 
 ```bash
 aiwiki agent sync --yes
-aiwiki agent sync --path <workspace> --yes
+aiwiki setup --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
 ```
 
-Then restart or reload the assistant if needed.
+Then restart or reload the assistant if needed. Use `aiwiki agent sync --path <workspace> --yes` only when you want to refresh workspace guidance without running setup.
 
 ## How do I query the knowledge base?
 

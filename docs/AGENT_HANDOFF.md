@@ -32,10 +32,10 @@ AIWiki CLI does not fetch webpages and does not call an LLM. If source reading f
 
 When working inside an AIWiki workspace, call AIWiki commands before generic file search or ad hoc note edits.
 
-First sync workspace guidance:
+First ensure the workspace and its root guidance are current. `setup` refreshes the marker-bounded `AGENTS.md` guidance automatically:
 
 ```bash
-aiwiki agent sync --path <workspace> --yes
+aiwiki setup --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
 ```
 
@@ -267,7 +267,7 @@ When the user asks you to install, update, upgrade, or repair AIWiki integration
 
 ```bash
 aiwiki agent sync --yes
-aiwiki agent sync --path <workspace> --yes
+aiwiki setup --path <workspace> --yes
 aiwiki agent check --json
 aiwiki agent check --path <workspace> --json
 ```

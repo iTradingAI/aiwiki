@@ -53,7 +53,6 @@ macOS/Linux: ~/AIWiki
 npm install -g @itradingai/aiwiki@latest
 aiwiki setup --path "<替换成我的 AIWiki 知识库路径>" --yes
 aiwiki agent sync --yes
-aiwiki agent sync --path "<替换成我的 AIWiki 知识库路径>" --yes
 aiwiki agent check --json
 aiwiki agent check --path "<替换成我的 AIWiki 知识库路径>" --json
 aiwiki doctor --path "<替换成我的 AIWiki 知识库路径>"
@@ -242,7 +241,7 @@ AIWiki 不是简单拼接两套方法。
 
 ## Agent 接入
 
-AIWiki 面向 AI 助手驱动的工作流。`aiwiki agent sync --yes` 会把 AIWiki 的说明同步到支持的本地助手环境；`aiwiki agent sync --path "<workspace>" --yes` 会在知识库根目录写入指导，让进入该目录的助手优先使用 AIWiki 命令。
+AIWiki 面向 AI 助手驱动的工作流。`aiwiki setup --path "<workspace>" --yes` 会创建或修复知识库，并刷新知识库根目录的 `AGENTS.md` 指导。`aiwiki agent sync --yes` 会把 AIWiki 的说明同步到支持的本地助手环境。只有想手动刷新根指导、但不需要重新 setup 时，才需要运行 `aiwiki agent sync --path "<workspace>" --yes`。
 
 完整的命令优先协作约定见 [Agent 接入说明](docs/AGENT_HANDOFF.zh-CN.md)。
 

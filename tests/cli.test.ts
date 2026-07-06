@@ -118,9 +118,18 @@ test("CLI setup stores default workspace for no-path commands", async () => {
     assert.match(setupOut.text(), /默认知识库:/);
     assert.match(setupOut.text(), /用户配置:/);
     assert.match(setupOut.text(), /新建数据库文件数: 13/);
+    assert.match(setupOut.text(), /知识库根指导: action=installed/);
     assert.match(setupOut.text(), /Obsidian 入口: dashboards\/AIWiki Home\.md/);
     assert.match(setupOut.text(), /aiwiki agent sync --yes/);
     assert.match(setupOut.text(), /aiwiki ingest-agent --stdin/);
+
+    const guidance = await readFile(path.join(root, "AGENTS.md"), "utf8");
+    assert.match(guidance, /AIWIKI:AGENT-GUIDANCE:START/);
+    assert.match(guidance, /aiwiki show <topic> --path <workspace>/);
+    assert.match(guidance, /aiwiki context <topic> --view capsule --path <workspace>/);
+    assert.match(guidance, /aiwiki query <topic> --view files --path <workspace>/);
+    assert.match(guidance, /aiwiki lint --capsules --json --path <workspace>/);
+    assert.doesNotMatch(guidance, /Keep host-Agent guidance current/);
 
     const doctorOut = new MemoryWritable();
     assert.equal(await runCli(["doctor"], { stdout: doctorOut, stderr: new MemoryWritable() }), 0);
@@ -281,6 +290,10 @@ test("CLI agent sync installs marker-bounded workspace command guidance", async 
     assert.match(installed, /aiwiki status --path <workspace>/);
     assert.match(installed, /aiwiki query <topic> --path <workspace>/);
     assert.match(installed, /aiwiki context <topic> --path <workspace>/);
+    assert.match(installed, /aiwiki show <topic> --path <workspace>/);
+    assert.match(installed, /aiwiki context <topic> --view capsule --path <workspace>/);
+    assert.match(installed, /aiwiki query <topic> --view files --path <workspace>/);
+    assert.match(installed, /aiwiki lint --capsules --json --path <workspace>/);
 
     const currentJson = new MemoryWritable();
     assert.equal(await runCli(["agent", "check", "--agent", "workspace", "--path", root, "--json"], { stdout: currentJson, stderr: new MemoryWritable() }), 0);
@@ -288,6 +301,53 @@ test("CLI agent sync installs marker-bounded workspace command guidance", async 
     const workspace = current.targets.find((item) => item.id === "workspace");
     assert.equal(workspace?.installed, true);
     assert.equal(workspace?.state, "current");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI setup refreshes existing workspace guidance during upgrades", async () => {
+  const root = await tempRoot("aiwiki-cli-setup-upgrade-guidance");
+  const target = path.join(root, "AGENTS.md");
+  try {
+    await writeFile(target, `# Project Rules
+
+Keep existing project guidance.
+
+<!-- AIWIKI:AGENT-GUIDANCE:START -->
+# AIWiki Agent Command Contract
+
+Required command-first loop:
+
+1. Ensure the workspace exists with \`aiwiki setup --path <workspace> --yes\`.
+2. Keep host-Agent guidance current with \`aiwiki agent sync --path <workspace> --yes\` and verify with \`aiwiki agent check --path <workspace> --json\`.
+3. Inspect structure with \`aiwiki lint --json --path <workspace>\`; apply only safe fixes with \`aiwiki lint --fix-empty-dirs --json --path <workspace>\`.
+4. Ingest local material with \`aiwiki ingest-file --file <file> --path <workspace>\` or \`aiwiki ingest-agent --stdin --path <workspace>\`.
+5. Check progress with \`aiwiki status --path <workspace>\`.
+6. Retrieve reusable knowledge with \`aiwiki query <topic> --path <workspace>\` or \`aiwiki context <topic> --path <workspace>\`.
+<!-- AIWIKI:AGENT-GUIDANCE:END -->
+`, "utf8");
+
+    const setupOut = new MemoryWritable();
+    assert.equal(await runCli(["setup", "--path", root, "--yes"], { stdout: setupOut, stderr: new MemoryWritable() }), 0);
+    assert.match(setupOut.text(), /知识库根指导: action=updated/);
+    assert.match(setupOut.text(), /知识库根指导备份:/);
+
+    const files = await readdir(root);
+    assert.ok(files.some((file) => /^AGENTS\.md\.bak-/.test(file)));
+
+    const refreshed = await readFile(target, "utf8");
+    assert.match(refreshed, /Keep existing project guidance/);
+    assert.match(refreshed, /aiwiki show <topic> --path <workspace>/);
+    assert.match(refreshed, /aiwiki context <topic> --view capsule --path <workspace>/);
+    assert.match(refreshed, /aiwiki query <topic> --view files --path <workspace>/);
+    assert.match(refreshed, /aiwiki lint --capsules --json --path <workspace>/);
+    assert.doesNotMatch(refreshed, /Keep host-Agent guidance current/);
+
+    const currentJson = new MemoryWritable();
+    assert.equal(await runCli(["agent", "check", "--agent", "workspace", "--path", root, "--json"], { stdout: currentJson, stderr: new MemoryWritable() }), 0);
+    const current = JSON.parse(currentJson.text()) as { targets: Array<{ id: string; state: string }> };
+    assert.equal(current.targets.find((item) => item.id === "workspace")?.state, "current");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

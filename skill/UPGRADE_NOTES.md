@@ -6,6 +6,8 @@ Use this note when an Agent finishes `aiwiki agent sync`.
 
 - Agent integration should use `aiwiki agent sync --yes` for both first install and upgrades.
 - Sync backs up changed installed skill files before overwriting them.
+- `aiwiki setup --path <workspace> --yes` now refreshes workspace `AGENTS.md` guidance automatically during setup or repair.
+- Use `aiwiki agent sync --path <workspace> --yes` only for manual workspace-guidance refresh without setup.
 - `aiwiki agent check --json` and `aiwiki agent sync --json --yes` provide machine-readable status for Agents.
 - `aiwiki context` supports `--type`, `--source-role`, `--wiki-type`, `--status`, and `--limit`.
 - Context JSON includes `query_scope`, `result_quality`, `recommended_next_action`, `match_reasons`, `quality_signals`, and `related_refs`.

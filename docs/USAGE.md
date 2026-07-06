@@ -36,7 +36,6 @@ Run these commands:
 npm install -g @itradingai/aiwiki@latest
 aiwiki setup --path "<replace-with-my-aiwiki-path>" --yes
 aiwiki agent sync --yes
-aiwiki agent sync --path "<replace-with-my-aiwiki-path>" --yes
 aiwiki agent check --json
 aiwiki agent check --path "<replace-with-my-aiwiki-path>" --json
 aiwiki doctor --path "<replace-with-my-aiwiki-path>"
@@ -53,7 +52,7 @@ macOS/Linux: ~/AIWiki
 Project test: ./aiwiki-test
 ```
 
-This creates or repairs the knowledge base, syncs the packaged AIWiki skill into supported assistant environments, and writes workspace-level `AGENTS.md` guidance.
+`aiwiki setup` creates or repairs the knowledge base and refreshes workspace-level `AGENTS.md` guidance. `aiwiki agent sync --yes` syncs the packaged AIWiki skill into supported assistant environments.
 
 Expected result:
 
@@ -65,7 +64,7 @@ Expected result:
 
 ## 2. Agent Sync Layers
 
-AIWiki has two sync layers:
+AIWiki has two Agent-facing layers:
 
 ```bash
 aiwiki agent sync --yes
@@ -73,11 +72,19 @@ aiwiki agent sync --yes
 
 Syncs AIWiki instructions into supported local assistant targets such as Codex, Claude Code, QClaw, and OpenClaw.
 
+Workspace guidance is refreshed automatically by:
+
+```bash
+aiwiki setup --path <workspace> --yes
+```
+
+Use the explicit workspace sync command only when you want to refresh `AGENTS.md` without running setup:
+
 ```bash
 aiwiki agent sync --path <workspace> --yes
 ```
 
-Writes marker-bounded guidance into the knowledge base root so future assistants entering that workspace know to use AIWiki commands before generic file search.
+This writes marker-bounded guidance into the knowledge base root so future assistants entering that workspace know to use AIWiki commands before generic file search.
 
 Verify both layers:
 
@@ -343,7 +350,7 @@ Run:
 
 ```bash
 aiwiki agent sync --yes
-aiwiki agent sync --path <workspace> --yes
+aiwiki setup --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
 ```
 
@@ -361,7 +368,6 @@ Run:
 
 ```bash
 aiwiki setup --path <new-workspace> --yes
-aiwiki agent sync --path <new-workspace> --yes
 aiwiki agent check --path <new-workspace> --json
 ```
 

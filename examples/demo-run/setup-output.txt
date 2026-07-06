@@ -4,6 +4,7 @@ AIWiki 已初始化: <sample-vault>
 新建数据库文件数: 0
 默认知识库: <sample-vault>
 用户配置: <aiwiki-home>\\config.json
+知识库根指导: action=installed
 Obsidian 入口: dashboards/AIWiki Home.md
-下一步: 运行 `aiwiki agent sync --yes`，同步 AIWiki 宿主 Agent 对接文件。
+本机宿主 Agent skill: 如需同步 Codex/Claude/QClaw/OpenClaw，请运行 `aiwiki agent sync --yes`。
 Agent 设置完成后: 让宿主 Agent 提供正文并调用 `aiwiki ingest-agent --stdin`，或运行 `aiwiki ingest-file --file <file>`。

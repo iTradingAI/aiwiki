@@ -2,6 +2,31 @@
 
 This log records queue-driven AIWiki development milestones that should remain visible to future maintainers, not only in automation chat history.
 
+## 2026-07-06 - Workspace guidance auto-refresh for 0.3.0 upgrades
+
+Status: implemented and verified for the 0.3.0 release candidate.
+
+Version target: `@itradingai/aiwiki@0.3.0`
+
+### Goal
+
+Reduce the 0.3.0 upgrade steps after package installation by making `aiwiki setup --path <workspace> --yes` refresh the workspace `AGENTS.md` command contract automatically.
+
+### Implemented
+
+- Updated `setup` to refresh the marker-bounded workspace guidance block after creating or repairing the knowledge base.
+- Kept host-level Agent skill sync explicit through `aiwiki agent sync --yes`; npm install still does not edit Agent configuration.
+- Expanded workspace guidance freshness checks so older blocks missing Source Capsule commands are marked stale.
+- Updated README, usage, FAQ, Agent handoff, packaged skill notes, and demo setup output so install/upgrade docs no longer require `aiwiki agent sync --path <workspace> --yes` as a normal setup step.
+- Updated generated workspace guidance and `agent help` so `aiwiki agent sync --path <workspace> --yes` is described as a manual refresh command, not the default upgrade path.
+
+### Verification
+
+- `npm test`: passed, 77 tests.
+- `npm run release:check`: passed.
+- Package dry-run inspection confirmed public docs and skill files are included while internal plans, `.npm-cache`, and unpublished draft docs are excluded.
+- Exact local tarball smoke and remote prepublish smoke were rerun against the updated 0.3.0 package candidate.
+
 ## 2026-06-30 - Source Capsule object layer 0.3.0
 
 Status: implemented, locally verified, and pre-GitHub remote-smoke verified for `@itradingai/aiwiki@0.3.0`.

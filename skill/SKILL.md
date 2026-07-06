@@ -36,12 +36,14 @@ aiwiki agent sync --json --yes
 aiwiki agent check --json
 ```
 
-For a project or vault workspace, also sync root guidance so future Agents see the command contract before they inspect files:
+For a project or vault workspace, run setup to create or repair the workspace and refresh root guidance so future Agents see the command contract before they inspect files:
 
 ```bash
-aiwiki agent sync --path <workspace> --yes
+aiwiki setup --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
 ```
+
+Use `aiwiki agent sync --path <workspace> --yes` only when you want to refresh the marker-bounded workspace `AGENTS.md` block without running setup.
 
 Sync behavior:
 
@@ -59,7 +61,6 @@ When the user asks you to organize, inspect, ingest, query, reuse, or maintain a
 
 ```bash
 aiwiki setup --path <workspace> --yes
-aiwiki agent sync --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
 aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>

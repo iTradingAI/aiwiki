@@ -64,8 +64,23 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
       writeLine(streams.stdout, `新建数据库文件数: ${result.seededFiles.filter((file) => file.created).length}`);
       writeLine(streams.stdout, `默认知识库: ${defaultConfig.defaultPath}`);
       writeLine(streams.stdout, `用户配置: ${defaultConfig.configPath}`);
+      const guidanceSync = await syncAgentSkills({
+        agentId: "workspace",
+        workspaceRoot: result.root,
+        yes: true,
+        dryRun: false,
+        json: false,
+        streams
+      });
+      const workspaceGuidance = guidanceSync.results.find((item) => item.id === "workspace");
+      if (workspaceGuidance) {
+        writeLine(streams.stdout, `知识库根指导: action=${workspaceGuidance.action}`);
+        if (workspaceGuidance.backupPath) {
+          writeLine(streams.stdout, `知识库根指导备份: ${workspaceGuidance.backupPath}`);
+        }
+      }
       writeLine(streams.stdout, "Obsidian 入口: dashboards/AIWiki Home.md");
-      writeLine(streams.stdout, "下一步: 运行 `aiwiki agent sync --yes`，同步 AIWiki 宿主 Agent 对接文件。");
+      writeLine(streams.stdout, "本机宿主 Agent skill: 如需同步 Codex/Claude/QClaw/OpenClaw，请运行 `aiwiki agent sync --yes`。");
       writeLine(streams.stdout, "Agent 设置完成后: 让宿主 Agent 提供正文并调用 `aiwiki ingest-agent --stdin`，或运行 `aiwiki ingest-file --file <file>`。");
       return 0;
     }
@@ -350,11 +365,14 @@ function printAgentHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "AIWiki Agent commands");
   writeLine(stream, "");
   writeLine(stream, "Agent-first setup and upgrade:");
+  writeLine(stream, "  aiwiki setup --path <workspace> --yes");
   writeLine(stream, "  aiwiki agent sync --yes");
   writeLine(stream, "  aiwiki agent sync --agent codex --yes");
   writeLine(stream, "  aiwiki agent sync --agent codex --dry-run");
-  writeLine(stream, "  aiwiki agent sync --path <workspace> --yes");
   writeLine(stream, "  aiwiki agent sync --json --yes");
+  writeLine(stream, "");
+  writeLine(stream, "Manual workspace guidance refresh:");
+  writeLine(stream, "  aiwiki agent sync --path <workspace> --yes");
   writeLine(stream, "");
   writeLine(stream, "Status:");
   writeLine(stream, "  aiwiki agent check");
@@ -459,7 +477,11 @@ const REQUIRED_AGENT_GUIDANCE_TERMS = [
   "aiwiki ingest-agent",
   "aiwiki status",
   "aiwiki query",
-  "aiwiki context"
+  "aiwiki context",
+  "aiwiki show",
+  "--view capsule",
+  "--view files",
+  "aiwiki lint --capsules"
 ];
 
 async function discoverAgentTargets(workspaceRoot?: string): Promise<AgentTarget[]> {
@@ -824,9 +846,9 @@ When a user asks to organize, inspect, ingest, query, reuse, or maintain this AI
 
 Required command-first loop:
 
-1. Ensure the workspace exists with \`aiwiki setup --path <workspace> --yes\`.
-2. Keep host-Agent guidance current with \`aiwiki agent sync --path <workspace> --yes\` and verify with \`aiwiki agent check --path <workspace> --json\`.
-3. Inspect structure with \`aiwiki lint --json --path <workspace>\`; apply only safe fixes with \`aiwiki lint --fix-empty-dirs --json --path <workspace>\` when allowed, then rerun \`aiwiki lint --json --path <workspace>\`.
+1. Ensure the workspace exists and refresh root guidance with \`aiwiki setup --path <workspace> --yes\`.
+2. Verify root guidance with \`aiwiki agent check --path <workspace> --json\`; use \`aiwiki agent sync --path <workspace> --yes\` only for manual guidance refresh without setup.
+3. Inspect structure with \`aiwiki lint --json --path <workspace>\`; inspect Source Capsule health with \`aiwiki lint --capsules --json --path <workspace>\`; apply only safe fixes with \`aiwiki lint --fix-empty-dirs --json --path <workspace>\` when allowed, then rerun \`aiwiki lint --json --path <workspace>\`.
 4. Ingest local material with \`aiwiki ingest-file --file <file> --path <workspace>\` or structured Agent material with \`aiwiki ingest-agent --stdin --path <workspace>\`.
 5. Check progress with \`aiwiki status --path <workspace>\`.
 6. Retrieve reusable knowledge with \`aiwiki query <topic> --path <workspace>\` for human-readable output or \`aiwiki context <topic> --path <workspace>\` for Agent JSON.

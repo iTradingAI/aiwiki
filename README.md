@@ -57,7 +57,6 @@ Run these commands:
 npm install -g @itradingai/aiwiki@latest
 aiwiki setup --path "<replace-with-my-aiwiki-path>" --yes
 aiwiki agent sync --yes
-aiwiki agent sync --path "<replace-with-my-aiwiki-path>" --yes
 aiwiki agent check --json
 aiwiki agent check --path "<replace-with-my-aiwiki-path>" --json
 aiwiki doctor --path "<replace-with-my-aiwiki-path>"
@@ -251,7 +250,7 @@ The goal is simple: make what your assistant reads useful again later.
 
 ## Agent Integration
 
-AIWiki is built for assistant-driven workflows. `aiwiki agent sync --yes` syncs packaged AIWiki instructions into supported local assistant environments, and `aiwiki agent sync --path "<workspace>" --yes` writes workspace guidance so assistants entering the knowledge base use AIWiki commands first.
+AIWiki is built for assistant-driven workflows. `aiwiki setup --path "<workspace>" --yes` creates or repairs the knowledge base and refreshes workspace guidance in `AGENTS.md`. `aiwiki agent sync --yes` syncs packaged AIWiki instructions into supported local assistant environments. Use `aiwiki agent sync --path "<workspace>" --yes` only when you want to manually refresh workspace guidance without running setup.
 
 See [Agent Handoff](docs/AGENT_HANDOFF.md) for the full command-first contract.
 
