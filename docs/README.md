@@ -54,6 +54,22 @@ For natural-language matching, use the [Core Intent Matrix](AGENT_HANDOFF.md#cor
 
 Use the [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md) to classify trial feedback into installation, first-use, ingest-result, directory, query-reuse, and feature-request signals before promoting anything into the managed queue.
 
+## Public Integration API
+
+Core integrations use only these ESM package entry points:
+
+```ts
+import { AIWIKI_PUBLIC_API_VERSION, createAiwikiCli, type AiwikiArtifact } from "@itradingai/aiwiki";
+import type { ContextResult } from "@itradingai/aiwiki/contracts";
+
+const cli = createAiwikiCli();
+console.log(AIWIKI_PUBLIC_API_VERSION); // aiwiki.public.v1
+void cli;
+void (undefined as AiwikiArtifact | ContextResult | undefined);
+```
+
+`@itradingai/aiwiki` exports the stable Core facade. `@itradingai/aiwiki/contracts` exports the version marker and public types for compatibility checks. Do not import `@itradingai/aiwiki/src/**`, `@itradingai/aiwiki/dist/src/**`, or any other unlisted deep path: those are internal implementation details and are intentionally blocked by the package export map.
+
 ## Important Boundaries
 
 AIWiki does not fetch webpages, call an LLM, install Obsidian plugins, run vector search, or manage multiple knowledge bases. The host assistant reads sources; AIWiki validates, writes, links, queries, and checks the local Markdown knowledge base.

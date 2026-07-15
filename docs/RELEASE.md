@@ -42,6 +42,19 @@ For the 0.3.0 Source Capsule release, the dry-run output must also confirm:
 - Internal planning files are not packaged unless a later release decision explicitly changes that.
 - `.omx`, `.npm-cache`, temporary smoke folders, and private planning artifacts are absent.
 
+## Public API Package Contract
+
+Core supports only `@itradingai/aiwiki` and `@itradingai/aiwiki/contracts` as integration imports. The runtime compatibility marker is `AIWIKI_PUBLIC_API_VERSION` and currently has the value `aiwiki.public.v1`. Internal paths such as `@itradingai/aiwiki/src/**` and `@itradingai/aiwiki/dist/src/**` must remain absent from the export map.
+
+When an exports entry, public type, or public API version changes, the task must update the packed-tarball consumer contract test and both language versions of the public documentation. The exact tarball smoke must prove all of the following before the PR is opened:
+
+- root and `/contracts` ESM imports work from an installed package;
+- generated public `.d.ts` files are present and compile for an external TypeScript consumer;
+- internal deep imports fail with `ERR_PACKAGE_PATH_NOT_EXPORTED`; and
+- the CLI bin and `createAiwikiCli().run()` preserve the required command behavior.
+
+Ordinary Core tasks still do not bump the package version, create tags, or publish npm packages. New Extension API paths are not public until their dedicated contract task defines and verifies them.
+
 ## Version and Tags
 
 `package.json` is the version source. `aiwiki --version` reads it at runtime.
