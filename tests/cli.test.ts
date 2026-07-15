@@ -5,6 +5,9 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { runCli } from "../src/app.js";
+import { parseArgs } from "../src/args.js";
+import { createCommandContext } from "../src/cli/command-context.js";
+import { CommandRegistry } from "../src/cli/command-registry.js";
 import { fixturePath, MemoryWritable, tempRoot } from "./helpers.js";
 
 test("help exposes only base commands", async () => {
@@ -193,6 +196,32 @@ test("CLI routing preserves version aliases, scoped help precedence, and unknown
   const unknownError = new MemoryWritable();
   assert.equal(await runCli(["unknown-command"], { stdout: new MemoryWritable(), stderr: unknownError }), 1);
   assert.match(unknownError.text(), /错误: 未知命令: unknown-command/);
+});
+
+test("CommandRegistry dispatches the first declared matching command", async () => {
+  const calls: string[] = [];
+  const registry = new CommandRegistry([
+    {
+      id: "first",
+      matches: (context) => context.command === "help",
+      handle: async () => {
+        calls.push("first");
+        return 0;
+      }
+    },
+    {
+      id: "second",
+      matches: () => true,
+      handle: async () => {
+        calls.push("second");
+        return 1;
+      }
+    }
+  ]);
+
+  const context = createCommandContext(parseArgs(["help"]), { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+  assert.equal(await registry.dispatch(context), 0);
+  assert.deepEqual(calls, ["first"]);
 });
 
 test("CLI init config doctor and status", async () => {
