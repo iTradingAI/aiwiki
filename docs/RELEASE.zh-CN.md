@@ -42,6 +42,19 @@ npm 包只应包含 CLI 运行文件、用户文档、示例和需要打包的 s
 - 内部规划文件默认不进入包，除非后续发布决策明确变更。
 - `.omx`、`.npm-cache`、临时 smoke 目录和私有规划产物不在包内。
 
+## Public API 包合同
+
+Core 集成只支持 `@itradingai/aiwiki` 与 `@itradingai/aiwiki/contracts` 两个导入入口。运行时兼容标记是 `AIWIKI_PUBLIC_API_VERSION`，当前值为 `aiwiki.public.v1`。`@itradingai/aiwiki/src/**`、`@itradingai/aiwiki/dist/src/**` 等内部路径不得出现在 export map 中。
+
+当 exports 条目、公开类型或公开 API 版本变化时，任务必须同步更新精确 tarball 消费者合同测试与中英文公开文档。创建 PR 前，精确 tarball smoke 必须证明：
+
+- 已安装包中的根入口和 `/contracts` ESM 导入可用；
+- 公开 `.d.ts` 已生成，且外部 TypeScript 消费者可以编译；
+- 内部深层导入以 `ERR_PACKAGE_PATH_NOT_EXPORTED` 失败；以及
+- CLI bin 和 `createAiwikiCli().run()` 保持要求的命令行为。
+
+普通 Core 任务仍不得提升包版本、创建 tag 或发布 npm 包。新的 Extension API 路径必须等其专属合同任务定义和验证后才可公开。
+
 ## 版本与标签
 
 `package.json` 是版本来源，`aiwiki --version` 在运行时读取它。

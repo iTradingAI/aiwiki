@@ -37,6 +37,22 @@ AI 助手读取资料
 
 在 0.3.0 中，`aiwiki query` 默认显示 Source Capsule。Agent 集成可以继续使用稳定的 `aiwiki.context.v1`，需要 capsule JSON 时显式调用 `aiwiki context "<主题>" --view capsule`。
 
+## 公开集成 API
+
+Core 集成只能使用以下 ESM 包入口：
+
+```ts
+import { AIWIKI_PUBLIC_API_VERSION, createAiwikiCli, type AiwikiArtifact } from "@itradingai/aiwiki";
+import type { ContextResult } from "@itradingai/aiwiki/contracts";
+
+const cli = createAiwikiCli();
+console.log(AIWIKI_PUBLIC_API_VERSION); // aiwiki.public.v1
+void cli;
+void (undefined as AiwikiArtifact | ContextResult | undefined);
+```
+
+`@itradingai/aiwiki` 导出稳定的 Core Facade；`@itradingai/aiwiki/contracts` 导出用于兼容性检查的版本标记和公开类型。禁止导入 `@itradingai/aiwiki/src/**`、`@itradingai/aiwiki/dist/src/**` 或其他未列出的深层路径；这些路径属于内部实现，package export map 会刻意拒绝它们。
+
 ## 重要边界
 
 AIWiki 不抓网页、不调用 LLM、不自动安装 Obsidian 插件、不做向量检索、不管理多个知识库。宿主 AI 助手负责读取和理解资料；AIWiki 负责写入、链接、查询和检查本地 Markdown 知识库。

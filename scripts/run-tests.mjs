@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const testsDir = join(process.cwd(), "dist", "tests");
-const testFiles = readdirSync(testsDir)
+const testFiles = readdirSync(testsDir, { recursive: true })
   .filter((name) => name.endsWith(".test.js"))
   .sort()
   .map((name) => join(testsDir, name));
