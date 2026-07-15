@@ -9,7 +9,7 @@
 - 普通 Core 任务只有在分支 CI 与该任务的远端 tarball smoke 测试通过后，才可通过 PR 合并到 `dev`。
 - 只有命名的 Core 发布门槛任务可以创建 `dev` -> `main` PR：`CORE-0408`（`0.4.0`）、`CORE-0506`（`0.5.0`）、`CORE-0601`（`0.6.0`）、`CORE-0700`（`0.7.0`）和 `CORE-1000`（`1.0.0`）。
 - 控制面任务 `CORE-0000` 是一次性例外：它通过 `dev` -> `main` PR 建立本基线，但不得创建版本、标签或 npm 发布。
-- 每个 `main` PR 都必须通过 `CI / verify`、解决全部讨论，并获得一位审批者批准。CI 同时运行于源分支和拟合并结果。
+- 每个 `main` PR 都必须通过 `.github/workflows/ci.yml` 中唯一命名的 `CI / verify`、解决全部讨论，并获得一位审批者批准。CI 同时运行于源分支和拟合并结果。
 
 ## 本地检查
 
@@ -115,7 +115,7 @@ gh workflow run publish.yml --repo iTradingAI/aiwiki --ref dev -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
 ```
 
-工作流会拒绝在 `main` 以外使用 `mode=publish`。真正发布只允许发生在发布门槛 PR 已合并、标签已创建之后：
+工作流会拒绝在 `main` 以外使用 `mode=publish`。真正发布前还会校验 `v<package-version>` 指向工作流选择的精确 `main` 提交，因此发布门槛 PR 必须先合并并创建标签：
 
 ```bash
 gh workflow run publish.yml --repo iTradingAI/aiwiki --ref main -f mode=publish
@@ -130,6 +130,8 @@ npm view @itradingai/aiwiki versions --json
 ```
 
 Trusted Publishing 失败时，检查 npm Trusted Publisher 配置、仓库名、workflow 文件名和 `id-token: write` 权限。
+
+`id-token: write` 只授予 `Publish @itradingai/aiwiki` job。`Publish / verify` 干跑 job 只有仓库只读权限，无法获得 npm Trusted Publishing 凭据。
 
 ## README 图片
 

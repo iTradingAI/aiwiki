@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: aiwiki-npm-publish
@@ -22,7 +21,7 @@ concurrency:
 
 jobs:
   verify:
-    name: CI / verify
+    name: Publish / verify
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -52,11 +51,44 @@ jobs:
           echo "Publishing is allowed only from refs/heads/main."
           exit 1
 
-  publish:
-    name: Publish @itradingai/aiwiki
+  release-gate:
+    name: Verify release tag
     needs: verify
     if: ${{ inputs.mode == 'publish' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main with tags
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Verify version tag points at main
+        shell: bash
+        run: |
+          version="$(node -p \"require('./package.json').version\")"
+          expected_tag="v${version}"
+
+          if ! git tag --points-at "$GITHUB_SHA" | grep --fixed-strings --line-regexp "$expected_tag"; then
+            echo "Expected $expected_tag to point at $GITHUB_SHA before publishing."
+            exit 1
+          fi
+
+  publish:
+    name: Publish @itradingai/aiwiki
+    needs:
+      - verify
+      - release-gate
+    if: ${{ inputs.mode == 'publish' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
