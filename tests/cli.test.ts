@@ -7,7 +7,8 @@ import { test } from "node:test";
 import { runCli } from "../src/app.js";
 import { parseArgs } from "../src/args.js";
 import { createCommandContext } from "../src/cli/command-context.js";
-import { CommandRegistry } from "../src/cli/command-registry.js";
+import { CommandRegistry, createCoreCommandRegistry, type CoreCommandHandlers } from "../src/cli/command-registry.js";
+import { createCoreCommandHandlers } from "../src/cli/commands/core-handlers.js";
 import { fixturePath, MemoryWritable, tempRoot } from "./helpers.js";
 
 test("help exposes only base commands", async () => {
@@ -222,6 +223,124 @@ test("CommandRegistry dispatches the first declared matching command", async () 
   const context = createCommandContext(parseArgs(["help"]), { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
   assert.equal(await registry.dispatch(context), 0);
   assert.deepEqual(calls, ["first"]);
+});
+
+test("CommandRegistry preserves declared help entry order", () => {
+  const registry = new CommandRegistry([
+    {
+      id: "setup",
+      matches: () => false,
+      handle: async () => 0,
+      help: [
+        { usage: "aiwiki setup", visibility: "public", scope: "base" },
+        { usage: "aiwiki setup --path <path> --yes", visibility: "public", scope: "base" }
+      ]
+    },
+    {
+      id: "agent-sync",
+      matches: () => false,
+      handle: async () => 0,
+      help: [{ usage: "aiwiki agent sync --yes", visibility: "public", scope: "base" }]
+    }
+  ]);
+
+  assert.deepEqual(registry.help("base"), [
+    "aiwiki setup",
+    "aiwiki setup --path <path> --yes",
+    "aiwiki agent sync --yes"
+  ]);
+});
+
+test("Core CommandRegistry dispatches every public and compatibility route", async () => {
+  const calls: string[] = [];
+  const handlerIds = [
+    "version",
+    "agentHelp",
+    "retrievalHelp",
+    "help",
+    "setup",
+    "agentInstall",
+    "agentSync",
+    "agentCheck",
+    "agentList",
+    "promptAgent",
+    "init",
+    "configShow",
+    "doctor",
+    "status",
+    "context",
+    "query",
+    "show",
+    "next",
+    "lint",
+    "ingestAgent",
+    "ingestFile",
+    "ingestUrl"
+  ] as const;
+  const handlers = Object.fromEntries(handlerIds.map((id) => [id, async () => {
+    calls.push(id);
+    return 0;
+  }])) as unknown as CoreCommandHandlers;
+  const registry = createCoreCommandRegistry(handlers);
+  const routes: ReadonlyArray<readonly [string[], (typeof handlerIds)[number]]> = [
+    [["--version"], "version"],
+    [["agent", "sync", "--help"], "agentHelp"],
+    [["show", "--help"], "retrievalHelp"],
+    [["--help"], "help"],
+    [["setup"], "setup"],
+    [["agent", "install"], "agentInstall"],
+    [["agent", "sync"], "agentSync"],
+    [["agent", "check"], "agentCheck"],
+    [["agent", "list"], "agentList"],
+    [["prompt"], "promptAgent"],
+    [["init"], "init"],
+    [["config", "show"], "configShow"],
+    [["doctor"], "doctor"],
+    [["status"], "status"],
+    [["context", "topic"], "context"],
+    [["query", "topic"], "query"],
+    [["show", "topic"], "show"],
+    [["next"], "next"],
+    [["lint"], "lint"],
+    [["ingest-agent"], "ingestAgent"],
+    [["ingest-file"], "ingestFile"],
+    [["ingest-url"], "ingestUrl"]
+  ];
+
+  for (const [argv, expected] of routes) {
+    calls.length = 0;
+    const context = createCommandContext(parseArgs(argv), { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    assert.equal(await registry.dispatch(context), 0, argv.join(" "));
+    assert.deepEqual(calls, [expected], argv.join(" "));
+  }
+});
+
+test("Registry help entries stay aligned with public CLI help output", async () => {
+  const handlers = new Proxy({}, { get: () => async () => 0 }) as unknown as CoreCommandHandlers;
+  const registry = createCoreCommandRegistry(handlers);
+  const cases: ReadonlyArray<readonly ["base" | "agent" | "retrieval", string[]]> = [
+    ["base", ["--help"]],
+    ["agent", ["agent", "--help"]],
+    ["retrieval", ["context", "--help"]]
+  ];
+
+  for (const [scope, argv] of cases) {
+    const stdout = new MemoryWritable();
+    assert.equal(await runCli(argv, { stdout, stderr: new MemoryWritable() }), 0, scope);
+    const output = stdout.text();
+    for (const usage of registry.help(scope)) {
+      assert.ok(output.includes(usage), `${scope} help is missing ${usage}`);
+    }
+  }
+});
+
+test("Core handlers read arguments and streams from the dispatched context", async () => {
+  const stdout = new MemoryWritable();
+  const registry = createCoreCommandRegistry(createCoreCommandHandlers());
+  const context = createCommandContext(parseArgs(["--version"]), { stdout, stderr: new MemoryWritable() });
+
+  assert.equal(await registry.dispatch(context), 0);
+  assert.match(stdout.text(), /^aiwiki /);
 });
 
 test("CLI init config doctor and status", async () => {
