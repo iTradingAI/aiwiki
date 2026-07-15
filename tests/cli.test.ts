@@ -161,6 +161,40 @@ test("version flag prints CLI version", async () => {
   assert.equal(stdout.text().trim(), `aiwiki ${packageJson.version}`);
 });
 
+test("CLI routing preserves version aliases, scoped help precedence, and unknown command errors", async () => {
+  const packageJson = JSON.parse(await readFile("package.json", "utf8")) as { version: string };
+  const versionAliases = [["--version"], ["version"], ["-v"]];
+
+  for (const argv of versionAliases) {
+    const stdout = new MemoryWritable();
+    const stderr = new MemoryWritable();
+    assert.equal(await runCli(argv, { stdout, stderr }), 0, argv.join(" "));
+    assert.equal(stdout.text().trim(), `aiwiki ${packageJson.version}`, argv.join(" "));
+    assert.equal(stderr.text(), "", argv.join(" "));
+  }
+
+  const agentHelp = new MemoryWritable();
+  assert.equal(await runCli(["agent", "sync", "--help"], { stdout: agentHelp, stderr: new MemoryWritable() }), 0);
+  assert.match(agentHelp.text(), /AIWiki Agent commands/);
+  assert.match(agentHelp.text(), /aiwiki agent sync --yes/);
+
+  for (const command of ["context", "query", "show"]) {
+    const stdout = new MemoryWritable();
+    assert.equal(await runCli([command, "--help"], { stdout, stderr: new MemoryWritable() }), 0, command);
+    assert.match(stdout.text(), /AIWiki context\/query/, command);
+  }
+
+  const globalHelp = new MemoryWritable();
+  assert.equal(await runCli(["setup", "--help"], { stdout: globalHelp, stderr: new MemoryWritable() }), 0);
+  assert.match(globalHelp.text(), /aiwiki setup/);
+  assert.doesNotMatch(globalHelp.text(), /aiwiki init/);
+  assert.doesNotMatch(globalHelp.text(), /aiwiki ingest-url/);
+
+  const unknownError = new MemoryWritable();
+  assert.equal(await runCli(["unknown-command"], { stdout: new MemoryWritable(), stderr: unknownError }), 1);
+  assert.match(unknownError.text(), /错误: 未知命令: unknown-command/);
+});
+
 test("CLI init config doctor and status", async () => {
   const root = await tempRoot("aiwiki-cli");
   try {
