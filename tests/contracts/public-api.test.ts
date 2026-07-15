@@ -79,6 +79,25 @@ for (const specifier of ["@itradingai/aiwiki/dist/src/app.js", "@itradingai/aiwi
     );
     run(process.execPath, ["consumer.mjs"], consumerRoot);
 
+    for (const relativePath of [
+      "dist/src/app.js",
+      "dist/src/cli/command-registry.js",
+      "dist/src/cli/commands/core-handlers.js"
+    ]) {
+      rmSync(path.join(installedRoot, relativePath), { force: true });
+    }
+    writeFileSync(
+      path.join(consumerRoot, "facade-import.mjs"),
+      `import assert from "node:assert/strict";
+import * as api from "@itradingai/aiwiki";
+
+assert.equal(api.AIWIKI_PUBLIC_API_VERSION, "aiwiki.public.v1");
+assert.equal(typeof api.createAiwikiCli, "function");
+`,
+      "utf8"
+    );
+    run(process.execPath, ["facade-import.mjs"], consumerRoot);
+
     writeFileSync(
       path.join(consumerRoot, "consumer.ts"),
       `import {

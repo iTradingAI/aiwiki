@@ -1,4 +1,3 @@
-import { runCli } from "../app.js";
 import { resolveRoot } from "../workspace.js";
 import { AIWIKI_PUBLIC_API_VERSION, type AiwikiCli, type AiwikiCliStreams } from "./contracts.js";
 
@@ -25,7 +24,8 @@ export type {
 export function createAiwikiCli(): AiwikiCli {
   return Object.freeze({
     apiVersion: AIWIKI_PUBLIC_API_VERSION,
-    run(argv: readonly string[], streams?: AiwikiCliStreams): Promise<number> {
+    async run(argv: readonly string[], streams?: AiwikiCliStreams): Promise<number> {
+      const { runCli } = await import("../app.js");
       return runCli([...argv], streams);
     }
   });
