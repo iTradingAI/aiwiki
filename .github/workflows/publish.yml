@@ -2,14 +2,60 @@ name: Publish npm
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Run verification only or publish from main
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - publish
 
 permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: aiwiki-npm-publish
+  cancel-in-progress: false
+
 jobs:
+  verify:
+    name: CI / verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify release
+        run: npm run release:check
+
+  guard-publish-ref:
+    name: Guard publish ref
+    needs: verify
+    runs-on: ubuntu-latest
+    if: ${{ inputs.mode == 'publish' && github.ref != 'refs/heads/main' }}
+    steps:
+      - name: Reject non-main publication
+        run: |
+          echo "Publishing is allowed only from refs/heads/main."
+          exit 1
+
   publish:
     name: Publish @itradingai/aiwiki
+    needs: verify
+    if: ${{ inputs.mode == 'publish' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

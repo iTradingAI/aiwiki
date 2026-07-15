@@ -1,8 +1,15 @@
-# AIWiki Release Notes
+# AIWiki Release Guide
 
-This document describes the release gate for maintainers.
+This guide defines the delivery and release gates for AIWiki maintainers.
 
-AIWiki release work must prove the package locally, on the remote test server, through GitHub, and after npm publication.
+## Branch and Pull Request Gates
+
+- `main` is the public, protected branch. Direct pushes, force pushes, and branch deletion are prohibited.
+- `dev` is the Core integration branch. Start ordinary Core work from `dev`; use a `task/<id>-<slug>` branch when isolation is needed.
+- Ordinary Core tasks merge by pull request into `dev` only after branch CI and the task's remote tarball smoke test pass.
+- Only named Core release gates open a `dev` -> `main` pull request: `CORE-0408` (`0.4.0`), `CORE-0506` (`0.5.0`), `CORE-0601` (`0.6.0`), `CORE-0700` (`0.7.0`), and `CORE-1000` (`1.0.0`).
+- The control-plane task `CORE-0000` is the one-time exception that establishes this baseline with a `dev` -> `main` pull request. It must not create a version, tag, or npm publication.
+- A `main` pull request requires `CI / verify`, resolved conversations, and one approving review. CI runs on the source branch and the proposed pull request merge result.
 
 ## Local Checks
 
@@ -25,40 +32,56 @@ The package should contain CLI runtime files, user documentation, examples, and 
 For the 0.3.0 Source Capsule release, the dry-run output must also confirm:
 
 - `dist/src` contains the capsule runtime modules.
-- public docs and `skill/` protocol files include Source Capsule guidance.
-- internal 0.3.0 planning files are not packaged unless a later release decision explicitly changes that.
+- Public docs and `skill/` protocol files include Source Capsule guidance.
+- Internal planning files are not packaged unless a later release decision explicitly changes that.
 - `.omx`, `.npm-cache`, temporary smoke folders, and private planning artifacts are absent.
 
-## Version
+## Version and Tags
 
 `package.json` is the version source. `aiwiki --version` reads it at runtime.
 
-Patch bump by default:
+Do not bump a version for ordinary Core tasks. At a named release gate, update the planned milestone version while preparing the `dev` -> `main` pull request:
 
 ```bash
-npm version patch --no-git-tag-version
+npm version minor --no-git-tag-version
 ```
+
+After the release-gate pull request has been merged into `main`, create and push the corresponding tag from that exact `main` commit:
+
+```bash
+git switch main
+git pull --ff-only origin main
+git tag -a v<version> -m "AIWiki <version>"
+git push origin v<version>
+```
+
+Do not tag, publish, or announce a version before the `main` pull request is merged.
 
 ## Pre-delivery Remote Test
 
-Before pushing to GitHub or publishing to npm, build the exact local tarball and test it on the remote server.
+Before an ordinary task pull request, and before opening a release-gate pull request, build the exact local tarball and test it on the remote test server.
 
 Standard order:
 
 ```text
 local verification
-  -> version bump
-  -> local commit
+  -> push dev or task branch
+  -> branch CI / verify
   -> npm pack
-  -> install local tarball on remote test server
+  -> install the exact tarball on the remote test server
   -> run task-specific CLI smoke
-  -> GitHub push
-  -> GitHub Actions publish workflow
+  -> task pull request -> dev
+  -> dev CI / verify
+  -> release-gate pull request dev -> main
+  -> CI / verify on the proposed merge result and review approval
+  -> merge main
+  -> tag
+  -> publish workflow
   -> npm registry verification
   -> post-publish remote sanity
 ```
 
-If the remote smoke fails, do not push and do not publish. Fix locally, rebuild, repack, and rerun the remote smoke.
+If the remote smoke fails, do not open or merge the relevant pull request. Fix locally, rebuild, repack, and rerun the remote smoke.
 
 0.3.0 smoke should exercise the new and compatible command surfaces from the exact packed tarball:
 
@@ -77,28 +100,29 @@ aiwiki status --path <workspace>
 
 Expected stable contracts:
 
-- default `context` remains `schema_version: "aiwiki.context.v1"`
-- capsule context returns `schema_version: "aiwiki.context.capsule.v1"`
-- default `query` is capsule-oriented
-- `query --view files` remains available
-- lint capsule modes run without turning legacy metadata absence into default lint noise
+- Default `context` remains `schema_version: "aiwiki.context.v1"`.
+- Capsule context returns `schema_version: "aiwiki.context.capsule.v1"`.
+- Default `query` is capsule-oriented.
+- `query --view files` remains available.
+- Capsule lint modes run without turning legacy metadata absence into default lint noise.
 
 ## Publishing
 
-AIWiki uses npm Trusted Publishing. Publication should be done through GitHub Actions:
+AIWiki uses npm Trusted Publishing. The workflow defaults to verification-only mode:
 
 ```bash
-gh workflow run publish.yml --repo iTradingAI/aiwiki
+gh workflow run publish.yml --repo iTradingAI/aiwiki --ref dev -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
 ```
 
-Check recent publish runs:
+The workflow denies `mode=publish` outside `main`. A real publication is permitted only after the release-gate pull request is merged and tagged:
 
 ```bash
-gh run list --workflow publish.yml --repo iTradingAI/aiwiki --limit 5
+gh workflow run publish.yml --repo iTradingAI/aiwiki --ref main -f mode=publish
+gh run watch --repo iTradingAI/aiwiki
 ```
 
-Verify the registry:
+Verify the registry after a successful publish:
 
 ```bash
 npm view @itradingai/aiwiki version

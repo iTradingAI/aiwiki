@@ -1,12 +1,19 @@
-# AIWiki 发布说明
+# AIWiki 发布指南
 
-这份文档给维护者使用。
+本文定义 AIWiki 维护者的交付与发布门禁。
 
-AIWiki 发布必须证明：本地通过、测试服务器通过、GitHub 推送通过、npm 发布后也通过。
+## 分支与 PR 门禁
+
+- `main` 是对外公开且受保护的分支。禁止直接推送、强制推送和删除分支。
+- `dev` 是 Core 集成分支。普通 Core 开发从 `dev` 开始；需要隔离时，使用 `task/<id>-<slug>` 分支。
+- 普通 Core 任务只有在分支 CI 与该任务的远端 tarball smoke 测试通过后，才可通过 PR 合并到 `dev`。
+- 只有命名的 Core 发布门槛任务可以创建 `dev` -> `main` PR：`CORE-0408`（`0.4.0`）、`CORE-0506`（`0.5.0`）、`CORE-0601`（`0.6.0`）、`CORE-0700`（`0.7.0`）和 `CORE-1000`（`1.0.0`）。
+- 控制面任务 `CORE-0000` 是一次性例外：它通过 `dev` -> `main` PR 建立本基线，但不得创建版本、标签或 npm 发布。
+- 每个 `main` PR 都必须通过 `CI / verify`、解决全部讨论，并获得一位审批者批准。CI 同时运行于源分支和拟合并结果。
 
 ## 本地检查
 
-先确认工作区只包含本次发布需要的改动：
+从干净且确认过的工作区开始：
 
 ```bash
 git status --short --branch
@@ -14,53 +21,69 @@ npm test
 npm run release:check
 ```
 
-如果包内容、文档、示例或 skill 有变化，检查：
+当包内容、文档、示例或 skill 有变化时，检查：
 
 ```bash
 npm pack --dry-run
 ```
 
-npm 包只应包含 CLI 运行文件、用户文档、示例和 packaged skill。
+npm 包只应包含 CLI 运行文件、用户文档、示例和需要打包的 skill 文件。
 
-对 0.3.0 Source Capsule 发布，dry-run 还必须确认：
+对于 0.3.0 Source Capsule 发布，dry-run 还必须确认：
 
 - `dist/src` 包含 capsule 运行模块。
-- public docs 和 `skill/` 协议文件已经包含 Source Capsule 说明。
-- 内部 0.3.0 规划文件默认不打进包，除非后续明确改变发布决策。
-- `.omx`、`.npm-cache`、临时 smoke 目录和私有规划产物不在包里。
+- 公共文档和 `skill/` 协议文件包含 Source Capsule 指引。
+- 内部规划文件默认不进入包，除非后续发布决策明确变更。
+- `.omx`、`.npm-cache`、临时 smoke 目录和私有规划产物不在包内。
 
-## 版本
+## 版本与标签
 
-`package.json` 是版本来源。`aiwiki --version` 运行时读取它。
+`package.json` 是版本来源，`aiwiki --version` 在运行时读取它。
 
-默认 patch bump：
+普通 Core 任务不得提升版本。仅在命名发布门槛任务准备 `dev` -> `main` PR 时，更新到计划中的里程碑版本：
 
 ```bash
-npm version patch --no-git-tag-version
+npm version minor --no-git-tag-version
 ```
 
-## 发布前远端测试
+发布门槛 PR 合并到 `main` 后，必须从该精确的 `main` 提交创建并推送对应标签：
 
-推 GitHub 或发布 npm 之前，必须把同一个本地 tarball 放到测试服务器安装并跑 smoke。
+```bash
+git switch main
+git pull --ff-only origin main
+git tag -a v<version> -m "AIWiki <version>"
+git push origin v<version>
+```
+
+在 `main` PR 合并前，禁止打标签、发布或对外宣布版本。
+
+## 交付前远端测试
+
+普通任务 PR 之前，以及发布门槛 PR 之前，必须构建精确的本地 tarball，并在远端测试服务器上安装和测试。
 
 标准顺序：
 
 ```text
 本地验证
-  -> 版本号
-  -> 本地提交
+  -> 推送 dev 或 task 分支
+  -> 分支 CI / verify
   -> npm pack
-  -> 测试服务器安装本地 tarball
-  -> 跑任务对应 CLI smoke
-  -> GitHub push
-  -> GitHub Actions 发布 workflow
+  -> 在远端测试服务器安装精确 tarball
+  -> 运行任务对应的 CLI smoke
+  -> 任务 PR -> dev
+  -> dev CI / verify
+  -> 发布门槛 PR dev -> main
+  -> 拟合并结果的 CI / verify 与人工审批
+  -> 合并 main
+  -> 打标签
+  -> 发布 workflow
   -> npm registry 验证
   -> 发布后远端 sanity
 ```
 
-如果远端 smoke 失败，不推 GitHub，不发布 npm。先本地修复，重新构建、打包、远端验证。
+远端 smoke 失败时，不得创建或合并对应 PR。应在本地修复、重新构建、重新打包并重新执行远端测试。
 
-0.3.0 smoke 必须用同一个 packed tarball 覆盖新增和兼容命令面：
+0.3.0 smoke 应从同一个已打包 tarball 覆盖新增和兼容命令面：
 
 ```bash
 aiwiki show "<主题>" --path <workspace>
@@ -77,38 +100,39 @@ aiwiki status --path <workspace>
 
 稳定契约：
 
-- 默认 `context` 仍然是 `schema_version: "aiwiki.context.v1"`。
+- 默认 `context` 保持 `schema_version: "aiwiki.context.v1"`。
 - capsule context 返回 `schema_version: "aiwiki.context.capsule.v1"`。
-- 默认 `query` 是 capsule 视图。
-- `query --view files` 仍然可用。
-- capsule lint 模式可以运行，但旧知识库缺少 capsule 元数据不应变成默认 lint 噪音。
+- 默认 `query` 为 capsule 导向视图。
+- `query --view files` 必须继续可用。
+- capsule lint 模式可运行，但旧知识库缺少 capsule 元数据不应成为默认 lint 噪声。
 
 ## 发布
 
-AIWiki 使用 npm Trusted Publishing。发布应通过 GitHub Actions 完成：
+AIWiki 使用 npm Trusted Publishing。工作流默认只执行验证：
 
 ```bash
-gh workflow run publish.yml --repo iTradingAI/aiwiki
+gh workflow run publish.yml --repo iTradingAI/aiwiki --ref dev -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
 ```
 
-查看最近发布任务：
+工作流会拒绝在 `main` 以外使用 `mode=publish`。真正发布只允许发生在发布门槛 PR 已合并、标签已创建之后：
 
 ```bash
-gh run list --workflow publish.yml --repo iTradingAI/aiwiki --limit 5
+gh workflow run publish.yml --repo iTradingAI/aiwiki --ref main -f mode=publish
+gh run watch --repo iTradingAI/aiwiki
 ```
 
-验证 npm：
+发布成功后验证 registry：
 
 ```bash
 npm view @itradingai/aiwiki version
 npm view @itradingai/aiwiki versions --json
 ```
 
-如果 Trusted Publishing 失败，检查 npm Trusted Publisher、仓库名、workflow 文件名和 `id-token: write` 权限。
+Trusted Publishing 失败时，检查 npm Trusted Publisher 配置、仓库名、workflow 文件名和 `id-token: write` 权限。
 
 ## README 图片
 
-README 使用 GitHub raw 图片链接，让 GitHub 和 npm 都能显示图片，同时避免把 `docs/assets/` 打进 npm 包。
+README 使用 GitHub raw 图片链接，以便 GitHub 与 npm 渲染图片，同时避免将 `docs/assets/` 打进 npm 包。
 
-如果 `npm pack --dry-run` 出现意外资产或内部规划文件，先修复 `package.json.files`。
+若 `npm pack --dry-run` 出现意外资源或私有规划文件，应先修复 `package.json.files` 再发布。
