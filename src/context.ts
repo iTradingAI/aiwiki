@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { frontmatterArray, frontmatterBoolean, frontmatterString, parseMarkdown, type FrontmatterValue } from "./frontmatter.js";
 import { relativePath } from "./paths.js";
+import { schemaId } from "./schema.js";
 import { exists } from "./workspace.js";
 
 type MatchItem = {
@@ -96,7 +97,7 @@ export async function buildContext(
   const limit = normalizeLimit(options.limit);
   const filters = normalizeFilters(options.filters);
   const result: ContextResult = {
-    schema_version: "aiwiki.context.v1",
+    schema_version: schemaId("context"),
     query,
     generated_at: now,
     query_scope: {

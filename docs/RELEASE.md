@@ -55,6 +55,12 @@ When an exports entry, public type, or public API version changes, the task must
 
 Ordinary Core tasks still do not bump the package version, create tags, or publish npm packages. New Extension API paths are not public until their dedicated contract task defines and verifies them.
 
+## Schema Compatibility Gate
+
+CORE-0403 keeps `aiwiki.context.v1` and `aiwiki.context.capsule.v1` stable, reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1`, and provides only an internal read-only migration plan. The task must prove that legacy config and unknown additive frontmatter are not rewritten, and that a future major becomes a manual-review result.
+
+The packed tarball must include `docs/schema/`. This task does not add a Schema CLI, an Extension API, or a Skill matching behavior change; CORE-0407 owns the future matching contract.
+
 ## Version and Tags
 
 `package.json` is the version source. `aiwiki --version` reads it at runtime.

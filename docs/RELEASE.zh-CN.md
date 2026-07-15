@@ -55,6 +55,12 @@ Core 集成只支持 `@itradingai/aiwiki` 与 `@itradingai/aiwiki/contracts` 两
 
 普通 Core 任务仍不得提升包版本、创建 tag 或发布 npm 包。新的 Extension API 路径必须等其专属合同任务定义和验证后才可公开。
 
+## Schema Compatibility Gate
+
+CORE-0403 保持 `aiwiki.context.v1` 与 `aiwiki.context.capsule.v1` 稳定，将历史工作区 `schema_version: 1` 读取为 `aiwiki.workspace.v1`，并且只提供内部只读迁移预检。任务必须证明旧配置和未知新增 frontmatter 没有被回写，未来主版本会落入人工复核结果。
+
+打包 tarball 必须包含 `docs/schema/`。本任务不会新增 Schema CLI、Extension API 或 Skill 匹配行为；CORE-0407 负责后续匹配合同。
+
 ## 版本与标签
 
 `package.json` 是版本来源，`aiwiki --version` 在运行时读取它。

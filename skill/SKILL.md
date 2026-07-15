@@ -85,6 +85,12 @@ Match user requests to this command contract before using generic file tools:
 | query or reuse knowledge | `aiwiki query <topic>` or `aiwiki context <topic>`; use `aiwiki show <topic>` for a source package | read result quality, recommended next action, provenance, and gaps | try the relevant AIWiki command before file search and explain any fallback |
 | check or organize a workspace | `aiwiki lint --json`, then `aiwiki lint --fix-empty-dirs --json` only when allowed and safe | explain errors, warnings, safe fixes, and report path | leave non-safe issues for review; do not default to ad hoc Markdown edits |
 
+## Schema Compatibility Boundary
+
+Keep the current command-first matching unchanged. Existing workspaces with `schema_version: 1` remain compatible as `aiwiki.workspace.v1`; Agent outputs remain `aiwiki.context.v1` and `aiwiki.context.capsule.v1`. Do not invent a schema migration command or rewrite user frontmatter for this feature. Declared future schema majors require manual review.
+
+CORE-0403 adds no new automatic Skill match. CORE-0407 owns any future Skill matching contract, including intent examples, precedence, fallback, and tests.
+
 ## Knowledge Base Purpose
 
 Before ingesting, querying, linting, or reorganizing material, read `_system/purpose.md` in the target AIWiki workspace when it exists. Treat it as the local contract for:

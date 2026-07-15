@@ -37,6 +37,10 @@ AI 助手读取资料
 
 在 0.3.0 中，`aiwiki query` 默认显示 Source Capsule。Agent 集成可以继续使用稳定的 `aiwiki.context.v1`，需要 capsule JSON 时显式调用 `aiwiki context "<主题>" --view capsule`。
 
+## Schema Compatibility
+
+[Schema Compatibility 目录](schema/README.zh-CN.md)记录 v1 数据合同、`schema_version: 1` 的工作区兼容别名，以及未来主版本只能人工复核的规则。CORE-0403 不改变 Skill 匹配；CORE-0407 负责后续匹配合同。
+
 ## 公开集成 API
 
 Core 集成只能使用以下 ESM 包入口：
