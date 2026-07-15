@@ -11,6 +11,7 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 - [Usage Guide](USAGE.md)
 - [FAQ](FAQ.md)
 - [Agent Handoff](AGENT_HANDOFF.md)
+- [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix)
 - [Showcase](SHOWCASE.md)
 - [Trial Feedback Template](TRIAL_FEEDBACK_TEMPLATE.md)
 - [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md)
@@ -48,6 +49,8 @@ In 0.3.0, human `aiwiki query` output defaults to Source Capsules. Agent integra
 For public trials, keep the first loop to one source and one question: setup, ingest, inspect the run artifacts, query/context reuse, lint/doctor, and a short feedback note.
 
 The scenario pack gives users copyable sample inputs, expected generated artifacts, reuse prompts, long-term maintenance value, and WeChat-group-ready copy for each trial path.
+
+For natural-language matching, use the [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix): every supported path identifies the preferred command, how to interpret its output, and when a fallback is allowed.
 
 Use the [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md) to classify trial feedback into installation, first-use, ingest-result, directory, query-reuse, and feature-request signals before promoting anything into the managed queue.
 

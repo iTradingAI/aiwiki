@@ -842,20 +842,21 @@ function workspaceGuidanceBlock(): string {
   return `${AIWIKI_AGENT_GUIDANCE_START}
 # AIWiki Agent Command Contract
 
-When a user asks to organize, inspect, ingest, query, reuse, or maintain this AIWiki workspace, call the AIWiki CLI first. Do not start with generic file search, grep/find scans, or ad hoc note edits unless the AIWiki command cannot answer the request.
+When a user asks to install, sync, organize, inspect, ingest, query, reuse, or maintain this AIWiki workspace, call the matching AIWiki CLI command first. Interpret the command output before replying. Do not start with generic file search, grep/find scans, or ad hoc note edits unless the AIWiki command cannot answer the request.
 
 Required command-first loop:
 
 1. Ensure the workspace exists and refresh root guidance with \`aiwiki setup --path <workspace> --yes\`.
 2. Verify root guidance with \`aiwiki agent check --path <workspace> --json\`; use \`aiwiki agent sync --path <workspace> --yes\` only for manual guidance refresh without setup.
-3. Inspect structure with \`aiwiki lint --json --path <workspace>\`; inspect Source Capsule health with \`aiwiki lint --capsules --json --path <workspace>\`; apply only safe fixes with \`aiwiki lint --fix-empty-dirs --json --path <workspace>\` when allowed, then rerun \`aiwiki lint --json --path <workspace>\`.
-4. Ingest local material with \`aiwiki ingest-file --file <file> --path <workspace>\` or structured Agent material with \`aiwiki ingest-agent --stdin --path <workspace>\`.
-5. Check progress with \`aiwiki status --path <workspace>\`.
-6. Retrieve reusable knowledge with \`aiwiki query <topic> --path <workspace>\` for human-readable output or \`aiwiki context <topic> --path <workspace>\` for Agent JSON.
-7. Use Source Capsule views when the user asks for one source package, provenance, lifecycle state, or OKF readiness: \`aiwiki show <topic> --path <workspace>\`, \`aiwiki query <topic> --path <workspace>\`, or \`aiwiki context <topic> --view capsule --path <workspace>\`.
-8. Use \`aiwiki query <topic> --view files --path <workspace>\` only when the older file-level match list is needed.
+3. When the user explicitly asks to sync, upgrade, or repair host-Agent integration, run \`aiwiki agent check --json\`, preview with \`aiwiki agent sync --dry-run\`, then run \`aiwiki agent sync --yes\` after confirmation. Report state, backup path, and restart/reload requirement.
+4. Inspect structure with \`aiwiki lint --json --path <workspace>\`; inspect Source Capsule health with \`aiwiki lint --capsules --json --path <workspace>\`; apply only safe fixes with \`aiwiki lint --fix-empty-dirs --json --path <workspace>\` when allowed, then rerun \`aiwiki lint --json --path <workspace>\`.
+5. Ingest local material with \`aiwiki ingest-file --file <file> --path <workspace>\` or structured Agent material with \`aiwiki ingest-agent --stdin --path <workspace>\`.
+6. Check progress with \`aiwiki status --path <workspace>\`.
+7. Retrieve reusable knowledge with \`aiwiki query <topic> --path <workspace>\` for human-readable output or \`aiwiki context <topic> --path <workspace>\` for Agent JSON. Before answering, read \`result_quality\` and \`recommended_next_action\`.
+8. Use Source Capsule views when the user asks for one source package, provenance, lifecycle state, or OKF readiness: \`aiwiki show <topic> --path <workspace>\`, \`aiwiki query <topic> --path <workspace>\`, or \`aiwiki context <topic> --view capsule --path <workspace>\`.
+9. Use \`aiwiki query <topic> --view files --path <workspace>\` only when the older file-level match list is needed.
 
-Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, say which AIWiki command was insufficient and why.
+Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, say which AIWiki command was insufficient and why. For unsupported host-Agent integration, use \`aiwiki prompt agent\` rather than writing unknown host configuration.
 ${AIWIKI_AGENT_GUIDANCE_END}`;
 }
 
@@ -903,11 +904,14 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "");
   writeLine(stream, "如果当前会话被用户明确设定为 AIWiki 入库助手，则用户只发送 URL 也默认触发入库。普通会话中不要把所有 URL 都自动入库。");
   writeLine(stream, "");
+  writeLine(stream, "安装：当用户要求安装、初始化或修复工作区时，先运行 `aiwiki setup --path <workspace> --yes`，再运行 `aiwiki agent check --path <workspace> --json`、`aiwiki doctor --path <workspace>` 和 `aiwiki status --path <workspace>`，并解释工作区和根指导状态。");
   writeLine(stream, "流程：读取网页正文；尽量生成 analysis/wiki_entry；生成 aiwiki.agent_payload.v1；通过 stdin 调用 `aiwiki ingest-agent --stdin`；读取 CLI 输出；向用户汇报 ingested、summary、wiki_entry、wiki_entry_quality、source_card、processing_summary。");
   writeLine(stream, "回复措辞：成功时说“AIWiki 已完成入库，并生成 Wiki 条目。” 如果 wiki_entry_quality=scaffold，说明该条目只是可追溯脚手架，仍需宿主 Agent 后续补全。Dataview 是可选增强，不要替用户安装插件或修改 .obsidian。");
   writeLine(stream, "");
-  writeLine(stream, "查询：当用户要求从 AIWiki 里了解某个主题时，调用 `aiwiki context <主题>`；需要来源包、生命周期或 OKF readiness 时，调用 `aiwiki context <主题> --view capsule` 或 `aiwiki show <主题>`。");
+  writeLine(stream, "查询：当用户要求从 AIWiki 里了解某个主题时，调用 `aiwiki context <主题>`；需要来源包、生命周期或 OKF readiness 时，调用 `aiwiki context <主题> --view capsule` 或 `aiwiki show <主题>`。回答前读取 `result_quality` 和 `recommended_next_action`，说明来源、质量和已知缺口。");
   writeLine(stream, "整理：当用户要求检查或整理知识库时，先调用 `aiwiki lint --json`；深层 capsule 检查使用 `aiwiki lint --capsules --json`、`--lifecycle`、`--okf` 或 `--strict`；若只有 safe fix 且用户允许整理，再调用 `aiwiki lint --fix-empty-dirs --json`，随后重跑 `aiwiki lint --json`。");
+  writeLine(stream, "升级：当用户要求同步、升级或修复宿主 Agent 接入时，先调用 `aiwiki agent check --json`，再使用 `aiwiki agent sync --dry-run` 预览；确认后运行 `aiwiki agent sync --yes`。不支持的宿主使用 `aiwiki prompt agent`，不要写入未知配置。");
+  writeLine(stream, "fallback：只有对应 AIWiki 命令无法回答请求时，才使用文件搜索或临时脚本；必须说明哪个命令不足以及原因。不要把网页抓取、手工 payload 或未知宿主配置当作默认回退路径。");
   writeLine(stream, "");
   writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取；声称 AIWiki CLI 会在没有 Agent 分析字段时自动高质量总结。");
 }

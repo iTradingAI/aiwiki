@@ -1,5 +1,15 @@
 # AIWiki 使用指南
 
+## 场景优先的开始方式
+
+先对 Agent 说：
+
+```text
+请安装 AIWiki，使用 <我的本地-aiwiki-路径> 作为工作区，同步支持的 Agent 接入，并汇报工作区和 Agent 状态。
+```
+
+Agent 应使用 `setup`、`agent sync/check`、`doctor` 和 `status`，再解释观察到的状态。首选命令、输出解释和 fallback 条件以 [Core Intent Matrix](AGENT_HANDOFF.zh-CN.md#core-intent-matrix) 为准；下方长检查清单仅用于明确的安装排障。
+
 AIWiki 的主路径是让 AI 助手来使用。
 
 目标体验很简单：

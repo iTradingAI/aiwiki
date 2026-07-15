@@ -15,7 +15,15 @@ AIWiki does not fetch webpages and does not call an LLM. The host assistant read
 
 ## 1. Ask Your Assistant to Install AIWiki
 
-Copy this prompt into your assistant:
+Start with this short request:
+
+```text
+Install AIWiki, use <my-local-aiwiki-path> as the workspace, sync the supported Agent integration, and report the workspace and Agent status.
+```
+
+The assistant should use `setup`, `agent sync/check`, `doctor`, and `status`, then explain the observed state. The [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix) is the normative mapping for the preferred command, output interpretation, and fallback condition.
+
+Use the following detailed checklist only when installation needs explicit environment troubleshooting:
 
 Before sending it, replace every `<replace-with-my-aiwiki-path>` with your own local folder path, such as `D:\AIWiki` or `~/AIWiki`. Do not leave the placeholder in the commands.
 
@@ -98,6 +106,8 @@ For unsupported hosts, print the generic assistant protocol:
 ```bash
 aiwiki prompt agent
 ```
+
+Do not write unknown host configuration as a fallback. Report that the host is unsupported, use `aiwiki prompt agent`, and keep the manual instructions scoped to that host.
 
 ## 3. Ingest a Source
 

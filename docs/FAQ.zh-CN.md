@@ -1,5 +1,17 @@
 # AIWiki 常见问题
 
+## Core Intent Matrix 在哪里？
+
+自然语言意图、首选命令、输出解释和 fallback 条件统一见 [Agent 接入说明](AGENT_HANDOFF.zh-CN.md#core-intent-matrix)。先调用对应的 AIWiki 命令；只有命令不足时才回退到文件搜索，并说明原因。
+
+## 查询结果不够时怎么办？
+
+先使用 `aiwiki context`、`aiwiki query` 或 `aiwiki show`，并在回答前读取 `result_quality` 和 `recommended_next_action`。只有这些命令不足以回答当前问题时，才可以回退到直接文件搜索，并解释哪个命令不足以及原因。
+
+## Lint 不能安全修复时怎么办？
+
+保留 `aiwiki lint --json` 的报告，并说明需要人工或宿主 Agent 复核的事项。不要用批量 Markdown 修改、通用目录清理或破坏性 shell 命令绕过安全修复边界。
+
 ## AIWiki 是什么？
 
 AIWiki 是给 AI 助手使用的本地 Markdown 知识库。AI 助手负责读取和理解资料；AIWiki 负责写入结构化、可追踪、可复用的 Markdown 知识文件。
