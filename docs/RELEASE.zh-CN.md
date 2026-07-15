@@ -9,13 +9,13 @@
 - 普通 Core 任务只有在分支 CI 与该任务的远端 tarball smoke 测试通过后，才可通过 PR 合并到 `dev`。
 - 只有命名的 Core 发布门槛任务可以创建 `dev` -> `main` PR：`CORE-0408`（`0.4.0`）、`CORE-0506`（`0.5.0`）、`CORE-0601`（`0.6.0`）、`CORE-0700`（`0.7.0`）和 `CORE-1000`（`1.0.0`）。
 - 控制面任务 `CORE-0000` 是一次性例外：它通过 `dev` -> `main` PR 建立本基线，但不得创建版本、标签或 npm 发布。
-- 每个 `main` PR 都必须通过 `.github/workflows/ci.yml` 中唯一命名的 `CI / verify`、解决全部讨论，并完成 Codex GitHub App 技术审查。CI 同时运行于源分支和拟合并结果；仓库维护者只在这些门禁满足后合并。
+- 每个 `main` PR 都必须通过 `.github/workflows/ci.yml` 中唯一命名的 `CI / verify`、解决全部讨论，并留下完成的 Codex 技术审查记录。CI 同时运行于源分支和拟合并结果；仓库维护者只在这些门禁满足后合并。
 
 ## 技术审核智能体
 
-在合并 Core PR 前，必须在只读 worktree 中运行专用 AIWiki PR 审核智能体，并对精确 PR head 请求 Codex GitHub App 审查。其报告必须覆盖 CI、分支保护、发布 OIDC 权限、发布标签以及中英文文档一致性。
+在合并 Core PR 前，必须在只读 worktree 中对精确 PR head 运行专用 AIWiki PR 审核智能体。所有阻塞发现解决后，必须使用仓库维护者身份执行 `gh pr review --comment` 记录其结论。其报告必须覆盖 CI、分支保护、发布 OIDC 权限、发布标签以及中英文文档一致性。
 
-本地智能体的结论仅构成技术审核证据；它不得编辑、推送、合并或发布。GitHub App 的审查以 PR 评论记录，而非 GitHub `APPROVED` review。本仓库刻意采用“PR、CI、已解决会话、技术审查”后由维护者合并的模型，不要求每个发布 PR 使用第二个 GitHub 身份。
+本地智能体的结论仅构成技术审核证据；它不得编辑、推送、合并或发布。其 `COMMENT` review 以维护者身份记录，而非 GitHub `APPROVED` review。本仓库刻意采用“PR、CI、已解决会话、技术审查”后由维护者合并的模型，不要求每个发布 PR 使用第二个 GitHub 身份。
 
 ## 本地检查
 
