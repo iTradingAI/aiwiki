@@ -69,6 +69,90 @@ test("prompt agent prints neutral Agent handoff instructions", async () => {
   assert.equal(stderr.text(), "");
 });
 
+test("documentation, Skill, prompt, and workspace guidance share the Core intent matrix", async () => {
+  const [handoff, handoffChinese, skill, queryProtocol, lintProtocol, ...publicDocs] = await Promise.all([
+    readFile("docs/AGENT_HANDOFF.md", "utf8"),
+    readFile("docs/AGENT_HANDOFF.zh-CN.md", "utf8"),
+    readFile("skill/SKILL.md", "utf8"),
+    readFile("skill/QUERY_PROTOCOL.md", "utf8"),
+    readFile("skill/LINT_PROTOCOL.md", "utf8"),
+    ...[
+      "README.md",
+      "README.zh-CN.md",
+      "docs/README.md",
+      "docs/README.zh-CN.md",
+      "docs/USAGE.md",
+      "docs/USAGE.zh-CN.md",
+      "docs/FAQ.md",
+      "docs/FAQ.zh-CN.md",
+      "docs/SHOWCASE.md",
+      "docs/SHOWCASE.zh-CN.md"
+    ].map((file) => readFile(file, "utf8"))
+  ]);
+  const commandFirstTerms = [
+    "aiwiki setup",
+    "aiwiki agent check",
+    "aiwiki ingest-agent --stdin",
+    "aiwiki query",
+    "aiwiki context",
+    "aiwiki lint --json",
+    "aiwiki lint --fix-empty-dirs --json"
+  ];
+
+  assert.match(handoff, /Core Intent Matrix/);
+  assert.match(handoffChinese, /Core Intent Matrix/);
+  for (const text of [handoff, handoffChinese, skill]) {
+    for (const term of commandFirstTerms) {
+      assert.ok(text.includes(term), `expected command contract to contain ${term}`);
+    }
+    assert.match(text, /fallback/i);
+  }
+  assert.match(queryProtocol, /fallback/i);
+  assert.match(lintProtocol, /fallback/i);
+  for (const text of publicDocs) {
+    assert.match(text, /Core Intent Matrix/);
+  }
+
+  const promptOut = new MemoryWritable();
+  assert.equal(await runCli(["prompt", "agent"], { stdout: promptOut, stderr: new MemoryWritable() }), 0);
+  for (const term of [
+    "aiwiki setup --path <workspace> --yes",
+    "aiwiki agent check --json",
+    "aiwiki agent sync --dry-run",
+    "aiwiki agent sync --yes",
+    "aiwiki doctor --path <workspace>",
+    "aiwiki status --path <workspace>",
+    "aiwiki ingest-agent --stdin",
+    "aiwiki context",
+    "result_quality",
+    "recommended_next_action",
+    "aiwiki lint --json",
+    "aiwiki prompt agent",
+    "fallback"
+  ]) {
+    assert.ok(promptOut.text().includes(term), `expected prompt output to contain ${term}`);
+  }
+
+  const root = await tempRoot("aiwiki-cli-intent-matrix");
+  try {
+    assert.equal(await runCli(["agent", "sync", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    const guidance = await readFile(path.join(root, "AGENTS.md"), "utf8");
+    for (const term of [
+      ...commandFirstTerms,
+      "aiwiki agent sync --dry-run",
+      "aiwiki agent sync --yes",
+      "result_quality",
+      "recommended_next_action",
+      "aiwiki prompt agent"
+    ]) {
+      assert.ok(guidance.includes(term), `expected workspace guidance to contain ${term}`);
+    }
+    assert.match(guidance, /fallback/i);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("version flag prints CLI version", async () => {
   const stdout = new MemoryWritable();
   const code = await runCli(["--version"], { stdout, stderr: new MemoryWritable() });

@@ -12,6 +12,16 @@
 
 # AIWiki
 
+## 场景优先的命令契约
+
+首次使用时，先用一句自然语言请求：
+
+```text
+请安装 AIWiki，使用 <我的本地-aiwiki-路径> 作为工作区，同步支持的 Agent 接入，并告诉我工作区和 Agent 状态。
+```
+
+Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、`doctor`、`status` 的路径执行，并解释结果。完整的首选命令、输出解释和 fallback 条件见 [Core Intent Matrix](docs/AGENT_HANDOFF.zh-CN.md#core-intent-matrix)。长提示只用于安装排障，不是首次使用的主路径。
+
 [![npm version](https://img.shields.io/npm/v/@itradingai/aiwiki.svg)](https://www.npmjs.com/package/@itradingai/aiwiki)
 [![Node.js >=20](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

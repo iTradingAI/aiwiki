@@ -54,6 +54,18 @@ aiwiki context <topic> --path <workspace>
 
 只有当对应 AIWiki 命令无法回答问题时，才退回 `rg`、`find`、直接读文件或临时脚本；退回时说明哪个 AIWiki 命令不够用以及原因。
 
+## Core Intent Matrix
+
+以下矩阵是自然语言请求匹配 AIWiki 命令的统一合同。公开文档可以使用更短的场景说明，但不得改变首选命令、结果解释和 fallback 边界。
+
+| 用户意图 | 首选命令 | 输出解释 | fallback 条件 |
+| --- | --- | --- | --- |
+| 安装、初始化或修复工作区 | `aiwiki setup --path <workspace> --yes`，然后 `aiwiki agent check --path <workspace> --json` | 说明工作区是否就绪、根指导是否 current | 命令不可用时说明环境问题；不要先手工修改工作区结构 |
+| 同步、升级或修复宿主 Agent 接入 | `aiwiki agent check --json`、`aiwiki agent sync --dry-run`，再执行 `aiwiki agent sync --yes` | 说明 `installed`、`current`、`different`、备份路径和是否需要重启/重载 | 不支持的宿主不得自动写入；使用 `aiwiki prompt agent` 作为手工接入入口 |
+| 入库本地文件或宿主 Agent 已读取的资料 | `aiwiki ingest-file --file <file>` 或 `aiwiki ingest-agent --stdin` | 汇报入库状态、Wiki Entry 质量、Source Card、Processing Summary 和 warning | 无法读取的来源使用 failed-fetch payload 留痕；不能要求用户写入或保存 payload |
+| 查询、引用或复用本地知识 | 人类可读结果用 `aiwiki query <topic>`，Agent JSON 用 `aiwiki context <topic>`；单个来源包用 `aiwiki show <topic>` 或 capsule view | 回答前读取 `result_quality`、`recommended_next_action`、来源和已知缺口 | 先尝试对应 AIWiki 命令；仅在命令不足时使用文件搜索，并说明原因 |
+| 检查、整理或安全修复工作区 | `aiwiki lint --json`；仅在允许且只有安全修复时执行 `aiwiki lint --fix-empty-dirs --json`，再运行 `aiwiki lint --json` | 解释 error、warning、安全修复范围和 lint 报告路径 | 非安全问题保留为可追踪复核项；不要默认手工修改 Markdown |
+
 ## 入库流程
 
 1. 读取 URL、文件、笔记、附件或用户粘贴的正文。

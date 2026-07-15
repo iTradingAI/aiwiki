@@ -73,6 +73,18 @@ aiwiki context <topic> --path <workspace>
 
 Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, explain which AIWiki command was insufficient and why. If you skip the AIWiki commands entirely, the knowledge-base features are not being exercised.
 
+## Core Intent Matrix
+
+Match user requests to this command contract before using generic file tools:
+
+| User intent | Preferred command | Interpret the result | Fallback condition |
+| --- | --- | --- | --- |
+| install, initialize, or repair | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json` | report workspace readiness and root-guidance state | explain environment failures; do not hand-edit workspace structure first |
+| sync, upgrade, or repair Agent integration | `aiwiki agent check --json`, `aiwiki agent sync --dry-run`, then `aiwiki agent sync --yes` | report state, backup, and restart/reload requirement | unsupported hosts use `aiwiki prompt agent`; do not write unknown host configuration |
+| ingest material | `aiwiki ingest-file --file <file>` or `aiwiki ingest-agent --stdin` | report ingest status, quality, Source Card, and Processing Summary | record unreadable sources as failed-fetch payloads; do not ask users to save payloads |
+| query or reuse knowledge | `aiwiki query <topic>` or `aiwiki context <topic>`; use `aiwiki show <topic>` for a source package | read result quality, recommended next action, provenance, and gaps | try the relevant AIWiki command before file search and explain any fallback |
+| check or organize a workspace | `aiwiki lint --json`, then `aiwiki lint --fix-empty-dirs --json` only when allowed and safe | explain errors, warnings, safe fixes, and report path | leave non-safe issues for review; do not default to ad hoc Markdown edits |
+
 ## Knowledge Base Purpose
 
 Before ingesting, querying, linting, or reorganizing material, read `_system/purpose.md` in the target AIWiki workspace when it exists. Treat it as the local contract for:

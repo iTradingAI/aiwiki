@@ -49,7 +49,7 @@ Because the intended workflow is assistant-driven. You send a source or question
 
 ## Where should I start?
 
-Ask your assistant to run the Quick Start prompt in the main [README](../README.md). Then read the [Usage Guide](USAGE.md).
+Ask your assistant: "Install AIWiki, use my chosen workspace path, sync the supported Agent integration, and report the status." The assistant should follow the [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix), then you can continue with the [Usage Guide](USAGE.md).
 
 ## What should my first 10-minute trial include?
 
@@ -106,6 +106,8 @@ aiwiki query "<topic>"
 
 `aiwiki query` defaults to Source Capsule view. Use `aiwiki query "<topic>" --view files` when you need the older file-level match list.
 
+Read result quality and the recommended next action before relying on a result. Only fall back to direct file search when the relevant AIWiki query command is insufficient, and explain why.
+
 To inspect one source package:
 
 ```bash
@@ -146,6 +148,8 @@ aiwiki lint --okf --json
 ```
 
 Use `aiwiki lint --strict --json` for release or CI-style validation, not as the default cleanup path for normal users.
+
+If a lint issue is not a supported safe fix, keep the lint report and request review rather than making broad Markdown or directory edits.
 
 ## How do I send useful trial feedback?
 

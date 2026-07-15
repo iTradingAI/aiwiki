@@ -54,6 +54,18 @@ aiwiki context <topic> --path <workspace>
 
 Use `rg`, `find`, direct file reading, or temporary scripts only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, explain which AIWiki command was insufficient and why.
 
+## Core Intent Matrix
+
+Use this matrix as the command contract for matching natural-language requests. Public guides may show shorter scenarios, but they must not change the preferred command, result interpretation, or fallback boundary below.
+
+| User intent | Preferred command | Interpret the result | Fallback condition |
+| --- | --- | --- | --- |
+| Install, initialize, or repair a workspace | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json` | Report workspace readiness and whether root guidance is current | If the command is unavailable, explain the environment problem; do not edit the workspace structure by hand first |
+| Sync, upgrade, or repair host-Agent integration | `aiwiki agent check --json`, `aiwiki agent sync --dry-run`, then `aiwiki agent sync --yes` | Explain `installed`, `current`, `different`, backup paths, and any restart/reload requirement | Unsupported hosts must not be written automatically; use `aiwiki prompt agent` for a manual handoff |
+| Ingest a local file or material already read by the host Agent | `aiwiki ingest-file --file <file>` or `aiwiki ingest-agent --stdin` | Report ingest status, Wiki Entry quality, Source Card, Processing Summary, and warnings | Record unreadable sources as failed-fetch payloads; never require the user to write or save a payload |
+| Query, cite, or reuse local knowledge | `aiwiki query <topic>` for human output or `aiwiki context <topic>` for Agent JSON; use `aiwiki show <topic>` or capsule view for one source package | Read `result_quality`, `recommended_next_action`, provenance, and known gaps before answering | Try the relevant AIWiki command first; only then use file search and state why the command was insufficient |
+| Check, organize, or safely repair a workspace | `aiwiki lint --json`; when allowed and only safe fixes exist, `aiwiki lint --fix-empty-dirs --json` followed by `aiwiki lint --json` | Explain errors, warnings, safe-fix scope, and the lint report path | Leave non-safe issues traceable for review; do not make ad hoc Markdown edits as a default repair path |
+
 ## Ingest Flow
 
 For a first-time public trial, guide the user through one small loop: setup, one source ingest, generated-file inspection, query/context reuse, lint/doctor check, then feedback with `docs/TRIAL_FEEDBACK_TEMPLATE.md`. Do not introduce Pro-only flows, crawlers, vector search, or a new feedback command.

@@ -1,5 +1,9 @@
 # AIWiki 中文文档
 
+## Core Intent Matrix
+
+自然语言请求先匹配到 AIWiki 命令，再解释输出；只有命令无法回答时才允许 fallback。完整合同见 [Agent 接入说明](AGENT_HANDOFF.zh-CN.md#core-intent-matrix)。
+
 AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 
 主 README 面向 GitHub / npm 的英文入口；中文用户可以从这里进入完整说明。

@@ -74,6 +74,10 @@ aiwiki context "<topic>" --type source_cards --status to-review --limit 5
    - There is a source conflict.
    - A precise quote or source check is needed.
 
+## Fallback
+
+Use generic file search only after `aiwiki context`, `aiwiki query`, or `aiwiki show` cannot answer the request. State which command was insufficient and why, keep the fallback scoped to the unresolved question, and do not present a raw-file scan as the default query path.
+
 ## Reply Shape
 
 Include:
