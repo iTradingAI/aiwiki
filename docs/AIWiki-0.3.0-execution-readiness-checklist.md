@@ -93,6 +93,8 @@ Required proof:
 - Docs state that old workspaces do not need migration.
 - Docs state that 0.3.0 is OKF-ready, not OKF export/import.
 - Release docs state exact-tarball local smoke and remote smoke are required before GitHub/publish.
+- Release docs state that branch CI, a read-only technical review, and the required independent GitHub approval are separate gates before a `main` merge.
+- The technical review records CI, branch protection, publication OIDC permissions, version tags, and documentation consistency; it cannot replace the independent GitHub approval.
 - Version is bumped to `0.3.0`.
 - Internal planning docs remain excluded from package files.
 
@@ -111,7 +113,9 @@ Then:
 
 - Exact tarball smoke passes locally.
 - Exact tarball smoke passes remotely.
-- GitHub update happens only after remote smoke passes.
+- The tested `dev` or task branch passes CI before remote smoke.
+- The read-only technical review resolves blocking findings before GitHub approval is requested.
+- The `dev -> main` PR passes merge-result CI and receives an independent GitHub approval before merge.
 
 ## Packaged Docs Contract
 
