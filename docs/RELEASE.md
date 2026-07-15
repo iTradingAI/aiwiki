@@ -11,6 +11,12 @@ This guide defines the delivery and release gates for AIWiki maintainers.
 - The control-plane task `CORE-0000` is the one-time exception that establishes this baseline with a `dev` -> `main` pull request. It must not create a version, tag, or npm publication.
 - A `main` pull request requires the uniquely named `CI / verify` check from `.github/workflows/ci.yml`, resolved conversations, and one approving review. CI runs on the source branch and the proposed pull request merge result.
 
+## Technical Review Agent
+
+Before requesting the GitHub approval for a Core PR, run the dedicated AIWiki PR review agent in a read-only worktree. Its report must cover CI, branch protection, publication OIDC permissions, release tags, and English/Chinese documentation consistency.
+
+The agent's conclusion is technical review evidence only. It must not edit, push, merge, publish, or submit a GitHub review. A Codex agent using the same GitHub identity as the PR author cannot satisfy the independent GitHub approval requirement.
+
 ## Local Checks
 
 Start from a clean, intentional worktree:
