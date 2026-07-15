@@ -9,7 +9,7 @@ This guide defines the delivery and release gates for AIWiki maintainers.
 - Ordinary Core tasks merge by pull request into `dev` only after branch CI and the task's remote tarball smoke test pass.
 - Only named Core release gates open a `dev` -> `main` pull request: `CORE-0408` (`0.4.0`), `CORE-0506` (`0.5.0`), `CORE-0601` (`0.6.0`), `CORE-0700` (`0.7.0`), and `CORE-1000` (`1.0.0`).
 - The control-plane task `CORE-0000` is the one-time exception that establishes this baseline with a `dev` -> `main` pull request. It must not create a version, tag, or npm publication.
-- A `main` pull request requires `CI / verify`, resolved conversations, and one approving review. CI runs on the source branch and the proposed pull request merge result.
+- A `main` pull request requires the uniquely named `CI / verify` check from `.github/workflows/ci.yml`, resolved conversations, and one approving review. CI runs on the source branch and the proposed pull request merge result.
 
 ## Local Checks
 
@@ -115,7 +115,7 @@ gh workflow run publish.yml --repo iTradingAI/aiwiki --ref dev -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
 ```
 
-The workflow denies `mode=publish` outside `main`. A real publication is permitted only after the release-gate pull request is merged and tagged:
+The workflow denies `mode=publish` outside `main`. For a real publication, it also verifies that `v<package-version>` points at the exact `main` commit selected by the workflow. A release-gate pull request must therefore be merged and tagged first:
 
 ```bash
 gh workflow run publish.yml --repo iTradingAI/aiwiki --ref main -f mode=publish
@@ -130,6 +130,8 @@ npm view @itradingai/aiwiki versions --json
 ```
 
 If Trusted Publishing fails, verify the npm Trusted Publisher settings, repository name, workflow filename, and `id-token: write` permission.
+
+`id-token: write` is granted only to the `Publish @itradingai/aiwiki` job. The `Publish / verify` dry-run job has read-only repository permission and cannot receive npm Trusted Publishing credentials.
 
 ## Package Images
 
