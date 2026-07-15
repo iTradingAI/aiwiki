@@ -9,13 +9,13 @@ This guide defines the delivery and release gates for AIWiki maintainers.
 - Ordinary Core tasks merge by pull request into `dev` only after branch CI and the task's remote tarball smoke test pass.
 - Only named Core release gates open a `dev` -> `main` pull request: `CORE-0408` (`0.4.0`), `CORE-0506` (`0.5.0`), `CORE-0601` (`0.6.0`), `CORE-0700` (`0.7.0`), and `CORE-1000` (`1.0.0`).
 - The control-plane task `CORE-0000` is the one-time exception that establishes this baseline with a `dev` -> `main` pull request. It must not create a version, tag, or npm publication.
-- A `main` pull request requires the uniquely named `CI / verify` check from `.github/workflows/ci.yml`, resolved conversations, and one approving review. CI runs on the source branch and the proposed pull request merge result.
+- A `main` pull request requires the uniquely named `CI / verify` check from `.github/workflows/ci.yml`, resolved conversations, and a completed Codex GitHub App technical review. CI runs on the source branch and the proposed pull request merge result. The repository maintainer merges only after those gates are satisfied.
 
 ## Technical Review Agent
 
-Before requesting the GitHub approval for a Core PR, run the dedicated AIWiki PR review agent in a read-only worktree. Its report must cover CI, branch protection, publication OIDC permissions, release tags, and English/Chinese documentation consistency.
+Before merging a Core PR, run the dedicated AIWiki PR review agent in a read-only worktree and request the Codex GitHub App review on the exact PR head. The report must cover CI, branch protection, publication OIDC permissions, release tags, and English/Chinese documentation consistency.
 
-The agent's conclusion is technical review evidence only. It must not edit, push, merge, publish, or submit a GitHub review. A Codex agent using the same GitHub identity as the PR author cannot satisfy the independent GitHub approval requirement.
+The local agent's conclusion is technical review evidence only. It must not edit, push, merge, or publish. The GitHub App review is recorded as a PR comment, not a GitHub `APPROVED` review. This repository deliberately uses maintainer merge after PR, CI, resolved-conversation, and technical-review gates; it does not require a second GitHub identity for each release PR.
 
 ## Local Checks
 
@@ -79,7 +79,7 @@ local verification
   -> task pull request -> dev
   -> dev CI / verify
   -> release-gate pull request dev -> main
-  -> CI / verify on the proposed merge result and review approval
+  -> CI / verify on the proposed merge result and completed technical review
   -> merge main
   -> tag
   -> publish workflow
