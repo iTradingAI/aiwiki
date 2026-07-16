@@ -652,7 +652,7 @@ export async function readConfig(rootPath: string): Promise<WorkspaceConfig> {
   }
 
   const text = await fs.readFile(configPath, "utf8");
-  const schemaVersion = readScalar(text, "schema_version") ?? "unknown";
+  const schemaVersion = unquote(readScalar(text, "schema_version") ?? "unknown");
   return {
     product: readScalar(text, "product") ?? "unknown",
     schemaVersion,

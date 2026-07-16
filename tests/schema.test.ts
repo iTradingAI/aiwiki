@@ -32,6 +32,8 @@ test("schema catalog keeps active v1 contracts and reserves future extension sur
   assert.equal(assessSchemaCompatibility("workspace", "2").status, "unsupported_major");
   assert.equal(assessSchemaCompatibility("workspace", 2).status, "unsupported_major");
   assert.equal(assessSchemaCompatibility("workspace", "2").writable, false);
+  assert.equal(assessSchemaCompatibility("workspace", "\"1\"").status, "compatible");
+  assert.equal(assessSchemaCompatibility("workspace", "\"2\"").status, "unsupported_major");
   assert.equal(assessSchemaCompatibility("workspace", "unexpected").status, "invalid");
 });
 
@@ -41,7 +43,8 @@ test("schema migration planning is read-only for legacy config and additive fron
     await initWorkspace(root);
     const configPath = path.join(root, "aiwiki.yaml");
     const artifactPath = path.join(root, "05-wiki", "source-knowledge", "schema-note.md");
-    await writeFile(configPath, `${await readFile(configPath, "utf8")}custom_config: keep\n`, "utf8");
+    const defaultConfig = await readFile(configPath, "utf8");
+    await writeFile(configPath, `${defaultConfig.replace("schema_version: 1", "schema_version: \"1\"")}custom_config: keep\n`, "utf8");
     await writeFile(artifactPath, `---\ntitle: Schema note\ntype: wiki_entry\naiwiki_schema: "aiwiki.artifact.v1"\nfuture_metadata: keep\n---\n\nSchema compatibility evidence.\n`, "utf8");
     const before = await workspaceFingerprint(root, [configPath, artifactPath]);
 
@@ -70,7 +73,7 @@ test("schema migration planning sends unknown major versions to manual review wi
     const configPath = path.join(root, "aiwiki.yaml");
     const artifactPath = path.join(root, "05-wiki", "source-knowledge", "future-schema.md");
     const original = await readFile(configPath, "utf8");
-    await writeFile(configPath, original.replace("schema_version: 1", "schema_version: 2"), "utf8");
+    await writeFile(configPath, original.replace("schema_version: 1", "schema_version: \"2\""), "utf8");
     await writeFile(artifactPath, `---\ntitle: Future schema\ntype: wiki_entry\naiwiki_schema: "aiwiki.artifact.v2"\n---\n\nFuture schema marker.\n`, "utf8");
     const before = await workspaceFingerprint(root, [configPath, artifactPath]);
 

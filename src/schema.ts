@@ -184,12 +184,21 @@ export function assessSchemaCompatibility(key: AiwikiSchemaKey, suppliedVersion?
 
 function normalizeVersion(value: unknown): string | undefined {
   if (typeof value === "string" && value.trim()) {
-    return value.trim();
+    return unquoteVersion(value.trim());
   }
   if (typeof value === "number" && Number.isFinite(value)) {
     return String(value);
   }
   return undefined;
+}
+
+function unquoteVersion(value: string): string {
+  if (value.length < 2) {
+    return value;
+  }
+  const first = value[0];
+  const last = value[value.length - 1];
+  return (first === '"' && last === '"') || (first === "'" && last === "'") ? value.slice(1, -1) : value;
 }
 
 function sameSchemaFamily(canonical: string, supplied: string): boolean {
