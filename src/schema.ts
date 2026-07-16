@@ -1,5 +1,5 @@
 export type AiwikiSchemaStatus = "active" | "reserved";
-export type AiwikiSchemaStorage = "workspace_config" | "markdown_frontmatter" | "json_output" | "json_input" | "reserved";
+export type AiwikiSchemaStorage = "workspace_config" | "markdown_frontmatter" | "json_output" | "json_input" | "extension_contract" | "reserved";
 export type AiwikiSchemaCompatibilityPolicy = "additive_fields_only" | "strict_input_version" | "reserved";
 
 export type AiwikiSchemaDefinition = {
@@ -90,10 +90,10 @@ export const AIWIKI_SCHEMAS = {
   },
   extension: {
     id: "aiwiki.extension.v1",
-    status: "reserved",
+    status: "active",
     aliases: [],
-    storage: "reserved",
-    compatibility: "reserved"
+    storage: "extension_contract",
+    compatibility: "additive_fields_only"
   }
 } as const satisfies Record<string, AiwikiSchemaDefinition>;
 

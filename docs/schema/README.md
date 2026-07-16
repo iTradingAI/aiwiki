@@ -1,6 +1,6 @@
 # AIWiki Schema Compatibility
 
-AIWiki Core records its current data contracts in one catalog. The catalog is an internal compatibility boundary, not a new CLI surface or Extension API.
+AIWiki Core records its current data contracts in one catalog. The catalog is an internal compatibility boundary, not a new CLI surface; Extension API v0.1 is documented separately.
 
 ## Active Catalog
 
@@ -15,8 +15,9 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 | Capsule context | `aiwiki.context.capsule.v1` | Agent JSON output | Explicit capsule view remains stable. |
 | Agent payload | `aiwiki.agent_payload.v1` | Agent JSON input | Input validation remains strict. |
 | Agent sync/check | `aiwiki.agent_sync.v1`, `aiwiki.agent_check.v1` | Agent JSON output | Existing output contracts remain stable. |
+| Extension author contract | `aiwiki.extension.v1` | Package public contract | The declaration API is active; loading remains a CORE-0405 responsibility. |
 
-`aiwiki.context.v2` and `aiwiki.extension.v1` are reserved only. Core does not emit Context v2, provide an Extension API, or load extensions.
+`aiwiki.context.v2` remains reserved. `aiwiki.extension.v1` is active as the declaration-only [Extension API v0.1](EXTENSION_SCHEMA.md); Core does not emit Context v2 or load extension packages.
 
 ## Compatibility And Migration
 
@@ -36,4 +37,4 @@ aiwiki_relationships_schema: "aiwiki.relationships.v1"
 
 ## Skill Matching Boundary
 
-Schema cataloging does not add a new natural-language intent, command, or automatic Skill match. Existing command-first matching remains unchanged in CORE-0403. CORE-0407 owns the future Skill matching contract and must define its examples, precedence, fallback, and acceptance tests before any behavior changes.
+Extension API v0.1 does not add a new natural-language intent, command, or automatic Skill match. Existing command-first matching remains unchanged, and CORE-0405 owns loading while CORE-0407 owns the future Skill matching contract, including examples, precedence, fallback, and acceptance tests.

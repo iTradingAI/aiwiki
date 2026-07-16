@@ -36,6 +36,8 @@ test("help exposes only base commands", async () => {
   assert.doesNotMatch(text, /aiwiki config show/);
   assert.doesNotMatch(text, /aiwiki ingest-url/);
   assert.doesNotMatch(text, /aiwiki ingest-agent --payload/);
+  assert.doesNotMatch(text, /aiwiki plugin/i);
+  assert.doesNotMatch(text, /aiwiki extension/i);
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
   assert.equal(stderr.text(), "");

@@ -11,6 +11,10 @@
     "./contracts": {
       "types": "./dist/src/public/contracts.d.ts",
       "import": "./dist/src/public/contracts.js"
+    },
+    "./extension-api": {
+      "types": "./dist/src/extension/api.d.ts",
+      "import": "./dist/src/extension/api.js"
     }
   },
   "description": "Local Markdown knowledge base for AI assistants. Save what your AI reads, ask it later, and keep everything local.",

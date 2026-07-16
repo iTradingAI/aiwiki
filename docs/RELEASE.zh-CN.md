@@ -44,22 +44,22 @@ npm 包只应包含 CLI 运行文件、用户文档、示例和需要打包的 s
 
 ## Public API 包合同
 
-Core 集成只支持 `@itradingai/aiwiki` 与 `@itradingai/aiwiki/contracts` 两个导入入口。运行时兼容标记是 `AIWIKI_PUBLIC_API_VERSION`，当前值为 `aiwiki.public.v1`。`@itradingai/aiwiki/src/**`、`@itradingai/aiwiki/dist/src/**` 等内部路径不得出现在 export map 中。
+Core 集成支持 `@itradingai/aiwiki`、`@itradingai/aiwiki/contracts` 和 `@itradingai/aiwiki/extension-api` 三个入口。`AIWIKI_PUBLIC_API_VERSION` 保持 `aiwiki.public.v1`，`AIWIKI_EXTENSION_API_VERSION` 为 `aiwiki.extension.v1`。`@itradingai/aiwiki/src/**` 与 `@itradingai/aiwiki/dist/src/**` 等内部路径不得出现在 export map 中。
 
 当 exports 条目、公开类型或公开 API 版本变化时，任务必须同步更新精确 tarball 消费者合同测试与中英文公开文档。创建 PR 前，精确 tarball smoke 必须证明：
 
-- 已安装包中的根入口和 `/contracts` ESM 导入可用；
+- 已安装包中的根入口、`/contracts` 和 `/extension-api` ESM 导入可用；
 - 公开 `.d.ts` 已生成，且外部 TypeScript 消费者可以编译；
 - 内部深层导入以 `ERR_PACKAGE_PATH_NOT_EXPORTED` 失败；以及
 - CLI bin 和 `createAiwikiCli().run()` 保持要求的命令行为。
 
-普通 Core 任务仍不得提升包版本、创建 tag 或发布 npm 包。新的 Extension API 路径必须等其专属合同任务定义和验证后才可公开。
+普通 Core 任务仍不得提升包版本、创建 tag 或发布 npm 包。CORE-0404 已定义并验证公开 Extension API 路径；它不增加 Extension Host、plugin CLI 或自动 Skill 匹配。
 
 ## Schema Compatibility Gate
 
 CORE-0403 保持 `aiwiki.context.v1` 与 `aiwiki.context.capsule.v1` 稳定，将历史工作区 `schema_version: 1` 读取为 `aiwiki.workspace.v1`，并且只提供内部只读迁移预检。任务必须证明旧配置和未知新增 frontmatter 没有被回写，未来主版本会落入人工复核结果。
 
-打包 tarball 必须包含 `docs/schema/`。本任务不会新增 Schema CLI、Extension API 或 Skill 匹配行为；CORE-0407 负责后续匹配合同。
+打包 tarball 必须包含 `docs/schema/`。CORE-0403 没有新增 Schema CLI；CORE-0404 新增仅声明的 Extension API，CORE-0407 负责后续 Skill 匹配行为。
 
 ## 版本与标签
 
