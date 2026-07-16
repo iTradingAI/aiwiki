@@ -161,6 +161,17 @@ export function assessSchemaCompatibility(key: AiwikiSchemaKey, suppliedVersion?
     };
   }
 
+  if (key === "workspace" && /^\d+$/.test(supplied)) {
+    return {
+      schemaId: definition.id,
+      suppliedVersion: supplied,
+      status: "unsupported_major",
+      canonicalVersion: definition.id,
+      writable: false,
+      reason: "unsupported schema major version"
+    };
+  }
+
   return {
     schemaId: definition.id,
     suppliedVersion: supplied,

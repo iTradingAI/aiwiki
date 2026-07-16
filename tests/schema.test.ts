@@ -29,6 +29,9 @@ test("schema catalog keeps active v1 contracts and reserves future extension sur
   });
   assert.equal(assessSchemaCompatibility("workspace", "aiwiki.workspace.v2").status, "unsupported_major");
   assert.equal(assessSchemaCompatibility("workspace", "aiwiki.workspace.v2").writable, false);
+  assert.equal(assessSchemaCompatibility("workspace", "2").status, "unsupported_major");
+  assert.equal(assessSchemaCompatibility("workspace", 2).status, "unsupported_major");
+  assert.equal(assessSchemaCompatibility("workspace", "2").writable, false);
   assert.equal(assessSchemaCompatibility("workspace", "unexpected").status, "invalid");
 });
 
@@ -67,7 +70,7 @@ test("schema migration planning sends unknown major versions to manual review wi
     const configPath = path.join(root, "aiwiki.yaml");
     const artifactPath = path.join(root, "05-wiki", "source-knowledge", "future-schema.md");
     const original = await readFile(configPath, "utf8");
-    await writeFile(configPath, original.replace("schema_version: 1", "schema_version: aiwiki.workspace.v2"), "utf8");
+    await writeFile(configPath, original.replace("schema_version: 1", "schema_version: 2"), "utf8");
     await writeFile(artifactPath, `---\ntitle: Future schema\ntype: wiki_entry\naiwiki_schema: "aiwiki.artifact.v2"\n---\n\nFuture schema marker.\n`, "utf8");
     const before = await workspaceFingerprint(root, [configPath, artifactPath]);
 
@@ -77,7 +80,7 @@ test("schema migration planning sends unknown major versions to manual review wi
     assert.deepEqual(report.findings[0], {
       path: "aiwiki.yaml",
       schemaId: "aiwiki.workspace.v1",
-      suppliedVersion: "aiwiki.workspace.v2",
+      suppliedVersion: "2",
       status: "unsupported_major",
       action: "manual_review",
       reason: "unsupported schema major version"
