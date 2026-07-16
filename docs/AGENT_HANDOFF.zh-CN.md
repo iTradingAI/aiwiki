@@ -66,6 +66,12 @@ aiwiki context <topic> --path <workspace>
 | 查询、引用或复用本地知识 | 人类可读结果用 `aiwiki query <topic>`，Agent JSON 用 `aiwiki context <topic>`；单个来源包用 `aiwiki show <topic>` 或 capsule view | 回答前读取 `result_quality`、`recommended_next_action`、来源和已知缺口 | 先尝试对应 AIWiki 命令；仅在命令不足时使用文件搜索，并说明原因 |
 | 检查、整理或安全修复工作区 | `aiwiki lint --json`；仅在允许且只有安全修复时执行 `aiwiki lint --fix-empty-dirs --json`，再运行 `aiwiki lint --json` | 解释 error、warning、安全修复范围和 lint 报告路径 | 非安全问题保留为可追踪复核项；不要默认手工修改 Markdown |
 
+## Schema Compatibility Boundary
+
+保持现有命令优先的意图映射不变。`aiwiki.context.v1` 与 `aiwiki.context.capsule.v1` 仍是受支持的 Agent JSON 输出；历史工作区 `schema_version: 1` 仍按 `aiwiki.workspace.v1` 读取且不回写。未知未来 schema 主版本只能人工复核，不存在 CLI 迁移路径。详见 [Schema Compatibility](schema/README.zh-CN.md)。
+
+CORE-0403 不新增自动 Skill 匹配、意图或命令。CORE-0407 负责后续 Skill 匹配合同，包括优先级和 fallback。
+
 ## 入库流程
 
 1. 读取 URL、文件、笔记、附件或用户粘贴的正文。

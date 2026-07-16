@@ -192,6 +192,12 @@ The Wiki Entry is the main reusable knowledge surface. The raw record and source
 
 AIWiki 0.3.0 also treats those files as one logical Source Capsule. A capsule groups the Wiki Entry, Source Card, Raw file, optional suggestions, and run record around the same source. New artifacts include additive metadata such as `capsule_id`, `artifact_role`, `visibility`, lifecycle status, relationship fields, and OKF-ready fields. Old workspaces do not need a bulk migration; AIWiki can infer capsules from the existing Markdown layout.
 
+## Schema Compatibility
+
+Legacy workspace `schema_version: 1` is read as `aiwiki.workspace.v1` without rewriting the file. Default Agent JSON remains `aiwiki.context.v1` and capsule view remains `aiwiki.context.capsule.v1`; declared unknown future majors require manual review. See the [Schema Compatibility catalog](docs/schema/README.md).
+
+CORE-0403 does not change existing Skill matching. CORE-0407 owns the future matching contract, including precedence, fallback, and acceptance tests.
+
 See:
 
 - [`examples/demo-run/`](examples/demo-run/)

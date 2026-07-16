@@ -7,6 +7,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmatter.js";
 import { CliError } from "./output.js";
 import { relativePath } from "./paths.js";
+import { assessSchemaCompatibility, type SchemaCompatibility } from "./schema.js";
 
 export const CONFIG_FILE = "aiwiki.yaml";
 
@@ -46,6 +47,7 @@ export type SeedFile = {
 export type WorkspaceConfig = {
   product: string;
   schemaVersion: string;
+  schema: SchemaCompatibility;
   createdAt: string;
 };
 
@@ -303,6 +305,14 @@ SORT created_at DESC
     content: `# AIWiki Frontmatter Schema
 
 AIWiki 使用 Obsidian 原生 Properties 作为基础数据库层，Dataview 只作为可选增强。
+
+## Schema Compatibility
+
+- Workspace schema_version: 1 is read as aiwiki.workspace.v1 and is not rewritten.
+- Optional artifact metadata can declare aiwiki_schema: "aiwiki.artifact.v1"; capsule, lifecycle, and relationship markers use their corresponding aiwiki.*.v1 values.
+- Agent JSON remains aiwiki.context.v1 by default and aiwiki.context.capsule.v1 for capsule view.
+- Unknown future schema majors require manual review; CORE-0403 has no migration CLI or apply path.
+- CORE-0403 does not change Skill matching. CORE-0407 owns future matching behavior.
 
 ## Shared Fields
 
@@ -634,7 +644,7 @@ export async function confirmInit(rootPath: string) {
   }
 }
 
-export async function readConfig(rootPath: string) {
+export async function readConfig(rootPath: string): Promise<WorkspaceConfig> {
   const root = resolveRoot(rootPath);
   const configPath = path.join(root, CONFIG_FILE);
   if (!(await exists(configPath))) {
@@ -642,9 +652,11 @@ export async function readConfig(rootPath: string) {
   }
 
   const text = await fs.readFile(configPath, "utf8");
+  const schemaVersion = unquote(readScalar(text, "schema_version") ?? "unknown");
   return {
     product: readScalar(text, "product") ?? "unknown",
-    schemaVersion: readScalar(text, "schema_version") ?? "unknown",
+    schemaVersion,
+    schema: assessSchemaCompatibility("workspace", schemaVersion),
     createdAt: unquote(readScalar(text, "created_at") ?? "unknown")
   };
 }

@@ -343,6 +343,12 @@ Obsidian is optional. Dataview is optional. AIWiki does not edit `.obsidian`, in
 
 `aiwiki setup` creates dashboard and schema files when missing and preserves user-edited files.
 
+## Schema Compatibility
+
+AIWiki reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1` without rewriting `aiwiki.yaml`. Current Agent JSON remains `aiwiki.context.v1` by default and `aiwiki.context.capsule.v1` for the capsule view. Unknown additive frontmatter remains readable; a declared unknown future major requires manual review and has no automatic migration command.
+
+See the [Schema Compatibility catalog](schema/README.md) for optional marker fields and the migration boundary. CORE-0403 does not change Skill matching; CORE-0407 owns the future matching contract.
+
 ## 8. Troubleshooting
 
 ### The `aiwiki` command is missing

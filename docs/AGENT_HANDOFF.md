@@ -66,6 +66,12 @@ Use this matrix as the command contract for matching natural-language requests. 
 | Query, cite, or reuse local knowledge | `aiwiki query <topic>` for human output or `aiwiki context <topic>` for Agent JSON; use `aiwiki show <topic>` or capsule view for one source package | Read `result_quality`, `recommended_next_action`, provenance, and known gaps before answering | Try the relevant AIWiki command first; only then use file search and state why the command was insufficient |
 | Check, organize, or safely repair a workspace | `aiwiki lint --json`; when allowed and only safe fixes exist, `aiwiki lint --fix-empty-dirs --json` followed by `aiwiki lint --json` | Explain errors, warnings, safe-fix scope, and the lint report path | Leave non-safe issues traceable for review; do not make ad hoc Markdown edits as a default repair path |
 
+## Schema Compatibility Boundary
+
+Keep the current command-first intent mapping unchanged. `aiwiki.context.v1` and `aiwiki.context.capsule.v1` remain the supported Agent JSON outputs; legacy workspace `schema_version: 1` remains readable as `aiwiki.workspace.v1` without a rewrite. Unknown future schema majors require manual review and have no CLI migration path. See [Schema Compatibility](schema/README.md).
+
+CORE-0403 does not add an automatic Skill match, intent, or command. CORE-0407 owns the future Skill matching contract, including precedence and fallback behavior.
+
 ## Ingest Flow
 
 For a first-time public trial, guide the user through one small loop: setup, one source ingest, generated-file inspection, query/context reuse, lint/doctor check, then feedback with `docs/TRIAL_FEEDBACK_TEMPLATE.md`. Do not introduce Pro-only flows, crawlers, vector search, or a new feedback command.

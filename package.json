@@ -70,6 +70,7 @@
     "docs/TRIAL_FEEDBACK_TEMPLATE.md",
     "docs/USAGE.md",
     "docs/USAGE.zh-CN.md",
+    "docs/schema",
     "docs/development-log.md",
     "docs/architecture.svg",
     "examples",
