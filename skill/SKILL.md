@@ -89,7 +89,7 @@ Match user requests to this command contract before using generic file tools:
 
 Keep the current command-first matching unchanged. Existing workspaces with `schema_version: 1` remain compatible as `aiwiki.workspace.v1`; Agent outputs remain `aiwiki.context.v1` and `aiwiki.context.capsule.v1`. Do not invent a schema migration command or rewrite user frontmatter for this feature. Declared future schema majors require manual review.
 
-CORE-0403 adds no new automatic Skill match. CORE-0407 owns any future Skill matching contract, including intent examples, precedence, fallback, and tests.
+CORE-0404 exposes the declaration-only Extension API v0.1, but it creates no user-facing command or automatic Skill match. CORE-0405 owns loading and failure isolation; CORE-0407 owns extension-related intent examples, precedence, fallback, and tests.
 
 ## Knowledge Base Purpose
 

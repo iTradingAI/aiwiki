@@ -11,13 +11,16 @@ import { AIWIKI_SCHEMAS, assessSchemaCompatibility } from "../src/schema.js";
 import { initWorkspace, readConfig } from "../src/workspace.js";
 import { tempRoot } from "./helpers.js";
 
-test("schema catalog keeps active v1 contracts and reserves future extension surfaces", () => {
+test("schema catalog keeps active v1 contracts and activates the extension contract", () => {
   assert.equal(AIWIKI_SCHEMAS.workspace.id, "aiwiki.workspace.v1");
   assert.deepEqual(AIWIKI_SCHEMAS.workspace.aliases, ["1"]);
   assert.equal(AIWIKI_SCHEMAS.context.id, "aiwiki.context.v1");
   assert.equal(AIWIKI_SCHEMAS.capsuleContext.id, "aiwiki.context.capsule.v1");
   assert.equal(AIWIKI_SCHEMAS.contextV2.status, "reserved");
-  assert.equal(AIWIKI_SCHEMAS.extension.status, "reserved");
+  assert.equal(AIWIKI_SCHEMAS.extension.id, "aiwiki.extension.v1");
+  assert.equal(AIWIKI_SCHEMAS.extension.status, "active");
+  assert.equal(AIWIKI_SCHEMAS.extension.storage, "extension_contract");
+  assert.equal(AIWIKI_SCHEMAS.extension.compatibility, "additive_fields_only");
 
   assert.deepEqual(assessSchemaCompatibility("workspace", "1"), {
     schemaId: "aiwiki.workspace.v1",

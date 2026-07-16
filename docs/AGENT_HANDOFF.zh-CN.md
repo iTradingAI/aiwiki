@@ -70,7 +70,7 @@ aiwiki context <topic> --path <workspace>
 
 保持现有命令优先的意图映射不变。`aiwiki.context.v1` 与 `aiwiki.context.capsule.v1` 仍是受支持的 Agent JSON 输出；历史工作区 `schema_version: 1` 仍按 `aiwiki.workspace.v1` 读取且不回写。未知未来 schema 主版本只能人工复核，不存在 CLI 迁移路径。详见 [Schema Compatibility](schema/README.zh-CN.md)。
 
-CORE-0403 不新增自动 Skill 匹配、意图或命令。CORE-0407 负责后续 Skill 匹配合同，包括优先级和 fallback。
+CORE-0404 提供仅声明的 Extension API v0.1，但不新增 extension 命令、loader、manifest 或自动 Skill 匹配。CORE-0405 负责加载和隔离；CORE-0407 负责意图优先级和 fallback 行为。
 
 ## 入库流程
 

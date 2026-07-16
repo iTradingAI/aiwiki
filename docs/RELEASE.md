@@ -44,22 +44,22 @@ For the 0.3.0 Source Capsule release, the dry-run output must also confirm:
 
 ## Public API Package Contract
 
-Core supports only `@itradingai/aiwiki` and `@itradingai/aiwiki/contracts` as integration imports. The runtime compatibility marker is `AIWIKI_PUBLIC_API_VERSION` and currently has the value `aiwiki.public.v1`. Internal paths such as `@itradingai/aiwiki/src/**` and `@itradingai/aiwiki/dist/src/**` must remain absent from the export map.
+Core supports `@itradingai/aiwiki`, `@itradingai/aiwiki/contracts`, and `@itradingai/aiwiki/extension-api` as integration imports. `AIWIKI_PUBLIC_API_VERSION` remains `aiwiki.public.v1`, while `AIWIKI_EXTENSION_API_VERSION` is `aiwiki.extension.v1`. Internal paths under `@itradingai/aiwiki/src/**` and `@itradingai/aiwiki/dist/src/**` must remain absent from the export map.
 
 When an exports entry, public type, or public API version changes, the task must update the packed-tarball consumer contract test and both language versions of the public documentation. The exact tarball smoke must prove all of the following before the PR is opened:
 
-- root and `/contracts` ESM imports work from an installed package;
+- root, `/contracts`, and `/extension-api` ESM imports work from an installed package;
 - generated public `.d.ts` files are present and compile for an external TypeScript consumer;
 - internal deep imports fail with `ERR_PACKAGE_PATH_NOT_EXPORTED`; and
 - the CLI bin and `createAiwikiCli().run()` preserve the required command behavior.
 
-Ordinary Core tasks still do not bump the package version, create tags, or publish npm packages. New Extension API paths are not public until their dedicated contract task defines and verifies them.
+Ordinary Core tasks still do not bump the package version, create tags, or publish npm packages. CORE-0404 defines and verifies the public Extension API path; it adds no Extension Host, plugin CLI, or automatic Skill match.
 
 ## Schema Compatibility Gate
 
 CORE-0403 keeps `aiwiki.context.v1` and `aiwiki.context.capsule.v1` stable, reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1`, and provides only an internal read-only migration plan. The task must prove that legacy config and unknown additive frontmatter are not rewritten, and that a future major becomes a manual-review result.
 
-The packed tarball must include `docs/schema/`. This task does not add a Schema CLI, an Extension API, or a Skill matching behavior change; CORE-0407 owns the future matching contract.
+The packed tarball must include `docs/schema/`. CORE-0403 added no Schema CLI; CORE-0404 adds the declaration-only Extension API, and CORE-0407 owns future Skill matching behavior.
 
 ## Version and Tags
 
