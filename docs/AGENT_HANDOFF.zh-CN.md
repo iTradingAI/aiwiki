@@ -72,6 +72,10 @@ aiwiki context <topic> --path <workspace>
 
 CORE-0404 提供仅声明的 Extension API v0.1。CORE-0405 现在只提供显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`。不要从自然语言推断这些命令、自动发现 extension，也不要把 Host 描述成 sandbox。extension 意图优先级、fallback 和自动 Skill 匹配由 CORE-0407 负责。
 
+## 合同测试矩阵
+
+CORE-0406 建立该维护者验证入口：变更 Core 兼容边界时运行 `npm run test:contracts`。该套件覆盖 `public-api.test.ts`、`cli-compatibility.test.ts`、`extension-api.test.ts`、`schema-compatibility.test.ts` 和 `extension-failure-isolation.test.ts`。它只验证已文档化的公开导入与显式 Core CLI 命令面；不会改变本交接文档的命令优先意图映射，也不会引入 Pro 行为、extension 自动发现或自动 Skill 匹配。可重建性覆盖延期到 `CORE-0501`，届时才具备可重建状态模型。
+
 ## 入库流程
 
 1. 读取 URL、文件、笔记、附件或用户粘贴的正文。
