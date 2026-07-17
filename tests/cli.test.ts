@@ -179,6 +179,12 @@ test("enabled extension commands and lint rules run without letting a broken rul
     assert.equal(await runCli(["example", "quality", "first", "--path", root], { stdout: command, stderr: new MemoryWritable() }), 0);
     assert.match(command.text(), /quality:first/);
 
+    const flaggedCommand = new MemoryWritable();
+    assert.equal(await runCli([
+      "example", "quality", "--mode", "fast", "--format=json", "tail", "--path", root
+    ], { stdout: flaggedCommand, stderr: new MemoryWritable() }), 0);
+    assert.match(flaggedCommand.text(), /quality:--mode,fast,--format=json,tail/);
+
     const lint = new MemoryWritable();
     assert.equal(await runCli(["lint", "--json", "--path", root], { stdout: lint, stderr: new MemoryWritable() }), 0);
     const report = JSON.parse(lint.text()) as { issues: Array<{ category?: string; message?: string }> };

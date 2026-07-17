@@ -72,6 +72,19 @@ test("extension manifest rejects a symlinked entry outside the extension root", 
   }
 });
 
+test("extension manifest rejects a symlinked manifest outside the extension root", async () => {
+  const fixture = createExtension();
+  const outside = path.join(fixture.parent, "outside-manifest.json");
+  writeFileSync(outside, JSON.stringify(validManifest, null, 2), "utf8");
+  try {
+    rmSync(path.join(fixture.root, "aiwiki-extension.json"));
+    symlinkSync(outside, path.join(fixture.root, "aiwiki-extension.json"), "file");
+    await assert.rejects(() => readExtensionManifest(fixture.root), /manifest.*outside.*extension root/i);
+  } finally {
+    rmSync(fixture.parent, { recursive: true, force: true });
+  }
+});
+
 test("adding a local extension validates its manifest without importing its module", async () => {
   const workspace = mkdtempSync(path.join(os.tmpdir(), "aiwiki-extension-workspace-"));
   const fixture = createExtension();
@@ -178,5 +191,55 @@ test("an extension command cannot claim a Core command root", async () => {
   } finally {
     rmSync(workspace, { recursive: true, force: true });
     rmSync(fixture.parent, { recursive: true, force: true });
+  }
+});
+
+test("an extension command cannot overlap an enabled extension command path by prefix", async () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), "aiwiki-extension-workspace-"));
+  const first = createExtension({ ...validManifest, id: "example.prefix-first", name: "Prefix first" });
+  const second = createExtension({ ...validManifest, id: "example.prefix-second", name: "Prefix second" });
+  writeFileSync(path.join(first.root, "index.mjs"), [
+    "export default {",
+    '  id: "example.prefix-first",',
+    '  name: "Prefix first",',
+    '  version: "0.1.0",',
+    '  apiVersion: "aiwiki.extension.v1",',
+    "  commands: [{",
+    '    kind: "command",',
+    '    id: "example.prefix-first.command",',
+    '    path: ["example"],',
+    '    summary: "Prefix command",',
+    "    async run() { return { exitCode: 0 }; }",
+    "  }]",
+    "};",
+    ""
+  ].join("\n"), "utf8");
+  writeFileSync(path.join(second.root, "index.mjs"), [
+    "export default {",
+    '  id: "example.prefix-second",',
+    '  name: "Prefix second",',
+    '  version: "0.1.0",',
+    '  apiVersion: "aiwiki.extension.v1",',
+    "  commands: [{",
+    '    kind: "command",',
+    '    id: "example.prefix-second.command",',
+    '    path: ["example", "quality"],',
+    '    summary: "Nested command",',
+    "    async run() { return { exitCode: 0 }; }",
+    "  }]",
+    "};",
+    ""
+  ].join("\n"), "utf8");
+  try {
+    await addLocalExtension(workspace, first.root);
+    await addLocalExtension(workspace, second.root);
+    await enableExtension(workspace, "example.prefix-first");
+    await assert.rejects(() => enableExtension(workspace, "example.prefix-second"), /command path conflicts/i);
+    const secondStatus = (await listExtensionStatuses(workspace)).find((extension) => extension.id === "example.prefix-second");
+    assert.equal(secondStatus?.status, "disabled");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+    rmSync(first.parent, { recursive: true, force: true });
+    rmSync(second.parent, { recursive: true, force: true });
   }
 });

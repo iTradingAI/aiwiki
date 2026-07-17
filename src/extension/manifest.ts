@@ -28,7 +28,7 @@ export class ExtensionManifestError extends Error {
 
 export async function readExtensionManifest(extensionRoot: string): Promise<ResolvedExtensionManifest> {
   const rootPath = await resolveExtensionRoot(extensionRoot);
-  const manifestPath = path.join(rootPath, EXTENSION_MANIFEST_FILE);
+  const manifestPath = await resolveManifestPath(rootPath);
   const manifest = parseExtensionManifest(await readManifestJson(manifestPath));
   const entryPath = await resolveEntryPath(rootPath, manifest.entry);
   return { ...manifest, rootPath, manifestPath, entryPath };
@@ -86,6 +86,23 @@ async function readManifestJson(manifestPath: string): Promise<unknown> {
     }
     throw new ExtensionManifestError(`is not readable: ${manifestPath}.`);
   }
+}
+
+async function resolveManifestPath(rootPath: string): Promise<string> {
+  const candidate = path.join(rootPath, EXTENSION_MANIFEST_FILE);
+  let manifestPath: string;
+  try {
+    manifestPath = await fs.realpath(candidate);
+  } catch {
+    throw new ExtensionManifestError(`is not readable: ${candidate}.`);
+  }
+  if (!isWithinRoot(rootPath, manifestPath)) {
+    throw new ExtensionManifestError(`resolves outside extension root: ${EXTENSION_MANIFEST_FILE}.`);
+  }
+  if (!(await fs.stat(manifestPath)).isFile()) {
+    throw new ExtensionManifestError(`is not a file: ${EXTENSION_MANIFEST_FILE}.`);
+  }
+  return manifestPath;
 }
 
 async function resolveEntryPath(rootPath: string, entry: string): Promise<string> {

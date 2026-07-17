@@ -180,7 +180,8 @@ export async function loadEnabledExtensions(workspaceRoot: string): Promise<read
 
 export async function runEnabledExtensionCommand(
   workspaceRoot: string,
-  positional: readonly string[]
+  positional: readonly string[],
+  argv: readonly string[] = positional
 ): Promise<ExtensionCommandResult | undefined> {
   const matches = (await loadEnabledExtensions(workspaceRoot)).flatMap((loaded) => (loaded.extension.commands ?? [])
     .filter((command) => commandMatches(command, positional))
@@ -194,7 +195,7 @@ export async function runEnabledExtensionCommand(
 
   const { loaded, command } = matches[0];
   try {
-    const result = await command.run({ argv: positional.slice(command.path.length) });
+    const result = await command.run({ argv: argv.slice(command.path.length) });
     return validateCommandResult(result);
   } catch (error) {
     const reason = errorMessage(error);
@@ -337,14 +338,20 @@ function validateCommands(value: unknown): void {
 }
 
 function assertNoExtensionCommandConflict(candidate: LoadedExtension, enabled: readonly LoadedExtension[]): void {
-  const existingPaths = new Set(enabled.flatMap((loaded) => (loaded.extension.commands ?? [])
-    .map((command) => command.path.join(" "))));
+  const existingPaths = enabled.flatMap((loaded) => loaded.extension.commands ?? []);
   for (const command of candidate.extension.commands ?? []) {
-    const commandPath = command.path.join(" ");
-    if (existingPaths.has(commandPath)) {
-      throw new ExtensionHostError("command path conflicts with an enabled extension: " + commandPath + ".");
+    if (existingPaths.some((existing) => commandPathsOverlap(command.path, existing.path))) {
+      throw new ExtensionHostError("command path conflicts with an enabled extension: " + command.path.join(" ") + ".");
     }
   }
+}
+
+function commandPathsOverlap(first: readonly string[], second: readonly string[]): boolean {
+  return commandPathStartsWith(first, second) || commandPathStartsWith(second, first);
+}
+
+function commandPathStartsWith(value: readonly string[], prefix: readonly string[]): boolean {
+  return value.length >= prefix.length && prefix.every((part, index) => value[index] === part);
 }
 
 function commandMatches(command: ExtensionCommandDefinition, positional: readonly string[]): boolean {

@@ -23,7 +23,7 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
     } catch {
       throw new CliError("未知命令: " + context.command);
     }
-    const result = await runEnabledExtensionCommand(root, args.positional);
+    const result = await runEnabledExtensionCommand(root, args.positional, extensionArgv(argv));
     if (!result) {
       throw new CliError("未知命令: " + context.command);
     }
@@ -38,6 +38,22 @@ export async function runCli(argv: string[], streams: CliStreams = { stdout: pro
     writeLine(streams.stderr, `错误: ${message}`);
     return 1;
   }
+}
+
+function extensionArgv(argv: readonly string[]): readonly string[] {
+  const result: string[] = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token === "--path") {
+      index += 1;
+      continue;
+    }
+    if (token.startsWith("--path=")) {
+      continue;
+    }
+    result.push(token);
+  }
+  return result;
 }
 
 function writeExtensionResult(streams: CliStreams, result: ExtensionCommandResult): void {
