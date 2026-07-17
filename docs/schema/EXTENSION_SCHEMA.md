@@ -21,7 +21,7 @@ Snapshots use vault-relative paths, constrained artifact kind, role, and visibil
 
 The API injects no network client, process executor, scheduler, connector runtime, writable stream, filesystem writer, or Core state mutator. It is not a sandbox: locally loaded JavaScript can still import capabilities on its own. Permission policy, allowed module loading, input projection, path validation, draft handling, and failure isolation belong to CORE-0405.
 
-No extension manifest format, local or bundled loader, plugin command, automatic discovery, background process, or extension state directory exists in CORE-0404.
+CORE-0404 itself did not add a manifest, loader, plugin command, automatic discovery, background process, or extension state directory. The current explicit Host behavior is documented separately in [Extension Host v0.1](EXTENSION_HOST.md).
 
 ## Compatibility
 
