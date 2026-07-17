@@ -71,7 +71,7 @@ jobs:
       - name: Verify version tag points at main
         shell: bash
         run: |
-          version="$(node -p \"require('./package.json').version\")"
+          version="$(node -p "require('./package.json').version")"
           expected_tag="v${version}"
 
           if ! git tag --points-at "$GITHUB_SHA" | grep --fixed-strings --line-regexp "$expected_tag"; then
