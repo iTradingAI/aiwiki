@@ -36,7 +36,15 @@ macOS/Linux: ~/AIWiki
 Project test: ./aiwiki-test
 ```
 
-2. Copy this prompt into Codex, Claude Code, QClaw, OpenClaw, or another local coding assistant.
+2. Start with a short, natural-language request to Codex, Claude Code, QClaw, OpenClaw, or another local coding assistant:
+
+```text
+Install AIWiki, use <my-local-aiwiki-path> as the workspace, sync the supported Agent integration, and tell me what needs attention.
+```
+
+The assistant should use `aiwiki setup`, `aiwiki agent sync/check`, `doctor`, and `status` in that order, then explain the resulting workspace and Agent state. The [Usage Guide](docs/USAGE.md) and [Agent Handoff](docs/AGENT_HANDOFF.md#core-intent-matrix) define the command contract, result interpretation, and fallback rules.
+
+Use the following detailed installation checklist only when the assistant needs explicit environment troubleshooting:
 
 Before sending it, replace every `<replace-with-my-aiwiki-path>` with your own local folder path, such as `D:\AIWiki` or `~/AIWiki`. Do not leave the placeholder in the commands.
 
@@ -97,6 +105,8 @@ Save this note into AIWiki:
 
 The assistant reads the source and calls AIWiki to write the result into your local knowledge base.
 
+For the preferred command, expected artifacts, and readable-source fallback, see the [Core Intent Matrix](docs/AGENT_HANDOFF.md#core-intent-matrix). You do not need to create or save an AIWiki payload yourself.
+
 ### Ask your knowledge base
 
 Tell your assistant:
@@ -124,6 +134,8 @@ aiwiki query "<topic>"
 ```
 
 `query` defaults to the low-entropy Source Capsule view. Use `aiwiki query "<topic>" --view files` when you need the older file-group view for troubleshooting or detailed inspection.
+
+The assistant should inspect result quality and recommended next action before answering. It should only search files directly after the relevant AIWiki query command is insufficient, and should explain that fallback.
 
 To inspect one source package directly:
 
@@ -179,6 +191,12 @@ Optional files may also be created when the assistant provides enough structured
 The Wiki Entry is the main reusable knowledge surface. The raw record and source card preserve traceability, so you can always go back from a summary to the source.
 
 AIWiki 0.3.0 also treats those files as one logical Source Capsule. A capsule groups the Wiki Entry, Source Card, Raw file, optional suggestions, and run record around the same source. New artifacts include additive metadata such as `capsule_id`, `artifact_role`, `visibility`, lifecycle status, relationship fields, and OKF-ready fields. Old workspaces do not need a bulk migration; AIWiki can infer capsules from the existing Markdown layout.
+
+## Schema Compatibility
+
+Legacy workspace `schema_version: 1` is read as `aiwiki.workspace.v1` without rewriting the file. Default Agent JSON remains `aiwiki.context.v1` and capsule view remains `aiwiki.context.capsule.v1`; declared unknown future majors require manual review. See the [Schema Compatibility catalog](docs/schema/README.md).
+
+CORE-0403 does not change existing Skill matching. CORE-0407 owns the future matching contract, including precedence, fallback, and acceptance tests.
 
 See:
 

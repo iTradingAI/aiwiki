@@ -1,5 +1,9 @@
 # AIWiki 中文文档
 
+## Core Intent Matrix
+
+自然语言请求先匹配到 AIWiki 命令，再解释输出；只有命令无法回答时才允许 fallback。完整合同见 [Agent 接入说明](AGENT_HANDOFF.zh-CN.md#core-intent-matrix)。
+
 AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 
 主 README 面向 GitHub / npm 的英文入口；中文用户可以从这里进入完整说明。
@@ -32,6 +36,26 @@ AI 助手读取资料
 ```
 
 在 0.3.0 中，`aiwiki query` 默认显示 Source Capsule。Agent 集成可以继续使用稳定的 `aiwiki.context.v1`，需要 capsule JSON 时显式调用 `aiwiki context "<主题>" --view capsule`。
+
+## Schema Compatibility
+
+[Schema Compatibility 目录](schema/README.zh-CN.md)记录 v1 数据合同、`schema_version: 1` 的工作区兼容别名，以及未来主版本只能人工复核的规则。CORE-0403 不改变 Skill 匹配；CORE-0407 负责后续匹配合同。
+
+## 公开集成 API
+
+Core 集成只能使用以下 ESM 包入口：
+
+```ts
+import { AIWIKI_PUBLIC_API_VERSION, createAiwikiCli, type AiwikiArtifact } from "@itradingai/aiwiki";
+import type { ContextResult } from "@itradingai/aiwiki/contracts";
+
+const cli = createAiwikiCli();
+console.log(AIWIKI_PUBLIC_API_VERSION); // aiwiki.public.v1
+void cli;
+void (undefined as AiwikiArtifact | ContextResult | undefined);
+```
+
+`@itradingai/aiwiki` 导出稳定的 Core Facade；`@itradingai/aiwiki/contracts` 导出用于兼容性检查的版本标记和公开类型。禁止导入 `@itradingai/aiwiki/src/**`、`@itradingai/aiwiki/dist/src/**` 或其他未列出的深层路径；这些路径属于内部实现，package export map 会刻意拒绝它们。
 
 ## 重要边界
 

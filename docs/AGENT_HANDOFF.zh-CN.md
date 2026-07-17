@@ -43,6 +43,8 @@ aiwiki agent check --path <workspace> --json
 
 ```bash
 aiwiki setup --path <workspace> --yes
+aiwiki agent check --path <workspace> --json
+aiwiki doctor --path <workspace>
 aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
@@ -50,9 +52,37 @@ aiwiki ingest-agent --stdin --path <workspace>
 aiwiki status --path <workspace>
 aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
+aiwiki show <topic> --path <workspace>
 ```
 
 只有当对应 AIWiki 命令无法回答问题时，才退回 `rg`、`find`、直接读文件或临时脚本；退回时说明哪个 AIWiki 命令不够用以及原因。
+
+## Core Intent Matrix
+
+以下矩阵是自然语言请求匹配 AIWiki 命令的统一合同。公开文档可以使用更短的场景说明，但不得改变首选命令、结果解释和 fallback 边界。
+
+| 用户意图 | 首选命令 | 输出解释 | fallback 条件 |
+| --- | --- | --- | --- |
+| 安装、初始化或修复工作区 | `aiwiki setup --path <workspace> --yes`，然后 `aiwiki agent check --path <workspace> --json`、`aiwiki doctor --path <workspace>` 和 `aiwiki status --path <workspace>` | 说明工作区是否就绪、根指导是否 current、诊断结果和下一步动作 | 命令不可用时说明环境问题；不要先手工修改工作区结构 |
+| 同步、升级或修复宿主 Agent 接入 | `aiwiki agent check --json`、`aiwiki agent sync --dry-run`，再执行 `aiwiki agent sync --yes` | 说明 `installed`、`current`、`different`、备份路径和是否需要重启/重载 | 不支持的宿主不得自动写入；使用 `aiwiki prompt agent` 作为手工接入入口 |
+| 入库本地文件或宿主 Agent 已读取的资料 | `aiwiki ingest-file --file <file>` 或 `aiwiki ingest-agent --stdin` | 汇报入库状态、Wiki Entry 质量、Source Card、Processing Summary 和 warning | 无法读取的来源使用 failed-fetch payload 留痕；不能要求用户写入或保存 payload |
+| 查询、引用或复用本地知识 | 人类可读结果用 `aiwiki query <topic>`，Agent JSON 用 `aiwiki context <topic>`；单个来源包用 `aiwiki show <topic>` 或 capsule view | 回答前读取 `result_quality`、`recommended_next_action`、来源和已知缺口 | 先尝试对应 AIWiki 命令；仅在命令不足时使用文件搜索，并说明原因 |
+| 检查、整理或安全修复工作区 | `aiwiki lint --json`；仅在允许且只有安全修复时执行 `aiwiki lint --fix-empty-dirs --json`，再运行 `aiwiki lint --json` | 解释 error、warning、安全修复范围和 lint 报告路径 | 非安全问题保留为可追踪复核项；不要默认手工修改 Markdown |
+| 显式 extension 管理 | 列表使用 `aiwiki plugin list --json --path <workspace>`；仅添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；仅启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>` | 汇报命令结果和精确 extension 状态 | 对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，要求明确动作、目录或 ID；不要自动发现、启用或执行 |
+
+## Schema Compatibility Boundary
+
+保持现有命令优先的意图映射不变。`aiwiki.context.v1` 与 `aiwiki.context.capsule.v1` 仍是受支持的 Agent JSON 输出；历史工作区 `schema_version: 1` 仍按 `aiwiki.workspace.v1` 读取且不回写。未知未来 schema 主版本只能人工复核，不存在 CLI 迁移路径。详见 [Schema Compatibility](schema/README.zh-CN.md)。
+
+CORE-0404 提供仅声明的 Extension API v0.1。CORE-0405 只提供显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`。CORE-0407 锁定该匹配边界：不要从普通自然语言推断这些命令、自动发现 extension、自动启用 extension、自动执行 extension，也不要把 Host 描述成 sandbox。精确映射见随包交付的 `skill/EXTENSION_PROTOCOL.md`。
+
+## 显式 Extension 意图
+
+只有在用户明确提出 extension 管理请求时才使用这些命令。列出使用 `aiwiki plugin list --json --path <workspace>`；只添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；只启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>`。对于模糊请求，要求用户给出明确动作以及所需目录或 ID；不要自动扫描、选择、启用或执行 extension。
+
+## 合同测试矩阵
+
+CORE-0406 建立该维护者验证入口：变更 Core 兼容边界时运行 `npm run test:contracts`。该套件覆盖 `public-api.test.ts`、`cli-compatibility.test.ts`、`skill-matching.test.ts`、`extension-api.test.ts`、`schema-compatibility.test.ts`、`extension-failure-isolation.test.ts` 和 `release-gate.test.ts`。`skill-matching.test.ts` 会在外部消费者环境安装打包后的包，验证完整 Skill bundle 同步、工作区指导与显式 extension 意图。`release-gate.test.ts` 锁定 Core 0.4 的包清单、双语发布路径和对外交付边界。该套件只验证已文档化的公开导入与显式 Core CLI 命令面；不会引入 Pro 行为、extension 自动发现、自动启用或自动执行。可重建性覆盖延期到 `CORE-0501`，届时才具备可重建状态模型。
 
 ## 入库流程
 
@@ -169,7 +199,7 @@ aiwiki agent check --json
 aiwiki agent check --path <workspace> --json
 ```
 
-同步后汇报目标路径、备份路径和是否需要重启或重新加载助手。
+Skill 同步会保留目标 Skill 目录中原有的无关文件。Claude Code 仍使用手工 `AGENT_HANDOFF.md` 提示；受支持的 Skill 宿主接收完整打包 `skill/` 目录。同步后汇报目标路径、每个备份路径和是否需要重启或重新加载助手。
 
 ## 禁止事项
 

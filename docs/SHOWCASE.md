@@ -2,6 +2,8 @@
 
 This page shows what a real AIWiki run creates.
 
+Each scenario follows the [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix): match the request to an AIWiki command first, explain the command output, and use a fallback only when the command cannot answer the request.
+
 ## 10-minute Trial Walkthrough
 
 This is the public-trial happy path:
@@ -86,6 +88,8 @@ AIWiki should still record the attempt:
 
 The failure reason is preserved, and the user can retry later when the assistant can access the source.
 
+The fallback is not a generic crawl or a manual payload task for the user. The host Agent records a failed-fetch payload so the failed attempt remains traceable.
+
 ## Scenario 3: Reuse the Knowledge Later
 
 User message:
@@ -101,6 +105,8 @@ aiwiki context "AI agents"
 ```
 
 The assistant should use the returned JSON, including match reasons and quality signals, before answering.
+
+If the result cannot answer the question, the assistant may inspect the relevant files after explaining why `context` or `query` was insufficient.
 
 ## Sample Files
 

@@ -64,3 +64,7 @@ Prefer small, traceable fixes:
 - Add missing `source_card` or `raw_file` paths.
 - Ask the host Agent to provide `analysis` for scaffold entries.
 - Remove empty optional enhancement directories only through `aiwiki lint --fix-empty-dirs --json`; do not delete core directories, unknown directories, non-empty directories, or files.
+
+## Fallback
+
+If lint reports an issue outside the supported safe fix, preserve the report and explain the required review or host-Agent action. Do not bypass `aiwiki lint --json` with bulk Markdown edits, generic directory cleanup, or destructive shell commands.

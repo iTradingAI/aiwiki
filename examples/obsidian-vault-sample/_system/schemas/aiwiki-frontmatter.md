@@ -2,6 +2,14 @@
 
 AIWiki 使用 Obsidian 原生 Properties 作为基础数据库层，Dataview 只作为可选增强。
 
+## Schema Compatibility
+
+- Workspace `schema_version: 1` is read as `aiwiki.workspace.v1` and is not rewritten.
+- Optional artifact metadata can declare `aiwiki_schema: "aiwiki.artifact.v1"`; capsule, lifecycle, and relationship markers use their corresponding `aiwiki.*.v1` values.
+- Agent JSON remains `aiwiki.context.v1` by default and `aiwiki.context.capsule.v1` for capsule view.
+- Unknown future schema majors require manual review; CORE-0403 has no migration CLI or apply path.
+- CORE-0403 does not change Skill matching. CORE-0407 owns future matching behavior.
+
 ## Shared Fields
 
 - `aiwiki_id`: AIWiki 内部稳定标识。

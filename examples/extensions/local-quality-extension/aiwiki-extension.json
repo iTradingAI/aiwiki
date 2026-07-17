@@ -1,0 +1,8 @@
+{
+  "schema_version": "aiwiki.extension.v1",
+  "id": "example.local-quality",
+  "name": "Local quality extension",
+  "version": "0.1.0",
+  "api_version": "aiwiki.extension.v1",
+  "entry": "index.mjs"
+}

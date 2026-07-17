@@ -1,5 +1,6 @@
 import { buildCapsules, capsuleToJson, searchCapsules } from "./capsule.js";
 import type { ContextFilters } from "./context.js";
+import { schemaId } from "./schema.js";
 
 export type CapsuleContextOptions = {
   filters?: ContextFilters;
@@ -42,7 +43,7 @@ export async function buildCapsuleContext(
   const warnings = Array.from(new Set(capsules.flatMap((capsule) => capsule.quality.warnings)));
   const missingContext = missingContextFor(capsules);
   return {
-    schema_version: "aiwiki.context.capsule.v1",
+    schema_version: schemaId("capsuleContext"),
     query,
     generated_at: now,
     query_scope: {

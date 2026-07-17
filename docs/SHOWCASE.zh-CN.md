@@ -1,5 +1,9 @@
 # AIWiki 案例展示
 
+每个案例都遵循 [Core Intent Matrix](AGENT_HANDOFF.zh-CN.md#core-intent-matrix)：先把用户请求匹配到 AIWiki 命令，解释命令输出；仅在命令无法回答时使用 fallback。
+
+资料暂时读不到时，宿主 Agent 应写入 failed-fetch payload 留痕，而不是默认抓取网页或要求用户手工保存 payload。查询结果不足时，应先说明 `context`、`query` 或 `show` 为什么不足，再对相关文件做有限的 fallback 检查。
+
 这页直接展示一次真实 AIWiki 运行会生成什么。
 
 公开试用结束后，先按 [运营反馈闭环](OPERATING_FEEDBACK_LOOP.zh-CN.md) 把反馈归类为安装、首次使用、入库结果、目录理解、查询和复用、功能请求，再判断是否进入开发队列。

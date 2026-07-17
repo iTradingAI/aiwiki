@@ -1,5 +1,15 @@
 # AIWiki 使用指南
 
+## 场景优先的开始方式
+
+先对 Agent 说：
+
+```text
+请安装 AIWiki，使用 <我的本地-aiwiki-路径> 作为工作区，同步支持的 Agent 接入，并汇报工作区和 Agent 状态。
+```
+
+Agent 应使用 `setup`、`agent sync/check`、`doctor` 和 `status`，再解释观察到的状态。首选命令、输出解释和 fallback 条件以 [Core Intent Matrix](AGENT_HANDOFF.zh-CN.md#core-intent-matrix) 为准；下方长检查清单仅用于明确的安装排障。
+
 AIWiki 的主路径是让 AI 助手来使用。
 
 目标体验很简单：
@@ -52,7 +62,7 @@ macOS/Linux: ~/AIWiki
 项目内测试: ./aiwiki-test
 ```
 
-`aiwiki setup` 会创建或修复知识库，并刷新知识库根目录的 `AGENTS.md` 指导。`aiwiki agent sync --yes` 会把 AIWiki skill 同步到支持的本机助手环境。
+`aiwiki setup` 会创建或修复知识库，并刷新知识库根目录的 `AGENTS.md` 指导。`aiwiki agent sync --yes` 会把完整打包的 AIWiki `skill/` 目录同步到支持 Skill 的本机助手环境。`agent check --json` 和 `agent sync --json --yes` 会报告逐文件 bundle 状态；变更的 bundle 文件会备份，目标目录的无关文件保持不变。Claude Code 使用手工 `AGENT_HANDOFF.md` 提示，不复制 Skill bundle。
 
 安装成功后应该看到：
 
@@ -83,6 +93,8 @@ aiwiki agent sync --path <workspace> --yes
 ```
 
 这会在知识库根目录写入带标记的指导，让以后进入这个目录的 Agent 先使用 AIWiki 命令，而不是直接翻文件。
+
+extension 不会因模糊自然语言请求而被自动选择或启用。只有用户明确要求列出时才运行 `aiwiki plugin list --json --path <workspace>`，只有用户提供目录时才运行 `aiwiki plugin add <directory> --path <workspace>`，只有用户提供精确 ID 时才运行 `aiwiki plugin enable <id> --path <workspace>`。安装包中的 `skill/EXTENSION_PROTOCOL.md` 规定了完整边界。
 
 验证两层同步：
 
@@ -252,6 +264,20 @@ AIWiki 写的是普通 Markdown 和 frontmatter。
 Obsidian 可选，Dataview 也可选。AIWiki 不修改 `.obsidian`，不安装插件，也不依赖 Dataview 查询知识库。
 
 `aiwiki setup` 会在缺失时创建 dashboard 和 schema 文件，并保留用户已经编辑过的文件。
+
+## Schema Compatibility
+
+AIWiki 会把历史工作区 `schema_version: 1` 按 `aiwiki.workspace.v1` 读取，不会回写 `aiwiki.yaml`。Agent JSON 默认保持 `aiwiki.context.v1`，capsule 视图保持 `aiwiki.context.capsule.v1`。未知的新增 frontmatter 字段可继续读取；已声明的未知未来主版本必须人工复核，CORE-0403 没有迁移 CLI 或自动写入路径。
+
+可选 schema 标记与迁移边界见 [Schema Compatibility 目录](schema/README.zh-CN.md)。CORE-0404 提供仅声明的 [Extension API v0.1](schema/EXTENSION_SCHEMA.zh-CN.md)。CORE-0405 提供显式的 [Extension Host v0.1](schema/EXTENSION_HOST.zh-CN.md)：
+
+```text
+aiwiki plugin list --json
+aiwiki plugin add <directory> --path <workspace>
+aiwiki plugin enable <id> --path <workspace>
+```
+
+这些命令不会自动发现包，也不会自动 Skill 匹配。Host 不是 sandbox；它只约束 Host 管理的状态，并在 extension 失败后禁用该 extension，同时保持 Core 继续运行。自然语言 extension 匹配、优先级和 fallback 仍由 CORE-0407 负责。
 
 ## 8. 常见排障
 

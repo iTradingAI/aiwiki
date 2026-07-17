@@ -12,6 +12,16 @@
 
 # AIWiki
 
+## 场景优先的命令契约
+
+首次使用时，先用一句自然语言请求：
+
+```text
+请安装 AIWiki，使用 <我的本地-aiwiki-路径> 作为工作区，同步支持的 Agent 接入，并告诉我工作区和 Agent 状态。
+```
+
+Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、`doctor`、`status` 的路径执行，并解释结果。完整的首选命令、输出解释和 fallback 条件见 [Core Intent Matrix](docs/AGENT_HANDOFF.zh-CN.md#core-intent-matrix)。长提示只用于安装排障，不是首次使用的主路径。
+
 [![npm version](https://img.shields.io/npm/v/@itradingai/aiwiki.svg)](https://www.npmjs.com/package/@itradingai/aiwiki)
 [![Node.js >=20](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -238,6 +248,12 @@ AIWiki 不是简单拼接两套方法。
   -> 大纲
   -> 后续创作 / 研究 / 决策
 ```
+
+## Schema Compatibility
+
+工作区的历史 `schema_version: 1` 会作为 `aiwiki.workspace.v1` 读取且不会回写。默认 Agent JSON 保持 `aiwiki.context.v1`，capsule 视图保持 `aiwiki.context.capsule.v1`；声明了未知未来主版本时只能人工复核。详见[Schema Compatibility 目录](docs/schema/README.zh-CN.md)。
+
+CORE-0403 不改变现有 Skill 匹配；CORE-0407 负责后续匹配合同、优先级、fallback 和验收。
 
 ## Agent 接入
 

@@ -1,7 +1,22 @@
 {
   "name": "@itradingai/aiwiki",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
+  "types": "./dist/src/public/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/public/index.d.ts",
+      "import": "./dist/src/public/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/src/public/contracts.d.ts",
+      "import": "./dist/src/public/contracts.js"
+    },
+    "./extension-api": {
+      "types": "./dist/src/extension/api.d.ts",
+      "import": "./dist/src/extension/api.js"
+    }
+  },
   "description": "Local Markdown knowledge base for AI assistants. Save what your AI reads, ask it later, and keep everything local.",
   "license": "MIT",
   "keywords": [
@@ -59,6 +74,7 @@
     "docs/TRIAL_FEEDBACK_TEMPLATE.md",
     "docs/USAGE.md",
     "docs/USAGE.zh-CN.md",
+    "docs/schema",
     "docs/development-log.md",
     "docs/architecture.svg",
     "examples",
@@ -70,6 +86,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node scripts/run-tests.mjs",
+    "test:contracts": "npm run build && node scripts/run-tests.mjs --scope contracts",
     "check": "npm run test",
     "release:check": "npm test && node scripts/release-check.mjs",
     "prepack": "npm run build"

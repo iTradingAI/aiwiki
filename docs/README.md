@@ -11,11 +11,13 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 - [Usage Guide](USAGE.md)
 - [FAQ](FAQ.md)
 - [Agent Handoff](AGENT_HANDOFF.md)
+- [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix)
 - [Showcase](SHOWCASE.md)
 - [Trial Feedback Template](TRIAL_FEEDBACK_TEMPLATE.md)
 - [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md)
 - [Roadmap](ROADMAP.md)
 - [Release Notes](RELEASE.md)
+- [Schema Compatibility](schema/README.md)
 
 ## Chinese Docs
 
@@ -26,6 +28,7 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 - [Chinese Showcase](SHOWCASE.zh-CN.md)
 - [Chinese Roadmap](ROADMAP.zh-CN.md)
 - [Chinese Release Notes](RELEASE.zh-CN.md)
+- [Chinese Schema Compatibility](schema/README.zh-CN.md)
 
 ## Examples
 
@@ -45,11 +48,33 @@ AI assistant reads a source
 
 In 0.3.0, human `aiwiki query` output defaults to Source Capsules. Agent integrations can keep using stable `aiwiki.context.v1`, or request capsule JSON with `aiwiki context "<topic>" --view capsule`.
 
+## Schema Compatibility
+
+The [Schema Compatibility catalog](schema/README.md) defines active v1 contracts, the `schema_version: 1` workspace alias, and the read-only manual-review rule for future major versions. It also records that CORE-0403 does not change Skill matching; CORE-0407 owns that future contract.
+
 For public trials, keep the first loop to one source and one question: setup, ingest, inspect the run artifacts, query/context reuse, lint/doctor, and a short feedback note.
 
 The scenario pack gives users copyable sample inputs, expected generated artifacts, reuse prompts, long-term maintenance value, and WeChat-group-ready copy for each trial path.
 
+For natural-language matching, use the [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix): every supported path identifies the preferred command, how to interpret its output, and when a fallback is allowed.
+
 Use the [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md) to classify trial feedback into installation, first-use, ingest-result, directory, query-reuse, and feature-request signals before promoting anything into the managed queue.
+
+## Public Integration API
+
+Core integrations use only these ESM package entry points:
+
+```ts
+import { AIWIKI_PUBLIC_API_VERSION, createAiwikiCli, type AiwikiArtifact } from "@itradingai/aiwiki";
+import type { ContextResult } from "@itradingai/aiwiki/contracts";
+
+const cli = createAiwikiCli();
+console.log(AIWIKI_PUBLIC_API_VERSION); // aiwiki.public.v1
+void cli;
+void (undefined as AiwikiArtifact | ContextResult | undefined);
+```
+
+`@itradingai/aiwiki` exports the stable Core facade. `@itradingai/aiwiki/contracts` exports the version marker and public types for compatibility checks. Do not import `@itradingai/aiwiki/src/**`, `@itradingai/aiwiki/dist/src/**`, or any other unlisted deep path: those are internal implementation details and are intentionally blocked by the package export map.
 
 ## Important Boundaries
 

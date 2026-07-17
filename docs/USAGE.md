@@ -15,7 +15,15 @@ AIWiki does not fetch webpages and does not call an LLM. The host assistant read
 
 ## 1. Ask Your Assistant to Install AIWiki
 
-Copy this prompt into your assistant:
+Start with this short request:
+
+```text
+Install AIWiki, use <my-local-aiwiki-path> as the workspace, sync the supported Agent integration, and report the workspace and Agent status.
+```
+
+The assistant should use `setup`, `agent sync/check`, `doctor`, and `status`, then explain the observed state. The [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix) is the normative mapping for the preferred command, output interpretation, and fallback condition.
+
+Use the following detailed checklist only when installation needs explicit environment troubleshooting:
 
 Before sending it, replace every `<replace-with-my-aiwiki-path>` with your own local folder path, such as `D:\AIWiki` or `~/AIWiki`. Do not leave the placeholder in the commands.
 
@@ -52,7 +60,7 @@ macOS/Linux: ~/AIWiki
 Project test: ./aiwiki-test
 ```
 
-`aiwiki setup` creates or repairs the knowledge base and refreshes workspace-level `AGENTS.md` guidance. `aiwiki agent sync --yes` syncs the packaged AIWiki skill into supported assistant environments.
+`aiwiki setup` creates or repairs the knowledge base and refreshes workspace-level `AGENTS.md` guidance. `aiwiki agent sync --yes` syncs the complete packaged AIWiki `skill/` directory into supported Skill hosts. `agent check --json` and `agent sync --json --yes` report the per-file bundle state; changed bundle files are backed up and unrelated target files stay unchanged. Claude Code uses the manual `AGENT_HANDOFF.md` prompt rather than a copied Skill bundle.
 
 Expected result:
 
@@ -86,6 +94,8 @@ aiwiki agent sync --path <workspace> --yes
 
 This writes marker-bounded guidance into the knowledge base root so future assistants entering that workspace know to use AIWiki commands before generic file search.
 
+Extensions are never selected or activated from a vague natural-language request. Use `aiwiki plugin list --json --path <workspace>` only when the user explicitly asks to list them, `aiwiki plugin add <directory> --path <workspace>` only for a directory the user supplied, and `aiwiki plugin enable <id> --path <workspace>` only for an exact user-supplied ID. See `skill/EXTENSION_PROTOCOL.md` in the installed package.
+
 Verify both layers:
 
 ```bash
@@ -98,6 +108,8 @@ For unsupported hosts, print the generic assistant protocol:
 ```bash
 aiwiki prompt agent
 ```
+
+Do not write unknown host configuration as a fallback. Report that the host is unsupported, use `aiwiki prompt agent`, and keep the manual instructions scoped to that host.
 
 ## 3. Ingest a Source
 
@@ -332,6 +344,20 @@ AIWiki writes plain Markdown and frontmatter.
 Obsidian is optional. Dataview is optional. AIWiki does not edit `.obsidian`, install plugins, or require Dataview to query the knowledge base.
 
 `aiwiki setup` creates dashboard and schema files when missing and preserves user-edited files.
+
+## Schema Compatibility
+
+AIWiki reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1` without rewriting `aiwiki.yaml`. Current Agent JSON remains `aiwiki.context.v1` by default and `aiwiki.context.capsule.v1` for the capsule view. Unknown additive frontmatter remains readable; a declared unknown future major requires manual review and has no automatic migration command.
+
+See the [Schema Compatibility catalog](schema/README.md) for optional marker fields and the migration boundary. CORE-0404 exposes the declaration-only [Extension API v0.1](schema/EXTENSION_SCHEMA.md). CORE-0405 adds the explicit [Extension Host v0.1](schema/EXTENSION_HOST.md):
+
+```text
+aiwiki plugin list --json
+aiwiki plugin add <directory> --path <workspace>
+aiwiki plugin enable <id> --path <workspace>
+```
+
+These commands do not discover packages or create an automatic Skill match. The Host is not a sandbox; it only contains Host-managed state and disables failed extensions while Core continues. CORE-0407 owns natural-language extension matching, precedence, and fallback.
 
 ## 8. Troubleshooting
 

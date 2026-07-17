@@ -204,6 +204,15 @@ export function filterLintReport(report: LintReport, severity?: LintSeverity): L
   };
 }
 
+export function mergeLintIssues(report: LintReport, issues: readonly LintIssue[]): LintReport {
+  const mergedIssues = [...report.issues, ...issues];
+  return {
+    ...report,
+    safe_fixes: safeFixSummary(mergedIssues, report.safe_fixes.applied),
+    issues: mergedIssues
+  };
+}
+
 export async function removeEmptyOptionalDirs(rootPath: string): Promise<LintSafeFix[]> {
   const root = path.resolve(rootPath);
   const applied: LintSafeFix[] = [];
