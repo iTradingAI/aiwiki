@@ -21,7 +21,7 @@ snapshot 使用 vault 相对路径、受限的 artifact kind、role、visibility
 
 API 不注入 network client、process executor、scheduler、connector runtime、可写 stream、filesystem writer 或 Core state mutator。它不是一个 sandbox：本地加载的 JavaScript 仍可自行导入能力。权限策略、允许的模块加载、输入投影、路径验证、draft 处理和失败隔离属于 CORE-0405。
 
-CORE-0404 不提供 extension manifest 格式、local 或 bundled loader、plugin command、自动发现、后台进程或 extension state directory。
+CORE-0404 本身不提供 extension manifest、loader、plugin command、自动发现、后台进程或 extension state directory。当前的显式 Host 行为另见 [Extension Host v0.1](EXTENSION_HOST.zh-CN.md)。
 
 ## 兼容性
 

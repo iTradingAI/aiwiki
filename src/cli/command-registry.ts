@@ -23,6 +23,7 @@ export type CoreCommandHandlers = Readonly<{
   agentHelp: CommandHandler;
   retrievalHelp: CommandHandler;
   help: CommandHandler;
+  plugin: CommandHandler;
   setup: CommandHandler;
   agentInstall: CommandHandler;
   agentSync: CommandHandler;
@@ -50,8 +51,12 @@ export class CommandRegistry {
     this.definitions = definitions;
   }
 
+  find(context: CommandContext): CommandDefinition | undefined {
+    return this.definitions.find((candidate) => candidate.matches(context));
+  }
+
   async dispatch(context: CommandContext): Promise<number> {
-    const definition = this.definitions.find((candidate) => candidate.matches(context));
+    const definition = this.find(context);
     if (!definition) {
       throw new CliError(`未知命令: ${context.command}`);
     }
@@ -84,9 +89,24 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
       handle: handlers.retrievalHelp
     },
     {
+      id: "plugin-help",
+      matches: ({ args, command, subcommand }) => command === "plugin" && (!subcommand || subcommand === "help" || args.flags.has("help")),
+      handle: handlers.plugin
+    },
+    {
       id: "help",
       matches: ({ args, command }) => args.flags.has("help") || !command || command === "help" || command === "-h",
       handle: handlers.help
+    },
+    {
+      id: "plugin",
+      matches: ({ command }) => command === "plugin",
+      handle: handlers.plugin,
+      help: [
+        { usage: "aiwiki plugin list --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki plugin add <directory>", visibility: "public", scope: "base" },
+        { usage: "aiwiki plugin enable <id>", visibility: "public", scope: "base" }
+      ]
     },
     {
       id: "setup",

@@ -50,7 +50,11 @@ test("packed package exposes a self-contained extension author API", () => {
       "dist/src/extension/api.js",
       "dist/src/extension/api.d.ts",
       "docs/schema/EXTENSION_SCHEMA.md",
-      "docs/schema/EXTENSION_SCHEMA.zh-CN.md"
+      "docs/schema/EXTENSION_SCHEMA.zh-CN.md",
+      "docs/schema/EXTENSION_HOST.md",
+      "docs/schema/EXTENSION_HOST.zh-CN.md",
+      "examples/extensions/local-quality-extension/aiwiki-extension.json",
+      "examples/extensions/local-quality-extension/index.mjs"
     ]) {
       assert.doesNotThrow(() => readFileSync(path.join(installedRoot, relativePath), "utf8"), relativePath);
     }
@@ -229,6 +233,8 @@ test("extension API documentation keeps host and Skill matching boundaries expli
   const read = (relativePath: string) => readFileSync(path.join(process.cwd(), relativePath), "utf8");
   const schema = read("docs/schema/EXTENSION_SCHEMA.md");
   const schemaChinese = read("docs/schema/EXTENSION_SCHEMA.zh-CN.md");
+  const host = read("docs/schema/EXTENSION_HOST.md");
+  const hostChinese = read("docs/schema/EXTENSION_HOST.zh-CN.md");
   const schemaIndex = read("docs/schema/README.md");
   const schemaIndexChinese = read("docs/schema/README.zh-CN.md");
   const release = read("docs/RELEASE.md");
@@ -244,6 +250,15 @@ test("extension API documentation keeps host and Skill matching boundaries expli
     assert.match(text, /CORE-0405/);
     assert.match(text, /CORE-0407/);
   }
+  for (const text of [host, hostChinese]) {
+    assert.match(text, /aiwiki plugin list/);
+    assert.match(text, /aiwiki plugin add/);
+    assert.match(text, /aiwiki plugin enable/);
+    assert.match(text, /aiwiki\.extension\.v1/);
+    assert.match(text, /CORE-0407/);
+  }
+  assert.match(host, /not a sandbox/i);
+  assert.match(hostChinese, /不是.*sandbox/);
   assert.match(schema, /not a sandbox/i);
   assert.match(schemaChinese, /不是.*sandbox/);
   for (const text of [schemaIndex, schemaIndexChinese]) {
@@ -259,5 +274,8 @@ test("extension API documentation keeps host and Skill matching boundaries expli
   for (const text of [usage, usageChinese, handoff, handoffChinese, skill]) {
     assert.match(text, /CORE-0407/);
     assert.match(text, /CORE-0405/);
+    assert.match(text, /aiwiki plugin list/);
+    assert.match(text, /aiwiki plugin add/);
+    assert.match(text, /aiwiki plugin enable/);
   }
 });

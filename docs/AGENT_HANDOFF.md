@@ -70,7 +70,7 @@ Use this matrix as the command contract for matching natural-language requests. 
 
 Keep the current command-first intent mapping unchanged. `aiwiki.context.v1` and `aiwiki.context.capsule.v1` remain the supported Agent JSON outputs; legacy workspace `schema_version: 1` remains readable as `aiwiki.workspace.v1` without a rewrite. Unknown future schema majors require manual review and have no CLI migration path. See [Schema Compatibility](schema/README.md).
 
-CORE-0404 exposes the declaration-only Extension API v0.1, but adds no extension command, loader, manifest, or automatic Skill match. CORE-0405 owns loading and isolation; CORE-0407 owns intent precedence and fallback behavior.
+CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 now provides only explicit extension administration: `aiwiki plugin list`, `aiwiki plugin add <directory>`, and `aiwiki plugin enable <id>`. Do not infer these commands from natural language, discover extensions, or describe the Host as a sandbox. CORE-0407 owns extension intent precedence, fallback behavior, and automatic Skill matching.
 
 ## Ingest Flow
 

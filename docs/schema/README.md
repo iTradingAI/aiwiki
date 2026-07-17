@@ -15,9 +15,10 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 | Capsule context | `aiwiki.context.capsule.v1` | Agent JSON output | Explicit capsule view remains stable. |
 | Agent payload | `aiwiki.agent_payload.v1` | Agent JSON input | Input validation remains strict. |
 | Agent sync/check | `aiwiki.agent_sync.v1`, `aiwiki.agent_check.v1` | Agent JSON output | Existing output contracts remain stable. |
-| Extension author contract | `aiwiki.extension.v1` | Package public contract | The declaration API is active; loading remains a CORE-0405 responsibility. |
+| Extension author contract | `aiwiki.extension.v1` | Package public contract | Declaration API remains stable; explicit hosting is documented separately. |
+| Extension Host | `aiwiki.extension-host.v1` | Local host state | Explicit local/bundled loading, state, and failure isolation; see [Extension Host v0.1](EXTENSION_HOST.md). |
 
-`aiwiki.context.v2` remains reserved. `aiwiki.extension.v1` is active as the declaration-only [Extension API v0.1](EXTENSION_SCHEMA.md); Core does not emit Context v2 or load extension packages.
+`aiwiki.context.v2` remains reserved. `aiwiki.extension.v1` is active as the [Extension API v0.1](EXTENSION_SCHEMA.md). CORE-0405 adds only the explicit [Extension Host v0.1](EXTENSION_HOST.md): `plugin add` and `plugin enable` activate local or bundled extensions; there is no automatic discovery.
 
 ## Compatibility And Migration
 

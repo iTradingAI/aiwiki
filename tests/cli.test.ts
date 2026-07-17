@@ -11,7 +11,7 @@ import { CommandRegistry, createCoreCommandRegistry, type CoreCommandHandlers } 
 import { createCoreCommandHandlers } from "../src/cli/commands/core-handlers.js";
 import { fixturePath, MemoryWritable, tempRoot } from "./helpers.js";
 
-test("help exposes only base commands", async () => {
+test("help exposes core commands and only the implemented plugin commands", async () => {
   const stdout = new MemoryWritable();
   const stderr = new MemoryWritable();
   const code = await runCli(["--help"], { stdout, stderr });
@@ -29,6 +29,9 @@ test("help exposes only base commands", async () => {
   assert.match(text, /aiwiki lint --capsules --json/);
   assert.match(text, /aiwiki lint --strict --json/);
   assert.match(text, /aiwiki lint --fix-empty-dirs --json/);
+  assert.match(text, /aiwiki plugin list --json/);
+  assert.match(text, /aiwiki plugin add <directory>/);
+  assert.match(text, /aiwiki plugin enable <id>/);
   assert.doesNotMatch(text, /aiwiki init/);
   assert.doesNotMatch(text, /aiwiki agent install/);
   assert.doesNotMatch(text, /aiwiki prompt agent/);
@@ -36,11 +39,257 @@ test("help exposes only base commands", async () => {
   assert.doesNotMatch(text, /aiwiki config show/);
   assert.doesNotMatch(text, /aiwiki ingest-url/);
   assert.doesNotMatch(text, /aiwiki ingest-agent --payload/);
-  assert.doesNotMatch(text, /aiwiki plugin/i);
+  assert.doesNotMatch(text, /aiwiki plugin disable/i);
+  assert.doesNotMatch(text, /aiwiki plugin remove/i);
+  assert.doesNotMatch(text, /aiwiki plugin doctor/i);
   assert.doesNotMatch(text, /aiwiki extension/i);
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
   assert.equal(stderr.text(), "");
+});
+
+test("CLI plugin list add and enable manage only explicitly registered local extensions", async () => {
+  const root = await tempRoot("aiwiki-cli-plugin");
+  const extensionRoot = await tempRoot("aiwiki-cli-plugin-extension");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await writeFile(path.join(extensionRoot, "aiwiki-extension.json"), JSON.stringify({
+      schema_version: "aiwiki.extension.v1",
+      id: "example.cli-quality",
+      name: "CLI quality extension",
+      version: "0.1.0",
+      api_version: "aiwiki.extension.v1",
+      entry: "index.mjs"
+    }, null, 2), "utf8");
+    await writeFile(path.join(extensionRoot, "index.mjs"), [
+      "export default {",
+      '  id: "example.cli-quality",',
+      '  name: "CLI quality extension",',
+      '  version: "0.1.0",',
+      '  apiVersion: "aiwiki.extension.v1"',
+      "};",
+      ""
+    ].join("\n"), "utf8");
+
+    const before = new MemoryWritable();
+    assert.equal(await runCli(["plugin", "list", "--json", "--path", root], { stdout: before, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(before.text()) as { extensions: Array<{ id: string; status: string }> }).extensions
+      .some((extension) => extension.id === "example.cli-quality"), false);
+
+    const added = new MemoryWritable();
+    assert.equal(await runCli(["plugin", "add", extensionRoot, "--json", "--path", root], { stdout: added, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(added.text()) as { extension: { id: string; status: string } }).extension.status, "available");
+
+    const enabled = new MemoryWritable();
+    assert.equal(await runCli(["plugin", "enable", "example.cli-quality", "--json", "--path", root], { stdout: enabled, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(enabled.text()) as { extension: { id: string; status: string } }).extension.status, "enabled");
+    await access(path.join(root, ".aiwiki", "extensions", "state", "example.cli-quality"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(extensionRoot, { recursive: true, force: true });
+  }
+});
+
+test("enabled extension commands and lint rules run without letting a broken rule stop Core lint", async () => {
+  const root = await tempRoot("aiwiki-cli-extension-runtime");
+  const healthyRoot = await tempRoot("aiwiki-cli-extension-healthy");
+  const brokenRoot = await tempRoot("aiwiki-cli-extension-broken");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "extension.md"), "# Extension fixture\n", "utf8");
+
+    await writeFile(path.join(healthyRoot, "aiwiki-extension.json"), JSON.stringify({
+      schema_version: "aiwiki.extension.v1",
+      id: "example.runtime-quality",
+      name: "Runtime quality extension",
+      version: "0.1.0",
+      api_version: "aiwiki.extension.v1",
+      entry: "index.mjs"
+    }, null, 2), "utf8");
+    await writeFile(path.join(healthyRoot, "index.mjs"), [
+      "export default {",
+      '  id: "example.runtime-quality",',
+      '  name: "Runtime quality extension",',
+      '  version: "0.1.0",',
+      '  apiVersion: "aiwiki.extension.v1",',
+      "  commands: [{",
+      '    kind: "command",',
+      '    id: "example.runtime-quality.command",',
+      '    path: ["example", "quality"],',
+      '    summary: "Print quality status",',
+      '    async run({ argv }) { return { exitCode: 0, stdout: "quality:" + argv.join(",") }; }',
+      "  }],",
+      "  lintRules: [{",
+      '    kind: "lint_rule",',
+      '    id: "example.runtime-quality.lint",',
+      '    defaultSeverity: "warning",',
+      "    async evaluate({ artifacts }) {",
+      '      if (artifacts.some((artifact) => "absolutePath" in artifact || "body" in artifact)) throw new Error("unsafe artifact projection");',
+      '      return [{ severity: "warning", category: "runtime_quality", message: "Runtime quality finding", suggestion: "Review extension fixture." }];',
+      "    }",
+      "  }],",
+      "  contextProviders: [{",
+      '    kind: "context_provider",',
+      '    id: "example.runtime-quality.context",',
+      '    namespace: "runtime-quality",',
+      '    async provide() { throw new Error("context provider must not run"); }',
+      "  }],",
+      "  artifactGenerators: [{",
+      '    kind: "artifact_generator",',
+      '    id: "example.runtime-quality.generator",',
+      '    generates: ["wiki_entry"],',
+      '    async generate() { throw new Error("artifact generator must not run"); }',
+      "  }]",
+      "};",
+      ""
+    ].join("\n"), "utf8");
+
+    await writeFile(path.join(brokenRoot, "aiwiki-extension.json"), JSON.stringify({
+      schema_version: "aiwiki.extension.v1",
+      id: "example.broken-lint",
+      name: "Broken lint extension",
+      version: "0.1.0",
+      api_version: "aiwiki.extension.v1",
+      entry: "index.mjs"
+    }, null, 2), "utf8");
+    await writeFile(path.join(brokenRoot, "index.mjs"), [
+      "export default {",
+      '  id: "example.broken-lint",',
+      '  name: "Broken lint extension",',
+      '  version: "0.1.0",',
+      '  apiVersion: "aiwiki.extension.v1",',
+      "  lintRules: [{",
+      '    kind: "lint_rule",',
+      '    id: "example.broken-lint.rule",',
+      '    defaultSeverity: "warning",',
+      '    async evaluate() { throw new Error("broken lint callback"); }',
+      "  }]",
+      "};",
+      ""
+    ].join("\n"), "utf8");
+
+    for (const extensionRoot of [healthyRoot, brokenRoot]) {
+      assert.equal(await runCli(["plugin", "add", extensionRoot, "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    }
+    for (const id of ["example.runtime-quality", "example.broken-lint"]) {
+      assert.equal(await runCli(["plugin", "enable", id, "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    }
+
+    const command = new MemoryWritable();
+    assert.equal(await runCli(["example", "quality", "first", "--path", root], { stdout: command, stderr: new MemoryWritable() }), 0);
+    assert.match(command.text(), /quality:first/);
+
+    const flaggedCommand = new MemoryWritable();
+    assert.equal(await runCli([
+      "example", "quality", "--mode", "fast", "--format=json", "tail", "--path", root
+    ], { stdout: flaggedCommand, stderr: new MemoryWritable() }), 0);
+    assert.match(flaggedCommand.text(), /quality:--mode,fast,--format=json,tail/);
+
+    const lint = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--json", "--path", root], { stdout: lint, stderr: new MemoryWritable() }), 0);
+    const report = JSON.parse(lint.text()) as { issues: Array<{ category?: string; message?: string }> };
+    assert.equal(report.issues.some((issue) => issue.category === "runtime_quality" && issue.message === "Runtime quality finding"), true);
+
+    const statuses = new MemoryWritable();
+    assert.equal(await runCli(["plugin", "list", "--json", "--path", root], { stdout: statuses, stderr: new MemoryWritable() }), 0);
+    const plugins = JSON.parse(statuses.text()) as { extensions: Array<{ id: string; status: string; disabledReason?: string }> };
+    assert.equal(plugins.extensions.find((extension) => extension.id === "example.runtime-quality")?.status, "enabled");
+    const broken = plugins.extensions.find((extension) => extension.id === "example.broken-lint");
+    assert.equal(broken?.status, "disabled");
+    assert.match(broken?.disabledReason ?? "", /broken lint callback/i);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(healthyRoot, { recursive: true, force: true });
+    await rm(brokenRoot, { recursive: true, force: true });
+  }
+});
+
+test("checked-in local extension can be explicitly added, enabled, and exercised", async () => {
+  const root = await tempRoot("aiwiki-cli-checked-in-extension");
+  const extensionRoot = path.join(process.cwd(), "examples", "extensions", "local-quality-extension");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    assert.equal(await runCli(["plugin", "add", extensionRoot, "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    assert.equal(await runCli(["plugin", "enable", "example.local-quality", "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+
+    const command = new MemoryWritable();
+    assert.equal(await runCli(["example", "quality", "--path", root], { stdout: command, stderr: new MemoryWritable() }), 0);
+    assert.match(command.text(), /Local quality extension is enabled/);
+
+    const lint = new MemoryWritable();
+    assert.equal(await runCli(["lint", "--json", "--path", root], { stdout: lint, stderr: new MemoryWritable() }), 0);
+    const report = JSON.parse(lint.text()) as { issues: Array<{ category?: string; message?: string }> };
+    assert.equal(report.issues.some((issue) => issue.category === "local_quality" && issue.message === "Local quality extension found no artifacts."), true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("bundled extensions remain inactive until explicit enable", async () => {
+  const root = await tempRoot("aiwiki-cli-bundled-extension");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const before = new MemoryWritable();
+    assert.equal(await runCli(["plugin", "list", "--json", "--path", root], { stdout: before, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(before.text()) as { extensions: Array<{ id: string; status: string }> }).extensions
+      .find((extension) => extension.id === "aiwiki.bundled-example")?.status, "available");
+
+    assert.equal(await runCli(["plugin", "enable", "aiwiki.bundled-example", "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    const command = new MemoryWritable();
+    assert.equal(await runCli(["example", "bundled", "--path", root], { stdout: command, stderr: new MemoryWritable() }), 0);
+    assert.match(command.text(), /AIWiki bundled example is enabled/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a failing extension command is disabled while Core status still runs", async () => {
+  const root = await tempRoot("aiwiki-cli-broken-command");
+  const extensionRoot = await tempRoot("aiwiki-cli-broken-command-extension");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await writeFile(path.join(extensionRoot, "aiwiki-extension.json"), JSON.stringify({
+      schema_version: "aiwiki.extension.v1",
+      id: "example.broken-command",
+      name: "Broken command extension",
+      version: "0.1.0",
+      api_version: "aiwiki.extension.v1",
+      entry: "index.mjs"
+    }, null, 2), "utf8");
+    await writeFile(path.join(extensionRoot, "index.mjs"), [
+      "export default {",
+      '  id: "example.broken-command",',
+      '  name: "Broken command extension",',
+      '  version: "0.1.0",',
+      '  apiVersion: "aiwiki.extension.v1",',
+      "  commands: [{",
+      '    kind: "command",',
+      '    id: "example.broken-command.run",',
+      '    path: ["example", "broken-command"],',
+      '    summary: "Fails deliberately",',
+      '    async run() { throw new Error("broken command callback"); }',
+      "  }]",
+      "};",
+      ""
+    ].join("\n"), "utf8");
+
+    assert.equal(await runCli(["plugin", "add", extensionRoot, "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    assert.equal(await runCli(["plugin", "enable", "example.broken-command", "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+
+    const failed = new MemoryWritable();
+    assert.equal(await runCli(["example", "broken-command", "--path", root], { stdout: new MemoryWritable(), stderr: failed }), 1);
+    assert.match(failed.text(), /broken command callback/);
+
+    const list = new MemoryWritable();
+    assert.equal(await runCli(["plugin", "list", "--json", "--path", root], { stdout: list, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(list.text()) as { extensions: Array<{ id: string; status: string }> }).extensions
+      .find((extension) => extension.id === "example.broken-command")?.status, "disabled");
+
+    assert.equal(await runCli(["status", "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(extensionRoot, { recursive: true, force: true });
+  }
 });
 
 test("agent and context help explain sync and filters", async () => {
@@ -275,6 +524,7 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     "show",
     "next",
     "lint",
+    "plugin",
     "ingestAgent",
     "ingestFile",
     "ingestUrl"
@@ -304,6 +554,7 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     [["show", "topic"], "show"],
     [["next"], "next"],
     [["lint"], "lint"],
+    [["plugin", "list"], "plugin"],
     [["ingest-agent"], "ingestAgent"],
     [["ingest-file"], "ingestFile"],
     [["ingest-url"], "ingestUrl"]

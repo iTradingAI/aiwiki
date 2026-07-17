@@ -347,7 +347,15 @@ Obsidian is optional. Dataview is optional. AIWiki does not edit `.obsidian`, in
 
 AIWiki reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1` without rewriting `aiwiki.yaml`. Current Agent JSON remains `aiwiki.context.v1` by default and `aiwiki.context.capsule.v1` for the capsule view. Unknown additive frontmatter remains readable; a declared unknown future major requires manual review and has no automatic migration command.
 
-See the [Schema Compatibility catalog](schema/README.md) for optional marker fields and the migration boundary. CORE-0404 exposes the declaration-only [Extension API v0.1](schema/EXTENSION_SCHEMA.md), adds no CLI command or automatic Skill match, and leaves loading to CORE-0405. CORE-0407 owns the future matching contract.
+See the [Schema Compatibility catalog](schema/README.md) for optional marker fields and the migration boundary. CORE-0404 exposes the declaration-only [Extension API v0.1](schema/EXTENSION_SCHEMA.md). CORE-0405 adds the explicit [Extension Host v0.1](schema/EXTENSION_HOST.md):
+
+```text
+aiwiki plugin list --json
+aiwiki plugin add <directory> --path <workspace>
+aiwiki plugin enable <id> --path <workspace>
+```
+
+These commands do not discover packages or create an automatic Skill match. The Host is not a sandbox; it only contains Host-managed state and disables failed extensions while Core continues. CORE-0407 owns natural-language extension matching, precedence, and fallback.
 
 ## 8. Troubleshooting
 

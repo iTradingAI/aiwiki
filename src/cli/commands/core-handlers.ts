@@ -9,8 +9,9 @@ import { buildCapsuleContext } from "../../capsule-context.js";
 import { buildCapsules, capsuleMetrics } from "../../capsule.js";
 import type { CapsuleLintOptions } from "../../capsule-lint.js";
 import { buildContext, type ContextFilters, type ContextResult } from "../../context.js";
+import { evaluateExtensionLintFindings } from "../../extension/host.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "../../ingest.js";
-import { attachAppliedSafeFixes, filterLintReport, lintWorkspace, removeEmptyOptionalDirs, renderLintReport, renderLintSummary, writeLintReport, type LintSeverity } from "../../lint.js";
+import { attachAppliedSafeFixes, filterLintReport, lintWorkspace, mergeLintIssues, removeEmptyOptionalDirs, renderLintReport, renderLintSummary, writeLintReport, type LintIssue, type LintSeverity } from "../../lint.js";
 import { CliError, type CliStreams, writeLine } from "../../output.js";
 import { renderCapsuleQuery } from "../../query-view.js";
 import { showCapsule } from "../../show.js";
@@ -30,6 +31,7 @@ import {
 
 import type { CommandContext } from "../command-context.js";
 import type { CoreCommandHandlers } from "../command-registry.js";
+import { createPluginCommandHandler } from "./plugin.js";
 
 export function createCoreCommandHandlers(): CoreCommandHandlers {
 
@@ -277,10 +279,11 @@ const root = await resolveWorkspace(flagString(args, "path"));
 
   async function handleLint(context: CommandContext): Promise<number> {
     const { args, streams } = context;
-const root = await resolveWorkspace(flagString(args, "path"));
+      const root = await resolveWorkspace(flagString(args, "path"));
       const severity = parseLintSeverity(flagString(args, "severity"));
       const appliedSafeFixes = flagBool(args, "fix-empty-dirs") ? await removeEmptyOptionalDirs(root) : [];
-      const report = filterLintReport(attachAppliedSafeFixes(await lintWorkspace(root, new Date().toISOString(), lintOptions(args)), appliedSafeFixes), severity);
+      const coreReport = attachAppliedSafeFixes(await lintWorkspace(root, new Date().toISOString(), lintOptions(args)), appliedSafeFixes);
+      const report = filterLintReport(mergeLintIssues(coreReport, await extensionLintIssues(root)), severity);
       if (flagBool(args, "json")) {
         writeLine(streams.stdout, JSON.stringify(report, null, 2));
         return 0;
@@ -358,6 +361,7 @@ const contentFile = flagString(args, "content-file");
     agentHelp: handleAgentHelp,
     retrievalHelp: handleRetrievalHelp,
     help: handleHelp,
+    plugin: createPluginCommandHandler(),
     setup: handleSetup,
     agentInstall: handleAgentInstall,
     agentSync: handleAgentSync,
@@ -398,6 +402,9 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki lint --capsules --json");
   writeLine(stream, "  aiwiki lint --strict --json");
   writeLine(stream, "  aiwiki lint --fix-empty-dirs --json");
+  writeLine(stream, "  aiwiki plugin list --json");
+  writeLine(stream, "  aiwiki plugin add <directory>");
+  writeLine(stream, "  aiwiki plugin enable <id>");
 }
 
 function printAgentHelp(stream: NodeJS.WritableStream): void {
@@ -464,6 +471,16 @@ function lintOptions(args: ParsedArgs): CapsuleLintOptions {
     okf: flagBool(args, "okf"),
     strict: flagBool(args, "strict")
   };
+}
+
+async function extensionLintIssues(root: string): Promise<LintIssue[]> {
+  return (await evaluateExtensionLintFindings(root)).map(({ extensionId, ruleId, finding }) => ({
+    severity: finding.severity,
+    ...(finding.vaultPath ? { path: finding.vaultPath } : {}),
+    message: finding.message,
+    ...(finding.suggestion ? { suggestion: finding.suggestion } : {}),
+    category: finding.category ?? "extension:" + extensionId + ":" + ruleId
+  }));
 }
 
 type AgentTarget = {
