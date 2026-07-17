@@ -5,7 +5,8 @@ Use this note when an Agent finishes `aiwiki agent sync`.
 ## Current Major Changes
 
 - Agent integration should use `aiwiki agent sync --yes` for both first install and upgrades.
-- Sync backs up changed installed skill files before overwriting them.
+- Supported Skill hosts receive the full packaged `skill/` directory, not only `SKILL.md`; `agent check` and `agent sync` report file-by-file bundle state.
+- Sync backs up each changed installed bundle file before overwriting it, and does not delete unrelated files in the target Skill directory.
 - `aiwiki setup --path <workspace> --yes` now refreshes workspace `AGENTS.md` guidance automatically during setup or repair.
 - Use `aiwiki agent sync --path <workspace> --yes` only for manual workspace-guidance refresh without setup.
 - `aiwiki agent check --json` and `aiwiki agent sync --json --yes` provide machine-readable status for Agents.
@@ -26,3 +27,4 @@ Tell the user:
 - where the old skill was backed up, if any
 - that the Agent may need a restart or reload
 - that rollback is possible by copying the backup file back to the target path
+- that Claude Code uses the `docs/AGENT_HANDOFF.md` command prompt while Codex, QClaw, and OpenClaw use the full Skill bundle

@@ -5,6 +5,7 @@ import { test } from "node:test";
 const contractTests = [
   "public-api.test.ts",
   "cli-compatibility.test.ts",
+  "skill-matching.test.ts",
   "extension-api.test.ts",
   "schema-compatibility.test.ts",
   "extension-failure-isolation.test.ts"

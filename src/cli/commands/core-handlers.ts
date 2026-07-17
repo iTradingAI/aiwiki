@@ -488,15 +488,32 @@ type AgentTarget = {
   name: string;
   detected: boolean;
   installable: boolean;
-  kind: "skill" | "command" | "prompt" | "root_guidance";
+  kind: "skill_bundle" | "command" | "prompt" | "root_guidance";
   source?: string;
   target?: string;
+  bundleSource?: string;
+  bundleTarget?: string;
   note: string;
 };
 
 type AgentInstallState = "unsupported" | "missing" | "current" | "different";
 
 type AgentSyncAction = "installed" | "updated" | "current" | "would_install" | "would_update" | "unsupported";
+
+type AgentBundleFile = {
+  path: string;
+  state: Exclude<AgentInstallState, "unsupported">;
+};
+
+type AgentBundleStatus = {
+  complete: boolean;
+  files: AgentBundleFile[];
+};
+
+type AgentTargetInspection = {
+  state: AgentInstallState;
+  bundle?: AgentBundleStatus;
+};
 
 type AgentSyncItem = {
   id: string;
@@ -508,6 +525,8 @@ type AgentSyncItem = {
   target?: string;
   source?: string;
   backupPath?: string;
+  backup_paths?: string[];
+  bundle?: AgentBundleStatus;
   changed: boolean;
   dryRun: boolean;
   note?: string;
@@ -527,6 +546,7 @@ const REQUIRED_AGENT_GUIDANCE_TERMS = [
   "aiwiki setup",
   "aiwiki agent sync",
   "aiwiki agent check",
+  "aiwiki doctor",
   "aiwiki lint --json",
   "aiwiki lint --fix-empty-dirs --json",
   "aiwiki ingest-file",
@@ -537,12 +557,15 @@ const REQUIRED_AGENT_GUIDANCE_TERMS = [
   "aiwiki show",
   "--view capsule",
   "--view files",
-  "aiwiki lint --capsules"
+  "aiwiki lint --capsules",
+  "aiwiki plugin list",
+  "aiwiki plugin add",
+  "aiwiki plugin enable"
 ];
 
 async function discoverAgentTargets(workspaceRoot?: string): Promise<AgentTarget[]> {
   const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
-  const skillSource = path.join(packageRoot, "skill", "SKILL.md");
+  const skillBundleSource = path.join(packageRoot, "skill");
   const promptSource = path.join(packageRoot, "docs", "AGENT_HANDOFF.md");
   const codexHome = process.env.CODEX_HOME ? path.resolve(process.env.CODEX_HOME) : path.join(os.homedir(), ".codex");
   const qclawHome = process.env.QCLAW_HOME ? path.resolve(process.env.QCLAW_HOME) : path.join(os.homedir(), ".qclaw");
@@ -558,30 +581,36 @@ async function discoverAgentTargets(workspaceRoot?: string): Promise<AgentTarget
       name: "Codex",
       detected: await exists(codexHome),
       installable: true,
-      kind: "skill",
-      source: skillSource,
+      kind: "skill_bundle",
+      source: path.join(skillBundleSource, "SKILL.md"),
       target: path.join(codexHome, "skills", "aiwiki", "SKILL.md"),
-      note: "安装到 Codex 用户 skills 目录。"
+      bundleSource: skillBundleSource,
+      bundleTarget: path.join(codexHome, "skills", "aiwiki"),
+      note: "安装完整 AIWiki Skill bundle 到 Codex 用户 skills 目录。"
     },
     {
       id: "qclaw",
       name: "QClaw",
       detected: await exists(qclawHome),
       installable: true,
-      kind: "skill",
-      source: skillSource,
+      kind: "skill_bundle",
+      source: path.join(skillBundleSource, "SKILL.md"),
       target: path.join(qclawHome, "skills", "aiwiki", "SKILL.md"),
-      note: "安装到本机 QClaw skills 目录。"
+      bundleSource: skillBundleSource,
+      bundleTarget: path.join(qclawHome, "skills", "aiwiki"),
+      note: "安装完整 AIWiki Skill bundle 到本机 QClaw skills 目录。"
     },
     {
       id: "openclaw",
       name: "OpenClaw",
       detected: await exists(openclawHome),
       installable: true,
-      kind: "skill",
-      source: skillSource,
+      kind: "skill_bundle",
+      source: path.join(skillBundleSource, "SKILL.md"),
       target: path.join(openclawHome, "workspace", "skills", "aiwiki", "SKILL.md"),
-      note: "安装到 OpenClaw workspace skills 目录。"
+      bundleSource: skillBundleSource,
+      bundleTarget: path.join(openclawHome, "workspace", "skills", "aiwiki"),
+      note: "安装完整 AIWiki Skill bundle 到 OpenClaw workspace skills 目录。"
     },
     {
       id: "claude",
@@ -648,11 +677,14 @@ async function printAgentCheck(stream: NodeJS.WritableStream, targets: AgentTarg
 }
 
 async function printAgentCheckDetailed(stream: NodeJS.WritableStream, targets: AgentTarget[], json = false): Promise<void> {
-  const checked = await Promise.all(targets.map(async (target) => ({
-    ...target,
-    state: await inspectAgentTarget(target),
-    installed: target.target ? await exists(target.target) : false
-  })));
+  const checked = await Promise.all(targets.map(async (target) => {
+    const inspection = await inspectAgentTarget(target);
+    return {
+      ...target,
+      ...inspection,
+      installed: await isAgentTargetInstalled(target)
+    };
+  }));
 
   if (json) {
     writeLine(stream, JSON.stringify({
@@ -667,7 +699,8 @@ async function printAgentCheckDetailed(stream: NodeJS.WritableStream, targets: A
         state: target.state,
         suggested_action: suggestedAgentAction(target),
         source: target.source,
-        target: target.target
+        target: target.target,
+        ...(target.bundle ? { bundle: target.bundle } : {})
       }))
     }, null, 2));
     return;
@@ -679,6 +712,12 @@ async function printAgentCheckDetailed(stream: NodeJS.WritableStream, targets: A
     const suggested = suggestedAgentAction(target);
     if (suggested) {
       writeLine(stream, `  suggested: ${suggested}`);
+    }
+    if (target.bundle) {
+      writeLine(stream, `  bundle: complete=${target.bundle.complete ? "yes" : "no"}`);
+      for (const file of target.bundle.files.filter((file) => file.state !== "current")) {
+        writeLine(stream, `    ${file.path}: ${file.state}`);
+      }
     }
   }
 }
@@ -738,6 +777,17 @@ async function installAgentSkill(options: { agentId?: string; yes: boolean; forc
     }
   }
 
+  if (selected.kind === "skill_bundle") {
+    if (!selected.bundleSource || !selected.bundleTarget) {
+      throw new CliError(`${selected.name} 没有可用的 Skill bundle 目标。`);
+    }
+    if (!options.force && await exists(selected.target)) {
+      throw new CliError(`目标文件已存在: ${selected.target}。如需覆盖，请运行 aiwiki agent sync --agent <id> --yes，或为 install 加 --force。`);
+    }
+    const result = await syncSkillBundleTarget(selected);
+    return { ...selected, ...result };
+  }
+
   const result = await copyInstallFileSafe(selected.source, selected.target, options.force);
   return { ...selected, ...result };
 }
@@ -775,16 +825,6 @@ async function syncAgentSkills(options: { agentId?: string; workspaceRoot?: stri
   };
 }
 
-async function copyInstallFile(source: string, target: string, force: boolean): Promise<{ action: AgentSyncAction; backupPath?: string }> {
-  return copyInstallFileSafe(source, target, force);
-  await fs.access(source);
-  if (!force && (await exists(target))) {
-    throw new CliError(`目标文件已存在: ${target}。如需覆盖，请加 --force。`);
-  }
-  await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.copyFile(source, target);
-}
-
 async function copyInstallFileSafe(source: string, target: string, force: boolean): Promise<{ action: AgentSyncAction; backupPath?: string }> {
   await fs.access(source);
   const targetExists = await exists(target);
@@ -800,21 +840,31 @@ async function copyInstallFileSafe(source: string, target: string, force: boolea
   return { action: targetExists ? "updated" : "installed", backupPath };
 }
 
-async function inspectAgentTarget(target: AgentTarget): Promise<AgentInstallState> {
+async function inspectAgentTarget(target: AgentTarget): Promise<AgentTargetInspection> {
   if (target.kind === "root_guidance") {
-    return inspectWorkspaceGuidanceTarget(target);
+    return { state: await inspectWorkspaceGuidanceTarget(target) };
   }
   if (!target.installable || !target.source || !target.target) {
-    return "unsupported";
+    return { state: "unsupported" };
+  }
+  if (target.kind === "skill_bundle") {
+    if (!target.bundleSource || !target.bundleTarget) {
+      return { state: "unsupported" };
+    }
+    const bundle = await inspectSkillBundle(target.bundleSource, target.bundleTarget);
+    const states = bundle.files.map((file) => file.state);
+    const state = bundle.complete ? "current" : states.every((file) => file === "missing") ? "missing" : "different";
+    return { state, bundle };
   }
   if (!(await exists(target.target))) {
-    return "missing";
+    return { state: "missing" };
   }
-  return await sameFileContent(target.source, target.target) ? "current" : "different";
+  return { state: await sameFileContent(target.source, target.target) ? "current" : "different" };
 }
 
 async function syncAgentTarget(target: AgentTarget, dryRun: boolean): Promise<AgentSyncItem> {
-  const state = await inspectAgentTarget(target);
+  const inspection = await inspectAgentTarget(target);
+  const { state } = inspection;
   const base = {
     id: target.id,
     name: target.name,
@@ -823,6 +873,7 @@ async function syncAgentTarget(target: AgentTarget, dryRun: boolean): Promise<Ag
     state,
     target: target.target,
     source: target.source,
+    ...(inspection.bundle ? { bundle: inspection.bundle } : {}),
     changed: false,
     dryRun
   };
@@ -839,8 +890,84 @@ async function syncAgentTarget(target: AgentTarget, dryRun: boolean): Promise<Ag
     const result = await syncWorkspaceGuidanceTarget(target);
     return { ...base, action: result.action, backupPath: result.backupPath, changed: result.action !== "current" };
   }
+  if (target.kind === "skill_bundle") {
+    const result = await syncSkillBundleTarget(target);
+    const after = await inspectAgentTarget(target);
+    return {
+      ...base,
+      action: result.action,
+      ...(result.backupPaths.length ? { backupPath: result.backupPaths[0], backup_paths: result.backupPaths } : {}),
+      ...(after.bundle ? { bundle: after.bundle } : {}),
+      changed: result.action !== "current"
+    };
+  }
   const result = await copyInstallFileSafe(target.source!, target.target, true);
   return { ...base, action: result.action, backupPath: result.backupPath, changed: result.action !== "current" };
+}
+
+async function isAgentTargetInstalled(target: AgentTarget): Promise<boolean> {
+  return Boolean(target.target && await exists(target.target));
+}
+
+async function inspectSkillBundle(sourceRoot: string, targetRoot: string): Promise<AgentBundleStatus> {
+  const files = await listSkillBundleFiles(sourceRoot);
+  const states = await Promise.all(files.map(async (file) => {
+    const target = bundleFilePath(targetRoot, file);
+    if (!(await exists(target))) {
+      return { path: file, state: "missing" as const };
+    }
+    return { path: file, state: await sameFileContent(bundleFilePath(sourceRoot, file), target) ? "current" as const : "different" as const };
+  }));
+  return {
+    complete: states.every((file) => file.state === "current"),
+    files: states
+  };
+}
+
+async function syncSkillBundleTarget(target: AgentTarget): Promise<{ action: AgentSyncAction; backupPaths: string[] }> {
+  if (!target.bundleSource || !target.bundleTarget) {
+    throw new CliError(`${target.name} 没有可用的 Skill bundle 目标。`);
+  }
+  const inspection = await inspectAgentTarget(target);
+  if (inspection.state === "current") {
+    return { action: "current", backupPaths: [] };
+  }
+  if (inspection.state === "unsupported" || !inspection.bundle) {
+    throw new CliError(`${target.name} 的 Skill bundle 无法检查。`);
+  }
+  const backupPaths: string[] = [];
+  for (const file of inspection.bundle.files) {
+    if (file.state === "current") continue;
+    const source = bundleFilePath(target.bundleSource, file.path);
+    const destination = bundleFilePath(target.bundleTarget, file.path);
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    if (await exists(destination)) {
+      backupPaths.push(await backupFile(destination));
+    }
+    await fs.copyFile(source, destination);
+  }
+  return {
+    action: inspection.state === "missing" ? "installed" : "updated",
+    backupPaths
+  };
+}
+
+async function listSkillBundleFiles(root: string, relative = ""): Promise<string[]> {
+  const entries = await fs.readdir(bundleFilePath(root, relative), { withFileTypes: true });
+  const nested = await Promise.all(entries.map(async (entry) => {
+    const next = relative ? path.join(relative, entry.name) : entry.name;
+    if (entry.isDirectory()) return listSkillBundleFiles(root, next);
+    return entry.isFile() ? [portablePath(next)] : [];
+  }));
+  return nested.flat().sort();
+}
+
+function bundleFilePath(root: string, relative: string): string {
+  return relative ? path.join(root, ...relative.split("/")) : root;
+}
+
+function portablePath(value: string): string {
+  return value.split(path.sep).join("/");
 }
 
 async function inspectWorkspaceGuidanceTarget(target: AgentTarget): Promise<AgentInstallState> {
@@ -904,13 +1031,14 @@ Required command-first loop:
 
 1. Ensure the workspace exists and refresh root guidance with \`aiwiki setup --path <workspace> --yes\`.
 2. Verify root guidance with \`aiwiki agent check --path <workspace> --json\`; use \`aiwiki agent sync --path <workspace> --yes\` only for manual guidance refresh without setup.
-3. When the user explicitly asks to sync, upgrade, or repair host-Agent integration, run \`aiwiki agent check --json\`, preview with \`aiwiki agent sync --dry-run\`, then run \`aiwiki agent sync --yes\` after confirmation. Report state, backup path, and restart/reload requirement.
-4. Inspect structure with \`aiwiki lint --json --path <workspace>\`; inspect Source Capsule health with \`aiwiki lint --capsules --json --path <workspace>\`; apply only safe fixes with \`aiwiki lint --fix-empty-dirs --json --path <workspace>\` when allowed, then rerun \`aiwiki lint --json --path <workspace>\`.
-5. Ingest local material with \`aiwiki ingest-file --file <file> --path <workspace>\` or structured Agent material with \`aiwiki ingest-agent --stdin --path <workspace>\`.
-6. Check progress with \`aiwiki status --path <workspace>\`.
+3. Use \`aiwiki doctor --path <workspace>\` for environment or repair diagnostics, and \`aiwiki status --path <workspace>\` for current workspace progress.
+4. When the user explicitly asks to sync, upgrade, or repair host-Agent integration, run \`aiwiki agent check --json\`, preview with \`aiwiki agent sync --dry-run\`, then run \`aiwiki agent sync --yes\` after confirmation. Report state, every backup path, and restart/reload requirement.
+5. Inspect structure with \`aiwiki lint --json --path <workspace>\`; inspect Source Capsule health with \`aiwiki lint --capsules --json --path <workspace>\`; apply only safe fixes with \`aiwiki lint --fix-empty-dirs --json --path <workspace>\` when allowed, then rerun \`aiwiki lint --json --path <workspace>\`.
+6. Ingest local material with \`aiwiki ingest-file --file <file> --path <workspace>\` or structured Agent material with \`aiwiki ingest-agent --stdin --path <workspace>\`.
 7. Retrieve reusable knowledge with \`aiwiki query <topic> --path <workspace>\` for human-readable output or \`aiwiki context <topic> --path <workspace>\` for Agent JSON. Before answering, read \`result_quality\` and \`recommended_next_action\`.
 8. Use Source Capsule views when the user asks for one source package, provenance, lifecycle state, or OKF readiness: \`aiwiki show <topic> --path <workspace>\`, \`aiwiki query <topic> --path <workspace>\`, or \`aiwiki context <topic> --view capsule --path <workspace>\`.
 9. Use \`aiwiki query <topic> --view files --path <workspace>\` only when the older file-level match list is needed.
+10. Only act on explicit extension requests: list with \`aiwiki plugin list --json --path <workspace>\`, add the directory the user supplied with \`aiwiki plugin add <directory> --path <workspace>\`, or enable the exact ID the user supplied with \`aiwiki plugin enable <id> --path <workspace>\`. Do not automatically discover, enable, or execute extensions. Ask for an explicit action, directory, or ID when the request is ambiguous.
 
 Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, say which AIWiki command was insufficient and why. For unsupported host-Agent integration, use \`aiwiki prompt agent\` rather than writing unknown host configuration.
 ${AIWIKI_AGENT_GUIDANCE_END}`;
@@ -941,8 +1069,12 @@ function printAgentSyncResult(stream: NodeJS.WritableStream, report: AgentSyncRe
     if (item.target) {
       writeLine(stream, `  target: ${item.target}`);
     }
-    if (item.backupPath) {
-      writeLine(stream, `  backup: ${item.backupPath}`);
+    const backupPaths = item.backup_paths ?? (item.backupPath ? [item.backupPath] : []);
+    for (const backupPath of backupPaths) {
+      writeLine(stream, `  backup: ${backupPath}`);
+    }
+    if (item.bundle) {
+      writeLine(stream, `  bundle: complete=${item.bundle.complete ? "yes" : "no"}`);
     }
   }
   writeLine(stream, "next: restart or reload the target Agent so it reads the synced AIWiki skill.");
@@ -967,6 +1099,7 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "查询：当用户要求从 AIWiki 里了解某个主题时，调用 `aiwiki context <主题>`；需要来源包、生命周期或 OKF readiness 时，调用 `aiwiki context <主题> --view capsule` 或 `aiwiki show <主题>`。回答前读取 `result_quality` 和 `recommended_next_action`，说明来源、质量和已知缺口。");
   writeLine(stream, "整理：当用户要求检查或整理知识库时，先调用 `aiwiki lint --json`；深层 capsule 检查使用 `aiwiki lint --capsules --json`、`--lifecycle`、`--okf` 或 `--strict`；若只有 safe fix 且用户允许整理，再调用 `aiwiki lint --fix-empty-dirs --json`，随后重跑 `aiwiki lint --json`。");
   writeLine(stream, "升级：当用户要求同步、升级或修复宿主 Agent 接入时，先调用 `aiwiki agent check --json`，再使用 `aiwiki agent sync --dry-run` 预览；确认后运行 `aiwiki agent sync --yes`。不支持的宿主使用 `aiwiki prompt agent`，不要写入未知配置。");
+  writeLine(stream, "插件：只有用户明确要求时才执行：列出用 `aiwiki plugin list --json --path <workspace>`；添加用户给出的目录用 `aiwiki plugin add <directory> --path <workspace>`；启用用户给出的精确 ID 用 `aiwiki plugin enable <id> --path <workspace>`。对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，说明需要明确动作、目录或 ID；不要自动发现、启用或执行 extension。");
   writeLine(stream, "fallback：只有对应 AIWiki 命令无法回答请求时，才使用文件搜索或临时脚本；必须说明哪个命令不足以及原因。不要把网页抓取、手工 payload 或未知宿主配置当作默认回退路径。");
   writeLine(stream, "");
   writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取；声称 AIWiki CLI 会在没有 Agent 分析字段时自动高质量总结。");

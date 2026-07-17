@@ -43,6 +43,8 @@ Use this command-first loop:
 
 ```bash
 aiwiki setup --path <workspace> --yes
+aiwiki agent check --path <workspace> --json
+aiwiki doctor --path <workspace>
 aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
@@ -50,6 +52,7 @@ aiwiki ingest-agent --stdin --path <workspace>
 aiwiki status --path <workspace>
 aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
+aiwiki show <topic> --path <workspace>
 ```
 
 Use `rg`, `find`, direct file reading, or temporary scripts only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, explain which AIWiki command was insufficient and why.
@@ -60,21 +63,26 @@ Use this matrix as the command contract for matching natural-language requests. 
 
 | User intent | Preferred command | Interpret the result | Fallback condition |
 | --- | --- | --- | --- |
-| Install, initialize, or repair a workspace | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json` | Report workspace readiness and whether root guidance is current | If the command is unavailable, explain the environment problem; do not edit the workspace structure by hand first |
+| Install, initialize, or repair a workspace | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json`, `aiwiki doctor --path <workspace>`, and `aiwiki status --path <workspace>` | Report workspace readiness, root-guidance state, diagnostics, and next action | If the command is unavailable, explain the environment problem; do not edit the workspace structure by hand first |
 | Sync, upgrade, or repair host-Agent integration | `aiwiki agent check --json`, `aiwiki agent sync --dry-run`, then `aiwiki agent sync --yes` | Explain `installed`, `current`, `different`, backup paths, and any restart/reload requirement | Unsupported hosts must not be written automatically; use `aiwiki prompt agent` for a manual handoff |
 | Ingest a local file or material already read by the host Agent | `aiwiki ingest-file --file <file>` or `aiwiki ingest-agent --stdin` | Report ingest status, Wiki Entry quality, Source Card, Processing Summary, and warnings | Record unreadable sources as failed-fetch payloads; never require the user to write or save a payload |
 | Query, cite, or reuse local knowledge | `aiwiki query <topic>` for human output or `aiwiki context <topic>` for Agent JSON; use `aiwiki show <topic>` or capsule view for one source package | Read `result_quality`, `recommended_next_action`, provenance, and known gaps before answering | Try the relevant AIWiki command first; only then use file search and state why the command was insufficient |
 | Check, organize, or safely repair a workspace | `aiwiki lint --json`; when allowed and only safe fixes exist, `aiwiki lint --fix-empty-dirs --json` followed by `aiwiki lint --json` | Explain errors, warnings, safe-fix scope, and the lint report path | Leave non-safe issues traceable for review; do not make ad hoc Markdown edits as a default repair path |
+| Explicit extension administration | `aiwiki plugin list --json --path <workspace>`; add only a user-supplied directory with `aiwiki plugin add <directory> --path <workspace>`; enable only a user-supplied ID with `aiwiki plugin enable <id> --path <workspace>` | Report the command result and exact extension state | For “find a plugin”, “auto choose a skill”, or “enable a suitable extension”, require an explicit action, directory, or ID; do not discover, enable, or execute automatically |
 
 ## Schema Compatibility Boundary
 
 Keep the current command-first intent mapping unchanged. `aiwiki.context.v1` and `aiwiki.context.capsule.v1` remain the supported Agent JSON outputs; legacy workspace `schema_version: 1` remains readable as `aiwiki.workspace.v1` without a rewrite. Unknown future schema majors require manual review and have no CLI migration path. See [Schema Compatibility](schema/README.md).
 
-CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 now provides only explicit extension administration: `aiwiki plugin list`, `aiwiki plugin add <directory>`, and `aiwiki plugin enable <id>`. Do not infer these commands from natural language, discover extensions, or describe the Host as a sandbox. CORE-0407 owns extension intent precedence, fallback behavior, and automatic Skill matching.
+CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 provides only explicit extension administration: `aiwiki plugin list`, `aiwiki plugin add <directory>`, and `aiwiki plugin enable <id>`. CORE-0407 locks this matching boundary: do not infer these commands from ordinary natural language, discover extensions, enable extensions, execute extensions, or describe the Host as a sandbox. See the packaged `skill/EXTENSION_PROTOCOL.md` for the exact intent mapping.
+
+## Explicit Extension Intent
+
+Use extension commands only for explicit user requests. List with `aiwiki plugin list --json --path <workspace>`, add only a directory the user supplied with `aiwiki plugin add <directory> --path <workspace>`, and enable only an exact ID the user supplied with `aiwiki plugin enable <id> --path <workspace>`. For ambiguous requests, ask for the explicit action and required directory or ID; do not scan, choose, enable, or execute an extension automatically.
 
 ## Contract Test Matrix
 
-CORE-0406 establishes this maintainer verification entrypoint: run `npm run test:contracts` when changing a Core compatibility boundary. The suite covers `public-api.test.ts`, `cli-compatibility.test.ts`, `extension-api.test.ts`, `schema-compatibility.test.ts`, and `extension-failure-isolation.test.ts`. It verifies only documented public imports and explicit Core CLI surfaces; it does not change this handoff's command-first intent mapping or introduce Pro behavior, extension discovery, or automatic Skill matching. Rebuildability coverage is deferred to `CORE-0501`, when a rebuildable state model exists.
+CORE-0406 establishes this maintainer verification entrypoint: run `npm run test:contracts` when changing a Core compatibility boundary. The suite covers `public-api.test.ts`, `cli-compatibility.test.ts`, `skill-matching.test.ts`, `extension-api.test.ts`, `schema-compatibility.test.ts`, and `extension-failure-isolation.test.ts`. `skill-matching.test.ts` installs the packed package in an external consumer, checks full Skill-bundle sync and workspace guidance, and locks explicit extension intent. The suite verifies only documented public imports and explicit Core CLI surfaces; it introduces no Pro behavior, extension discovery, automatic enablement, or automatic execution. Rebuildability coverage is deferred to `CORE-0501`, when a rebuildable state model exists.
 
 ## Ingest Flow
 
@@ -296,13 +304,13 @@ aiwiki agent check --path <workspace> --json
 
 Interpret sync results:
 
-- `installed`: target did not exist and now has the packaged skill or guidance.
-- `current`: target already matches the packaged version.
-- `updated`: target differed; the old file was backed up and replaced.
+- `installed`: target did not exist and now has the packaged Skill bundle or guidance.
+- `current`: every packaged Skill-bundle file or the marker-bounded guidance already matches.
+- `updated`: one or more packaged files differed; each changed file was backed up and replaced.
 - `would_install` / `would_update`: dry-run preview only.
 - `unsupported`: no safe automatic target is known; use `aiwiki prompt agent`.
 
-After sync, report the target path, backup path when present, and whether the assistant needs restart or reload. Do not claim the new skill is active until the assistant has reloaded it.
+Skill sync preserves unrelated files already in the target Skill directory. Claude Code remains a manual `AGENT_HANDOFF.md` prompt target; the supported Skill hosts receive the complete packaged `skill/` directory. After sync, report the target path, every backup path when present, and whether the assistant needs restart or reload. Do not claim the new skill is active until the assistant has reloaded it.
 
 ## Prohibited
 
