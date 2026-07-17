@@ -21,6 +21,8 @@ test("release and handoff documentation define the reusable contract test matrix
   for (const document of documents) {
     assert.match(document, /npm run test:contracts/);
     for (const contractTest of contractTests) assert.match(document, new RegExp(contractTest.replace(".", "\\.")));
+    assert.match(document, /CORE-0406/);
+    assert.match(document, /CORE-0407/);
     assert.match(document, /CORE-0501/);
   }
   assert.match(documents[0], /Contract Test Matrix/);

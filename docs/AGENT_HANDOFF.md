@@ -74,7 +74,7 @@ CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 now provide
 
 ## Contract Test Matrix
 
-Maintainers run `npm run test:contracts` when changing a Core compatibility boundary. The suite covers `public-api.test.ts`, `cli-compatibility.test.ts`, `extension-api.test.ts`, `schema-compatibility.test.ts`, and `extension-failure-isolation.test.ts`. It verifies only documented public imports and explicit Core CLI surfaces; it does not change this handoff's command-first intent mapping or introduce Pro behavior, extension discovery, or automatic Skill matching. Rebuildability coverage is deferred to `CORE-0501`, when a rebuildable state model exists.
+CORE-0406 establishes this maintainer verification entrypoint: run `npm run test:contracts` when changing a Core compatibility boundary. The suite covers `public-api.test.ts`, `cli-compatibility.test.ts`, `extension-api.test.ts`, `schema-compatibility.test.ts`, and `extension-failure-isolation.test.ts`. It verifies only documented public imports and explicit Core CLI surfaces; it does not change this handoff's command-first intent mapping or introduce Pro behavior, extension discovery, or automatic Skill matching. Rebuildability coverage is deferred to `CORE-0501`, when a rebuildable state model exists.
 
 ## Ingest Flow
 

@@ -63,7 +63,7 @@ The packed tarball must include `docs/schema/`. CORE-0403 added no Schema CLI; C
 
 ## Contract Test Matrix
 
-Run the reusable Core contract suite with `npm run test:contracts`. It runs only the compiled tests under `tests/contracts/`; `npm test` remains the full repository suite. The matrix protects these stable boundaries:
+CORE-0406 establishes this reusable Core contract suite. Run it with `npm run test:contracts`. It runs only the compiled tests under `tests/contracts/`; `npm test` remains the full repository suite. The matrix protects these stable boundaries:
 
 - `public-api.test.ts`: installed-package public imports, declarations, and blocked deep imports.
 - `cli-compatibility.test.ts`: installed-package CLI version, Core commands, context schema versions, and explicit plugin administration only.
