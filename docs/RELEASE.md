@@ -67,11 +67,12 @@ CORE-0406 establishes this reusable Core contract suite. Run it with `npm run te
 
 - `public-api.test.ts`: installed-package public imports, declarations, and blocked deep imports.
 - `cli-compatibility.test.ts`: installed-package CLI version, Core commands, context schema versions, and explicit plugin administration only.
+- `skill-matching.test.ts`: installed-package full Skill-bundle sync, workspace guidance, command-first prompts, and explicit extension intent.
 - `extension-api.test.ts`: the declaration-only extension author API and its package boundary.
 - `schema-compatibility.test.ts`: legacy schema readability, read-only migration planning, future-major manual review, and stable context schemas.
 - `extension-failure-isolation.test.ts`: manifest containment, explicit enablement, command ownership, and failed-extension isolation.
 
-Extensions and future Pro integrations may depend only on the documented public package entries and explicit Core CLI surfaces above. This matrix does not add Pro behavior, automatic Skill matching, or extension discovery. A real rebuildability contract requires the later rebuildable state model and is deferred to `CORE-0501`; do not claim that coverage before then.
+Extensions and future Pro integrations may depend only on the documented public package entries and explicit Core CLI surfaces above. This matrix locks full packaged Skill matching and forbids automatic extension discovery, enablement, and execution; it adds no Pro behavior. A real rebuildability contract requires the later rebuildable state model and is deferred to `CORE-0501`; do not claim that coverage before then.
 
 ## Version and Tags
 

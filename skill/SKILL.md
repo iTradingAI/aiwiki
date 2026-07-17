@@ -47,13 +47,15 @@ Use `aiwiki agent sync --path <workspace> --yes` only when you want to refresh t
 
 Sync behavior:
 
-- missing installed skill: install the packaged AIWiki skill
-- current installed skill: leave unchanged
-- different installed skill: backup the old file, then overwrite with the packaged skill
+- supported Skill hosts receive every regular file in the packaged `skill/` directory; a target is current only when every bundle file is current
+- missing bundle files: install the missing packaged files
+- current bundle files: leave unchanged
+- different bundle files: back up each changed file, then overwrite that file with the packaged version
+- unrelated files already in the target Skill directory: leave unchanged; sync does not delete them
 - workspace `AGENTS.md`: append or refresh the marker-bounded AIWiki block without removing user instructions
 - unsupported host: do not write; use `aiwiki prompt agent` as a manual fallback
 
-After sync, tell the user the target path, any backup path, and that the target Agent may need to restart or reload before the new skill is active. Never edit Agent config during `npm install`; sync is the explicit safe step.
+After sync, tell the user the target path, every backup path, and that the target Agent may need to restart or reload before the new skill is active. Never edit Agent config during `npm install`; sync is the explicit safe step. Claude Code receives the checked-in `docs/AGENT_HANDOFF.md` command prompt rather than a copied Skill bundle.
 
 ## Required Command-First Loop
 
@@ -62,6 +64,7 @@ When the user asks you to organize, inspect, ingest, query, reuse, or maintain a
 ```bash
 aiwiki setup --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
+aiwiki doctor --path <workspace>
 aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
@@ -69,6 +72,8 @@ aiwiki ingest-agent --stdin --path <workspace>
 aiwiki status --path <workspace>
 aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
+aiwiki show <topic> --path <workspace>
+aiwiki plugin list --json --path <workspace>
 ```
 
 Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, explain which AIWiki command was insufficient and why. If you skip the AIWiki commands entirely, the knowledge-base features are not being exercised.
@@ -79,17 +84,25 @@ Match user requests to this command contract before using generic file tools:
 
 | User intent | Preferred command | Interpret the result | Fallback condition |
 | --- | --- | --- | --- |
-| install, initialize, or repair | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json` | report workspace readiness and root-guidance state | explain environment failures; do not hand-edit workspace structure first |
+| install, initialize, or repair | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json`, `aiwiki doctor --path <workspace>`, and `aiwiki status --path <workspace>` | report workspace readiness, root-guidance state, diagnostics, and next action | explain environment failures; do not hand-edit workspace structure first |
 | sync, upgrade, or repair Agent integration | `aiwiki agent check --json`, `aiwiki agent sync --dry-run`, then `aiwiki agent sync --yes` | report state, backup, and restart/reload requirement | unsupported hosts use `aiwiki prompt agent`; do not write unknown host configuration |
 | ingest material | `aiwiki ingest-file --file <file>` or `aiwiki ingest-agent --stdin` | report ingest status, quality, Source Card, and Processing Summary | record unreadable sources as failed-fetch payloads; do not ask users to save payloads |
 | query or reuse knowledge | `aiwiki query <topic>` or `aiwiki context <topic>`; use `aiwiki show <topic>` for a source package | read result quality, recommended next action, provenance, and gaps | try the relevant AIWiki command before file search and explain any fallback |
 | check or organize a workspace | `aiwiki lint --json`, then `aiwiki lint --fix-empty-dirs --json` only when allowed and safe | explain errors, warnings, safe fixes, and report path | leave non-safe issues for review; do not default to ad hoc Markdown edits |
+| explicit extension administration | `aiwiki plugin list --json --path <workspace>`; add only a user-supplied directory with `aiwiki plugin add <directory> --path <workspace>`; enable only a user-supplied ID with `aiwiki plugin enable <id> --path <workspace>` | report the command result and the exact extension state | for “find a plugin”, “auto choose a skill”, or “enable a suitable extension”, ask for an explicit action, directory, or ID; do not discover, enable, or execute automatically |
 
 ## Schema Compatibility Boundary
 
 Keep the current command-first matching unchanged. Existing workspaces with `schema_version: 1` remain compatible as `aiwiki.workspace.v1`; Agent outputs remain `aiwiki.context.v1` and `aiwiki.context.capsule.v1`. Do not invent a schema migration command or rewrite user frontmatter for this feature. Declared future schema majors require manual review.
 
-CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 adds only explicit extension administration: `aiwiki plugin list --json`, `aiwiki plugin add <directory> --path <workspace>`, and `aiwiki plugin enable <id> --path <workspace>`. Do not infer these commands from ordinary natural-language requests, automatically discover extensions, or describe the Host as a sandbox. CORE-0407 owns extension-related intent examples, precedence, fallback, and matching tests.
+CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 adds only explicit extension administration: `aiwiki plugin list --json`, `aiwiki plugin add <directory> --path <workspace>`, and `aiwiki plugin enable <id> --path <workspace>`. CORE-0407 locks the matching contract: do not infer these commands from ordinary natural-language requests, automatically discover extensions, or describe the Host as a sandbox. Read [Extension Protocol](EXTENSION_PROTOCOL.md) before handling an extension request.
+
+## Skill Protocol Files
+
+- [Query Protocol](QUERY_PROTOCOL.md): command-first query and context interpretation.
+- [Lint Protocol](LINT_PROTOCOL.md): safe lint and repair boundaries.
+- [Extension Protocol](EXTENSION_PROTOCOL.md): explicit extension intent only; no automatic discovery, enablement, or execution.
+- [Upgrade Notes](UPGRADE_NOTES.md): host integration sync and rollback reporting.
 
 ## Knowledge Base Purpose
 

@@ -62,7 +62,7 @@ macOS/Linux: ~/AIWiki
 项目内测试: ./aiwiki-test
 ```
 
-`aiwiki setup` 会创建或修复知识库，并刷新知识库根目录的 `AGENTS.md` 指导。`aiwiki agent sync --yes` 会把 AIWiki skill 同步到支持的本机助手环境。
+`aiwiki setup` 会创建或修复知识库，并刷新知识库根目录的 `AGENTS.md` 指导。`aiwiki agent sync --yes` 会把完整打包的 AIWiki `skill/` 目录同步到支持 Skill 的本机助手环境。`agent check --json` 和 `agent sync --json --yes` 会报告逐文件 bundle 状态；变更的 bundle 文件会备份，目标目录的无关文件保持不变。Claude Code 使用手工 `AGENT_HANDOFF.md` 提示，不复制 Skill bundle。
 
 安装成功后应该看到：
 
@@ -93,6 +93,8 @@ aiwiki agent sync --path <workspace> --yes
 ```
 
 这会在知识库根目录写入带标记的指导，让以后进入这个目录的 Agent 先使用 AIWiki 命令，而不是直接翻文件。
+
+extension 不会因模糊自然语言请求而被自动选择或启用。只有用户明确要求列出时才运行 `aiwiki plugin list --json --path <workspace>`，只有用户提供目录时才运行 `aiwiki plugin add <directory> --path <workspace>`，只有用户提供精确 ID 时才运行 `aiwiki plugin enable <id> --path <workspace>`。安装包中的 `skill/EXTENSION_PROTOCOL.md` 规定了完整边界。
 
 验证两层同步：
 

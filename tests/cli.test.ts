@@ -11,6 +11,11 @@ import { CommandRegistry, createCoreCommandRegistry, type CoreCommandHandlers } 
 import { createCoreCommandHandlers } from "../src/cli/commands/core-handlers.js";
 import { fixturePath, MemoryWritable, tempRoot } from "./helpers.js";
 
+type BundleFileStatus = { path: string; state: string };
+type AgentBundleStatus = { complete: boolean; files: BundleFileStatus[] };
+type AgentSyncJson = { results: Array<{ id: string; action: string; bundle?: AgentBundleStatus; backup_paths?: string[] }> };
+type AgentCheckJson = { targets: Array<{ id: string; installed?: boolean; state: string; suggested_action?: string; bundle?: AgentBundleStatus }> };
+
 test("help exposes core commands and only the implemented plugin commands", async () => {
   const stdout = new MemoryWritable();
   const stderr = new MemoryWritable();
@@ -696,7 +701,7 @@ test("CLI agent list prints detected and unsupported hosts", async () => {
     assert.match(out.text(), /qclaw: QClaw \| 已检测=是 \| 可安装=是/);
     assert.match(out.text(), /openclaw: OpenClaw \| 已检测=是 \| 可安装=是/);
     assert.match(out.text(), /opencode: opencode \| 已检测=否 \| 可安装=否/);
-    assert.match(out.text(), /安装到 Codex 用户 skills 目录/);
+    assert.match(out.text(), /安装完整 AIWiki Skill bundle 到 Codex 用户 skills 目录/);
     assert.match(out.text(), /暂未确认稳定的用户提示目录/);
   } finally {
     restoreEnv("CODEX_HOME", previousCodexHome);
@@ -709,20 +714,31 @@ test("CLI agent list prints detected and unsupported hosts", async () => {
   }
 });
 
-test("CLI agent install copies bundled skill to selected host", async () => {
+test("CLI agent install copies the complete bundled skill to the selected host", async () => {
   const codexHome = await tempRoot("aiwiki-cli-codex-home");
   const previousCodexHome = process.env.CODEX_HOME;
   process.env.CODEX_HOME = codexHome;
   try {
+    const targetRoot = path.join(codexHome, "skills", "aiwiki");
+    const userNote = path.join(targetRoot, "user-note.md");
+    await mkdir(targetRoot, { recursive: true });
+    await writeFile(userNote, "retain this user file\n", "utf8");
+    const beforeInstall = new MemoryWritable();
+    assert.equal(await runCli(["agent", "check", "--agent", "codex", "--json"], { stdout: beforeInstall, stderr: new MemoryWritable() }), 0);
+    const beforeCodex = (JSON.parse(beforeInstall.text()) as AgentCheckJson).targets.find((target) => target.id === "codex");
+    assert.equal(beforeCodex?.installed, false);
+    assert.equal(beforeCodex?.state, "missing");
     const out = new MemoryWritable();
     assert.equal(await runCli(["agent", "install", "--agent", "codex", "--yes"], { stdout: out, stderr: new MemoryWritable() }), 0);
-    const target = path.join(codexHome, "skills", "aiwiki", "SKILL.md");
+    const target = path.join(targetRoot, "SKILL.md");
     assert.match(out.text(), /已安装: Codex/);
     assert.match(out.text(), new RegExp(`目标路径: ${escapeRegExp(target)}`));
 
     const installed = await readFile(target, "utf8");
     assert.match(installed, /name: aiwiki/);
     assert.match(installed, /aiwiki ingest-agent --stdin/);
+    assert.deepEqual((await regularFiles(targetRoot)).filter((file) => file !== "user-note.md"), await regularFiles(path.resolve("skill")));
+    assert.equal(await readFile(userNote, "utf8"), "retain this user file\n");
 
     const duplicateErr = new MemoryWritable();
     assert.equal(await runCli(["agent", "install", "--agent", "codex", "--yes"], { stdout: new MemoryWritable(), stderr: duplicateErr }), 1);
@@ -773,6 +789,90 @@ test("CLI agent sync installs, previews, reports json, and backs up changed skil
   } finally {
     restoreEnv("CODEX_HOME", previousCodexHome);
     await rm(codexHome, { recursive: true, force: true });
+  }
+});
+
+test("CLI agent sync and check track every bundled Skill file without removing unrelated files", async () => {
+  const codexHome = await tempRoot("aiwiki-cli-agent-bundle-codex");
+  const previousCodexHome = process.env.CODEX_HOME;
+  process.env.CODEX_HOME = codexHome;
+  try {
+    const targetRoot = path.join(codexHome, "skills", "aiwiki");
+    const sourceRoot = path.resolve("skill");
+    const expectedFiles = await regularFiles(sourceRoot);
+
+    const dryRun = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "codex", "--dry-run", "--json"], { stdout: dryRun, stderr: new MemoryWritable() }), 0);
+    const planned = JSON.parse(dryRun.text()) as AgentSyncJson;
+    const plannedCodex = planned.results.find((item) => item.id === "codex");
+    assert.equal(plannedCodex?.action, "would_install");
+    assert.equal(plannedCodex?.bundle?.complete, false);
+    assert.deepEqual(plannedCodex?.bundle?.files.map((file) => file.path), expectedFiles);
+
+    const installedOut = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "codex", "--yes", "--json"], { stdout: installedOut, stderr: new MemoryWritable() }), 0);
+    assert.deepEqual(await regularFiles(targetRoot), expectedFiles);
+    assert.deepEqual(await selectedFileContents(targetRoot, expectedFiles), await selectedFileContents(sourceRoot, expectedFiles));
+
+    await writeFile(path.join(targetRoot, "user-note.md"), "keep this user file", "utf8");
+    await rm(path.join(targetRoot, "QUERY_PROTOCOL.md"));
+    await writeFile(path.join(targetRoot, "LINT_PROTOCOL.md"), "outdated protocol", "utf8");
+
+    const checkOut = new MemoryWritable();
+    assert.equal(await runCli(["agent", "check", "--agent", "codex", "--json"], { stdout: checkOut, stderr: new MemoryWritable() }), 0);
+    const check = JSON.parse(checkOut.text()) as AgentCheckJson;
+    const checkedCodex = check.targets.find((item) => item.id === "codex");
+    assert.equal(checkedCodex?.state, "different");
+    assert.equal(checkedCodex?.suggested_action, "aiwiki agent sync --agent codex --yes");
+    assert.equal(checkedCodex?.bundle?.complete, false);
+    assert.equal(checkedCodex?.bundle?.files.find((file) => file.path === "QUERY_PROTOCOL.md")?.state, "missing");
+    assert.equal(checkedCodex?.bundle?.files.find((file) => file.path === "LINT_PROTOCOL.md")?.state, "different");
+
+    const dryRunRepair = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "codex", "--dry-run", "--json"], { stdout: dryRunRepair, stderr: new MemoryWritable() }), 0);
+    await assert.rejects(access(path.join(targetRoot, "QUERY_PROTOCOL.md")));
+    assert.equal(await readFile(path.join(targetRoot, "LINT_PROTOCOL.md"), "utf8"), "outdated protocol");
+
+    const repairOut = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--agent", "codex", "--yes", "--json"], { stdout: repairOut, stderr: new MemoryWritable() }), 0);
+    const repaired = JSON.parse(repairOut.text()) as AgentSyncJson;
+    assert.ok(repaired.results.find((item) => item.id === "codex")?.backup_paths?.some((file) => /LINT_PROTOCOL\.md\.bak-/.test(file)));
+    assert.deepEqual(await selectedFileContents(targetRoot, expectedFiles), await selectedFileContents(sourceRoot, expectedFiles));
+    assert.equal(await readFile(path.join(targetRoot, "user-note.md"), "utf8"), "keep this user file");
+  } finally {
+    restoreEnv("CODEX_HOME", previousCodexHome);
+    await rm(codexHome, { recursive: true, force: true });
+  }
+});
+
+test("CLI agent sync with only --path refreshes workspace guidance without touching host Agents", async () => {
+  const root = await tempRoot("aiwiki-cli-agent-sync-path-only-workspace");
+  const hostHome = await tempRoot("aiwiki-cli-agent-sync-path-only-hosts");
+  const previous = new Map(["CODEX_HOME", "QCLAW_HOME", "OPENCLAW_HOME", "CLAUDE_HOME"].map((name) => [name, process.env[name]]));
+  for (const name of previous.keys()) process.env[name] = hostHome;
+  try {
+    const target = path.join(root, "AGENTS.md");
+    const codexSkill = path.join(hostHome, "skills", "aiwiki", "SKILL.md");
+    await writeFile(target, "# Project Rules\n\nKeep existing instructions.\n", "utf8");
+
+    const dryRun = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--path", root, "--dry-run", "--json"], { stdout: dryRun, stderr: new MemoryWritable() }), 0);
+    const dryReport = JSON.parse(dryRun.text()) as AgentSyncJson;
+    assert.deepEqual(dryReport.results.map((result) => result.id), ["workspace"]);
+    assert.equal(dryReport.results[0]?.action, "would_update");
+    await assert.rejects(access(codexSkill));
+
+    const applied = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--path", root, "--yes", "--json"], { stdout: applied, stderr: new MemoryWritable() }), 0);
+    const appliedReport = JSON.parse(applied.text()) as AgentSyncJson;
+    assert.deepEqual(appliedReport.results.map((result) => result.id), ["workspace"]);
+    assert.equal(appliedReport.results[0]?.action, "updated");
+    assert.match(await readFile(target, "utf8"), /AIWIKI:AGENT-GUIDANCE:START/);
+    await assert.rejects(access(codexSkill));
+  } finally {
+    for (const [name, value] of previous) restoreEnv(name, value);
+    await rm(root, { recursive: true, force: true });
+    await rm(hostHome, { recursive: true, force: true });
   }
 });
 
@@ -961,6 +1061,20 @@ test("status rejects non-workspace path", async () => {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function regularFiles(root: string, relative = ""): Promise<string[]> {
+  const entries = await readdir(path.join(root, relative), { withFileTypes: true });
+  const nested = await Promise.all(entries.map(async (entry) => {
+    const next = path.posix.join(relative, entry.name);
+    if (entry.isDirectory()) return regularFiles(root, next);
+    return entry.isFile() ? [next] : [];
+  }));
+  return nested.flat().sort();
+}
+
+async function selectedFileContents(root: string, files: string[]): Promise<Map<string, string>> {
+  return new Map(await Promise.all(files.map(async (file) => [file, await readFile(path.join(root, file), "utf8")] as const)));
 }
 
 function restoreEnv(name: string, value: string | undefined) {

@@ -67,11 +67,12 @@ CORE-0406 建立这套可复用的 Core 合同测试。使用 `npm run test:cont
 
 - `public-api.test.ts`：已安装包的公开导入、声明文件和被禁止的深层导入。
 - `cli-compatibility.test.ts`：已安装包的 CLI 版本、Core 命令、context schema 版本，以及仅显式的 plugin 管理。
+- `skill-matching.test.ts`：已安装包的完整 Skill bundle 同步、工作区 guidance、命令优先提示和显式 extension 意图。
 - `extension-api.test.ts`：仅声明的 extension 作者 API 及其包边界。
 - `schema-compatibility.test.ts`：历史 schema 可读性、只读迁移预检、未来主版本人工复核和稳定的 context schema。
 - `extension-failure-isolation.test.ts`：manifest 边界、显式启用、命令所有权和失败 extension 隔离。
 
-extension 和未来 Pro 集成只能依赖上述已文档化的公开包入口与显式 Core CLI 命令面。该矩阵不新增 Pro 行为、自动 Skill 匹配或 extension 自动发现。真实的可重建性合同需要后续的可重建状态模型，已延期至 `CORE-0501`；在此之前不得声称已有该覆盖。
+extension 和未来 Pro 集成只能依赖上述已文档化的公开包入口与显式 Core CLI 命令面。该矩阵锁定完整打包 Skill 匹配，并禁止 extension 自动发现、自动启用和自动执行；不新增 Pro 行为。真实的可重建性合同需要后续的可重建状态模型，已延期至 `CORE-0501`；在此之前不得声称已有该覆盖。
 
 ## 版本与标签
 

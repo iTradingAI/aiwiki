@@ -60,7 +60,7 @@ macOS/Linux: ~/AIWiki
 Project test: ./aiwiki-test
 ```
 
-`aiwiki setup` creates or repairs the knowledge base and refreshes workspace-level `AGENTS.md` guidance. `aiwiki agent sync --yes` syncs the packaged AIWiki skill into supported assistant environments.
+`aiwiki setup` creates or repairs the knowledge base and refreshes workspace-level `AGENTS.md` guidance. `aiwiki agent sync --yes` syncs the complete packaged AIWiki `skill/` directory into supported Skill hosts. `agent check --json` and `agent sync --json --yes` report the per-file bundle state; changed bundle files are backed up and unrelated target files stay unchanged. Claude Code uses the manual `AGENT_HANDOFF.md` prompt rather than a copied Skill bundle.
 
 Expected result:
 
@@ -93,6 +93,8 @@ aiwiki agent sync --path <workspace> --yes
 ```
 
 This writes marker-bounded guidance into the knowledge base root so future assistants entering that workspace know to use AIWiki commands before generic file search.
+
+Extensions are never selected or activated from a vague natural-language request. Use `aiwiki plugin list --json --path <workspace>` only when the user explicitly asks to list them, `aiwiki plugin add <directory> --path <workspace>` only for a directory the user supplied, and `aiwiki plugin enable <id> --path <workspace>` only for an exact user-supplied ID. See `skill/EXTENSION_PROTOCOL.md` in the installed package.
 
 Verify both layers:
 
