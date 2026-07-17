@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev
+      - main
       - "task/**"
   pull_request:
     branches:

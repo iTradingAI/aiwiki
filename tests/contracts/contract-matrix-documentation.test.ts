@@ -8,7 +8,8 @@ const contractTests = [
   "skill-matching.test.ts",
   "extension-api.test.ts",
   "schema-compatibility.test.ts",
-  "extension-failure-isolation.test.ts"
+  "extension-failure-isolation.test.ts",
+  "release-gate.test.ts"
 ];
 
 test("release and handoff documentation define the reusable contract test matrix", async () => {
