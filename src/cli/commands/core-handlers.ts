@@ -810,7 +810,11 @@ async function syncAgentSkills(options: { agentId?: string; workspaceRoot?: stri
   if (!selected && options.agentId) {
     throw new CliError(`未知宿主 Agent: ${options.agentId}`);
   }
-  const syncTargets = selected ? [selected] : targets.filter((target) => target.detected && target.installable);
+  const syncTargets = selected
+    ? [selected]
+    : options.workspaceRoot
+      ? targets.filter((target) => target.id === "workspace")
+      : targets.filter((target) => target.detected && target.installable);
   if (!syncTargets.length) {
     throw new CliError("No detected installable Agent targets. Run aiwiki agent list or aiwiki prompt agent.");
   }

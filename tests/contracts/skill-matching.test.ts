@@ -93,6 +93,9 @@ test("packed Skill bundle installs every protocol and locks explicit extension i
     runInstalledCli(consumerRoot, ["setup", "--path", vaultRoot, "--yes"], env);
     const workspaceCheck = JSON.parse(runInstalledCli(consumerRoot, ["agent", "check", "--agent", "workspace", "--path", vaultRoot, "--json"], env)) as { targets: Array<{ id: string; state: string }> };
     assert.equal(workspaceCheck.targets.find((target) => target.id === "workspace")?.state, "current");
+    const workspaceSync = JSON.parse(runInstalledCli(consumerRoot, ["agent", "sync", "--path", vaultRoot, "--yes", "--json"], env)) as AgentSyncReport;
+    assert.deepEqual(workspaceSync.results.map((result) => result.id), ["workspace"]);
+    assert.equal(workspaceSync.results[0]?.action, "current");
 
     const prompt = runInstalledCli(consumerRoot, ["prompt", "agent"], env);
     const handoff = readFileSync(path.join(packageRoot, "docs", "AGENT_HANDOFF.md"), "utf8");

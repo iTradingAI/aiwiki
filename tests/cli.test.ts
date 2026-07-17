@@ -845,6 +845,37 @@ test("CLI agent sync and check track every bundled Skill file without removing u
   }
 });
 
+test("CLI agent sync with only --path refreshes workspace guidance without touching host Agents", async () => {
+  const root = await tempRoot("aiwiki-cli-agent-sync-path-only-workspace");
+  const hostHome = await tempRoot("aiwiki-cli-agent-sync-path-only-hosts");
+  const previous = new Map(["CODEX_HOME", "QCLAW_HOME", "OPENCLAW_HOME", "CLAUDE_HOME"].map((name) => [name, process.env[name]]));
+  for (const name of previous.keys()) process.env[name] = hostHome;
+  try {
+    const target = path.join(root, "AGENTS.md");
+    const codexSkill = path.join(hostHome, "skills", "aiwiki", "SKILL.md");
+    await writeFile(target, "# Project Rules\n\nKeep existing instructions.\n", "utf8");
+
+    const dryRun = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--path", root, "--dry-run", "--json"], { stdout: dryRun, stderr: new MemoryWritable() }), 0);
+    const dryReport = JSON.parse(dryRun.text()) as AgentSyncJson;
+    assert.deepEqual(dryReport.results.map((result) => result.id), ["workspace"]);
+    assert.equal(dryReport.results[0]?.action, "would_update");
+    await assert.rejects(access(codexSkill));
+
+    const applied = new MemoryWritable();
+    assert.equal(await runCli(["agent", "sync", "--path", root, "--yes", "--json"], { stdout: applied, stderr: new MemoryWritable() }), 0);
+    const appliedReport = JSON.parse(applied.text()) as AgentSyncJson;
+    assert.deepEqual(appliedReport.results.map((result) => result.id), ["workspace"]);
+    assert.equal(appliedReport.results[0]?.action, "updated");
+    assert.match(await readFile(target, "utf8"), /AIWIKI:AGENT-GUIDANCE:START/);
+    await assert.rejects(access(codexSkill));
+  } finally {
+    for (const [name, value] of previous) restoreEnv(name, value);
+    await rm(root, { recursive: true, force: true });
+    await rm(hostHome, { recursive: true, force: true });
+  }
+});
+
 test("CLI agent sync installs marker-bounded workspace command guidance", async () => {
   const root = await tempRoot("aiwiki-cli-agent-sync-workspace");
   const target = path.join(root, "AGENTS.md");
