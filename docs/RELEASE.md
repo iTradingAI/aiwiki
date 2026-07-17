@@ -61,6 +61,18 @@ CORE-0403 keeps `aiwiki.context.v1` and `aiwiki.context.capsule.v1` stable, read
 
 The packed tarball must include `docs/schema/`. CORE-0403 added no Schema CLI; CORE-0404 adds the declaration-only Extension API, and CORE-0407 owns future Skill matching behavior.
 
+## Contract Test Matrix
+
+Run the reusable Core contract suite with `npm run test:contracts`. It runs only the compiled tests under `tests/contracts/`; `npm test` remains the full repository suite. The matrix protects these stable boundaries:
+
+- `public-api.test.ts`: installed-package public imports, declarations, and blocked deep imports.
+- `cli-compatibility.test.ts`: installed-package CLI version, Core commands, context schema versions, and explicit plugin administration only.
+- `extension-api.test.ts`: the declaration-only extension author API and its package boundary.
+- `schema-compatibility.test.ts`: legacy schema readability, read-only migration planning, future-major manual review, and stable context schemas.
+- `extension-failure-isolation.test.ts`: manifest containment, explicit enablement, command ownership, and failed-extension isolation.
+
+Extensions and future Pro integrations may depend only on the documented public package entries and explicit Core CLI surfaces above. This matrix does not add Pro behavior, automatic Skill matching, or extension discovery. A real rebuildability contract requires the later rebuildable state model and is deferred to `CORE-0501`; do not claim that coverage before then.
+
 ## Version and Tags
 
 `package.json` is the version source. `aiwiki --version` reads it at runtime.

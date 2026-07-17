@@ -72,6 +72,10 @@ Keep the current command-first intent mapping unchanged. `aiwiki.context.v1` and
 
 CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 now provides only explicit extension administration: `aiwiki plugin list`, `aiwiki plugin add <directory>`, and `aiwiki plugin enable <id>`. Do not infer these commands from natural language, discover extensions, or describe the Host as a sandbox. CORE-0407 owns extension intent precedence, fallback behavior, and automatic Skill matching.
 
+## Contract Test Matrix
+
+Maintainers run `npm run test:contracts` when changing a Core compatibility boundary. The suite covers `public-api.test.ts`, `cli-compatibility.test.ts`, `extension-api.test.ts`, `schema-compatibility.test.ts`, and `extension-failure-isolation.test.ts`. It verifies only documented public imports and explicit Core CLI surfaces; it does not change this handoff's command-first intent mapping or introduce Pro behavior, extension discovery, or automatic Skill matching. Rebuildability coverage is deferred to `CORE-0501`, when a rebuildable state model exists.
+
 ## Ingest Flow
 
 For a first-time public trial, guide the user through one small loop: setup, one source ingest, generated-file inspection, query/context reuse, lint/doctor check, then feedback with `docs/TRIAL_FEEDBACK_TEMPLATE.md`. Do not introduce Pro-only flows, crawlers, vector search, or a new feedback command.
