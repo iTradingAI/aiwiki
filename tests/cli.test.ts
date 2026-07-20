@@ -31,6 +31,9 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.match(text, /aiwiki context <query>/);
   assert.match(text, /aiwiki query <query>/);
   assert.match(text, /aiwiki lint/);
+  assert.match(text, /aiwiki rebuild --path <workspace> --json/);
+  assert.match(text, /aiwiki rebuild --check --json/);
+  assert.match(text, /aiwiki rebuild --dry-run --json/);
   assert.match(text, /aiwiki lint --capsules --json/);
   assert.match(text, /aiwiki lint --strict --json/);
   assert.match(text, /aiwiki lint --fix-empty-dirs --json/);
@@ -51,6 +54,75 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
   assert.equal(stderr.text(), "");
+});
+
+test("CLI rebuild exposes stable modes, exit codes, and state-only side effects", async () => {
+  const root = await tempRoot("aiwiki-cli-rebuild");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+
+    const help = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--help"], { stdout: help, stderr: new MemoryWritable() }), 0);
+    assert.match(help.text(), /AIWiki rebuild/);
+    assert.match(help.text(), /--check/);
+    assert.match(help.text(), /--dry-run/);
+
+    const dryRunOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--dry-run", "--json", "--path", root], { stdout: dryRunOut, stderr: new MemoryWritable() }), 0);
+    const dryRun = JSON.parse(dryRunOut.text()) as { schema_version: string; mode: string; state: string; snapshot_id: string; counts: Record<string, number>; written_files: string[] };
+    assert.deepEqual(dryRun, {
+      schema_version: "aiwiki.rebuild.v1",
+      mode: "dry_run",
+      state: "would_rebuild",
+      snapshot_id: dryRun.snapshot_id,
+      counts: dryRun.counts,
+      written_files: []
+    });
+    await assert.rejects(access(stateDir));
+    await assert.rejects(access(lockPath));
+
+    const missingOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--json", "--path", root], { stdout: missingOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(missingOut.text()) as { state: string }).state, "missing");
+
+    const rebuiltOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--json", "--path", root], { stdout: rebuiltOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(rebuiltOut.text()) as { state: string }).state, "rebuilt");
+    assert.deepEqual((await readdir(stateDir)).sort(), ["artifacts.json", "capsules.json", "lifecycle.json", "relationships.json"]);
+
+    const currentOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--json", "--path", root], { stdout: currentOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(currentOut.text()) as { state: string }).state, "current");
+
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "rebuild.md"), [
+      "---",
+      'type: "wiki_entry"',
+      'title: "CLI rebuild fixture"',
+      "---",
+      "",
+      "Rebuild detects this Markdown change."
+    ].join("\n"), "utf8");
+    const staleOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--json", "--path", root], { stdout: staleOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(staleOut.text()) as { state: string }).state, "stale");
+
+    await runCli(["rebuild", "--json", "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const artifactsPath = path.join(stateDir, "artifacts.json");
+    const artifacts = JSON.parse(await readFile(artifactsPath, "utf8")) as { snapshot_id: string };
+    artifacts.snapshot_id = "invalid";
+    await writeFile(artifactsPath, JSON.stringify(artifacts), "utf8");
+    const invalidOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--json", "--path", root], { stdout: invalidOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(invalidOut.text()) as { state: string }).state, "invalid");
+
+    const conflictError = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--dry-run", "--path", root], { stdout: new MemoryWritable(), stderr: conflictError }), 1);
+    assert.match(conflictError.text(), /rebuild --check and --dry-run cannot be used together/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("CLI plugin list add and enable manage only explicitly registered local extensions", async () => {
@@ -524,6 +596,7 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     "configShow",
     "doctor",
     "status",
+    "rebuild",
     "context",
     "query",
     "show",
@@ -554,6 +627,8 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     [["config", "show"], "configShow"],
     [["doctor"], "doctor"],
     [["status"], "status"],
+    [["rebuild"], "rebuild"],
+    [["rebuild", "--help"], "rebuild"],
     [["context", "topic"], "context"],
     [["query", "topic"], "query"],
     [["show", "topic"], "show"],

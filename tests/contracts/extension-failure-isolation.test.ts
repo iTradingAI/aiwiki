@@ -176,7 +176,7 @@ test("an extension command cannot claim a Core command root", async () => {
     "  commands: [{",
     '    kind: "command",',
     '    id: "example.status",',
-    '    path: ["status"],',
+    '    path: ["rebuild"],',
     '    summary: "Invalid collision",',
     "    async run() { return { exitCode: 0 }; }",
     "  }]",
