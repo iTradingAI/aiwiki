@@ -162,7 +162,67 @@ aiwiki lint --okf --json
 aiwiki lint --strict --json
 ```
 
+### 查看知识库健康度
+
+只有用户明确要求健康检查或维护建议时，助手才可以运行：
+
+```bash
+aiwiki health --json
+aiwiki health --write --json
+aiwiki repair --plan --json
+```
+
+`aiwiki.health.v1` 是覆盖八个维护域的只读快照。只有在你明确要求 Agent 生成或保存健康报告时，才运行 `aiwiki health --write --json`：它会返回 `aiwiki.health_report.v1`，只刷新 `dashboards/Knowledge Health.md` 中受控的报告区块，并在 `09-runs/` 写入一份 JSON 运行记录。它不会修改知识 Markdown 或派生 state。`aiwiki.repair_plan.v1` 仍是只读的证据、受影响文件、风险和建议命令清单；它不会代替用户执行修复。
+
 如果你想让助手进一步整理知识库，可以参考 [使用指南](docs/USAGE.zh-CN.md) 里的检查流程。
+
+### 检查结构化索引
+
+对 AI 助手说：
+
+```text
+帮我确认 AIWiki 的结构化索引是不是最新。
+```
+
+助手应先只读检查：
+
+```bash
+aiwiki index status --path <workspace> --json
+```
+
+索引是一份小型本地目录，记录内容分类、重复来源 URL 和本地 wiki 链接。它能帮助 Agent 说明大型知识库的组织情况，但不是向量数据库，也不会替代 Markdown 文件。索引缺失或过期时，`query` 和 `context` 仍可直接从 Markdown 工作。只有你明确要求构建或重建索引时，助手才会写入它。
+
+### 检查关系图
+
+对 AI 助手说：
+
+```text
+帮我确认 AIWiki 的关系图是不是最新。
+```
+
+助手应先只读检查：
+
+```bash
+aiwiki graph status --path <workspace> --json
+```
+
+关系图是一份小型本地关系图，记录知识文件之间已经明确存在的连接，例如资料支持某个 Wiki 条目、或一个笔记链接到另一个笔记。它只记录确定性的本地关系，不会用 LLM 编造事实，不会替代 Markdown 文件，也不改变日常 `context` 或 `query` 结果。关系图缺失或过期时，这些命令仍可直接从 Markdown 工作；只有你明确要求构建或重建关系图时，助手才会写入它。
+
+### 追溯知识之间的关系
+
+对 AI 助手说：
+
+```text
+帮我追溯这个主题和它的资料之间有什么关系，包括上游依赖或冲突。
+```
+
+当已有关系图是 fresh 时，助手可以返回显式的关系图上下文 view：
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+这个命令会返回 `aiwiki.context.v2`，包含受限的关系路径、evidence 状态和生命周期/风险提示。只有明确的关系追溯请求才使用它；日常 context 仍保持 `aiwiki.context.v1`。助手不会因为这个命令自动构建或重建关系图。
 
 ## AIWiki 会生成什么
 
@@ -187,6 +247,18 @@ aiwiki lint --strict --json
 Wiki Entry 是主要复用层；Raw 和 Source Card 保留来源和追踪关系，方便以后回查。
 
 AIWiki 0.3.0 还会把这些文件视为一个逻辑 Source Capsule。一个 capsule 会把同一来源的 Wiki Entry、Source Card、Raw、可选建议文件和运行记录组织在一起。新生成文件会增加 `capsule_id`、`artifact_role`、`visibility`、生命周期状态、关系字段和 OKF-ready 字段。旧知识库不需要批量迁移；AIWiki 会从现有 Markdown 目录推断 capsule。
+
+## Schema 兼容性
+
+旧工作区的 `schema_version: 1` 会在不重写文件的前提下读取为 `aiwiki.workspace.v1`。默认 Agent JSON 仍是 `aiwiki.context.v1`，capsule view 仍是 `aiwiki.context.capsule.v1`；已启用的显式关系图 view 是 `aiwiki.context.v2`。未知的未来 major 需要人工审查。详见[Schema 兼容目录](docs/schema/README.zh-CN.md)。
+
+CORE-0403 不改变既有 Skill 匹配。CORE-0407 约束匹配优先级、fallback 和验收测试。
+
+结构化索引使用附加的 `aiwiki.index.v1` 元数据合同。它需显式构建、可删除，并且不改变默认 `aiwiki.context.v1` 检索输出。详见[派生状态 v1](docs/schema/STATE.zh-CN.md)。
+
+关系图使用附加的 `aiwiki.graph.v1` 元数据合同。它需显式构建、可删除，并且不改变默认 `aiwiki.context.v1` 检索输出。单独明确请求的关系图 view 是 `aiwiki.context.v2`，`--graph-depth` 只能是 `1`、`2` 或 `3`。详见[派生状态 v1](docs/schema/STATE.zh-CN.md)。
+
+附加的 `aiwiki.health.v1` 与 `aiwiki.repair_plan.v1` JSON 合同都保持只读：health 报告维护风险，repair 只给出需要人工复核的下一步。只有显式的 `aiwiki health --write --json` 报告生成路径会产生 `aiwiki.health_report.v1`：刷新 dashboard 的受控区块并保存不可变 JSON 运行记录，不会修改知识 Markdown 或派生 state。
 
 可直接查看：
 
@@ -248,12 +320,6 @@ AIWiki 不是简单拼接两套方法。
   -> 大纲
   -> 后续创作 / 研究 / 决策
 ```
-
-## Schema Compatibility
-
-工作区的历史 `schema_version: 1` 会作为 `aiwiki.workspace.v1` 读取且不会回写。默认 Agent JSON 保持 `aiwiki.context.v1`，capsule 视图保持 `aiwiki.context.capsule.v1`；声明了未知未来主版本时只能人工复核。详见[Schema Compatibility 目录](docs/schema/README.zh-CN.md)。
-
-CORE-0403 不改变现有 Skill 匹配；CORE-0407 负责后续匹配合同、优先级、fallback 和验收。
 
 ## Agent 接入
 

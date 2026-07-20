@@ -47,6 +47,8 @@ aiwiki agent check --path <workspace> --json
 aiwiki doctor --path <workspace>
 aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>
+aiwiki health --json --path <workspace>
+aiwiki repair --plan --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
 aiwiki ingest-agent --stdin --path <workspace>
 aiwiki status --path <workspace>
@@ -68,6 +70,12 @@ aiwiki show <topic> --path <workspace>
 | 入库本地文件或宿主 Agent 已读取的资料 | `aiwiki ingest-file --file <file>` 或 `aiwiki ingest-agent --stdin` | 汇报入库状态、Wiki Entry 质量、Source Card、Processing Summary 和 warning | 无法读取的来源使用 failed-fetch payload 留痕；不能要求用户写入或保存 payload |
 | 查询、引用或复用本地知识 | 人类可读结果用 `aiwiki query <topic>`，Agent JSON 用 `aiwiki context <topic>`；单个来源包用 `aiwiki show <topic>` 或 capsule view | 回答前读取 `result_quality`、`recommended_next_action`、来源和已知缺口 | 先尝试对应 AIWiki 命令；仅在命令不足时使用文件搜索，并说明原因 |
 | 检查、整理或安全修复工作区 | `aiwiki lint --json`；仅在允许且只有安全修复时执行 `aiwiki lint --fix-empty-dirs --json`，再运行 `aiwiki lint --json` | 解释 error、warning、安全修复范围和 lint 报告路径 | 非安全问题保留为可追踪复核项；不要默认手工修改 Markdown |
+| 只有用户明确要求健康检查、维护风险或修复建议清单时 | 先运行 `aiwiki health --json` 获得 `aiwiki.health.v1`；要求计划时再运行 `aiwiki repair --plan --json` 获得 `aiwiki.repair_plan.v1` | 读取八个维护域、派生 state、问题证据、风险、受影响文件和建议命令 | 两个命令均为只读；不能从泛化维护请求推断 Markdown 修改、rebuild/index/graph 写入或 dashboard 创建 |
+| 只有用户明确要求生成或保存健康报告时 | 运行 `aiwiki health --write --json` 获得 `aiwiki.health_report.v1` | 汇报指标、dashboard 路径和不可变 JSON 运行记录路径 | 它只刷新 `dashboards/Knowledge Health.md` 中 marker 限定的受控区块，并在 `09-runs/` 写入一份 JSON 报告；不会修改知识 Markdown 或派生 state |
+| 只有用户明确要求检查或重建派生状态时 | 先用 `aiwiki rebuild --dry-run --json` 预览；用 `--check` 分类 state；只有用户要求写入时才执行默认 rebuild | 解释 `would_rebuild`、`current`、`missing`、`stale` 或 `invalid`；日常读取仍以 Markdown 为准 | 不要从泛化维护请求推断 rebuild；报告锁冲突，不要删除其他进程的 lock |
+| 只有用户明确要求确认结构化索引是否最新、构建索引或重建索引时 | 先用 `aiwiki index status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、分类计数和重复来源 URL 数 | 不要自动构建或重建索引；索引缺失、过期或损坏时仍可直接从 Markdown 检索 |
+| 只有用户明确要求确认关系图是否最新、构建关系图或重建关系图时 | 先用 `aiwiki graph status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki graph build --path <workspace> --json` 或 `aiwiki graph rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、有类型边计数、未解析 target 诊断和锁冲突 | 不要自动构建或重建关系图；关系图缺失、过期或损坏时仍可直接从 Markdown 检索；默认 Context v1 保持独立 |
+| 只有在用户明确要求追溯关系、上游/下游依赖或冲突时 | 在已有 fresh 关系图时，运行 `aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>` | 读取 `aiwiki.context.v2`、图状态、关系路径、evidence 状态、生命周期/风险警告与 `recommended_next_action` | 不用于普通 context；不要自动构建或重建关系图 state；`--graph-depth` 只能是 `1`、`2` 或 `3` |
 | 显式 extension 管理 | 列表使用 `aiwiki plugin list --json --path <workspace>`；仅添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；仅启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>` | 汇报命令结果和精确 extension 状态 | 对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，要求明确动作、目录或 ID；不要自动发现、启用或执行 |
 
 ## Schema Compatibility Boundary
@@ -76,13 +84,35 @@ aiwiki show <topic> --path <workspace>
 
 CORE-0404 提供仅声明的 Extension API v0.1。CORE-0405 只提供显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`。CORE-0407 锁定该匹配边界：不要从普通自然语言推断这些命令、自动发现 extension、自动启用 extension、自动执行 extension，也不要把 Host 描述成 sandbox。精确映射见随包交付的 `skill/EXTENSION_PROTOCOL.md`。
 
+`aiwiki health --json` 输出附加的只读 `aiwiki.health.v1` 快照。`aiwiki repair --plan --json` 输出附加的只读 `aiwiki.repair_plan.v1` 建议计划。用户明确要求生成或保存报告时，`aiwiki health --write --json` 输出 `aiwiki.health_report.v1`，只更新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录；不会修改知识 Markdown 或构建派生 state。
+
+## 派生状态 Rebuild 意图
+
+只有用户明确要求检查或重建派生状态时才匹配 rebuild。预览先执行 `aiwiki rebuild --dry-run --json`。使用 `aiwiki rebuild --check --json` 报告 `current`、`missing`、`stale` 或 `invalid`；非 `current` 退出 1 是预期行为。只有用户要求写入可删除 snapshot 时才执行 `aiwiki rebuild --path <workspace> --json`。rebuild 不会修改 Markdown，Context、Show、Lint 和 Status 也不需要先有 state。遇到锁冲突时报告并等待；不要删除 lock，也不要虚构 force 路径。详见[派生状态 v1](schema/STATE.zh-CN.md)。
+
+## 结构化索引意图
+
+只有用户明确要求确认索引是否最新、构建索引或重建索引时才匹配结构化索引。先执行 `aiwiki index status --path <workspace> --json`；`fresh` 的退出码为 0，`missing`、`stale` 和 `invalid` 的退出码为 1 是预期行为。只有用户要求写入可删除的索引元数据时，才执行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json`。不要从 query、context、show、lint、status、ingest 或泛化维护请求自动构建或重建索引。索引缺失、过期或损坏时，仍可直接从 Markdown 检索。索引仅保存 vault 相对路径元数据、计数、来源 URL 重复信号和已解析的本地链接；它不是语义或向量索引。详见[派生状态 v1](schema/STATE.zh-CN.md)。
+
+## 关系图意图
+
+只有用户明确要求确认关系图是否最新、构建关系图或重建关系图时才匹配关系图维护。先执行 `aiwiki graph status --path <workspace> --json`；`fresh` 的退出码为 0，`missing`、`stale` 和 `invalid` 的退出码为 1 是预期行为。只有用户要求写入可删除的关系图元数据时，才执行 `aiwiki graph build --path <workspace> --json` 或 `aiwiki graph rebuild --path <workspace> --json`。不要自动构建或重建关系图，也不要从 query、context、show、lint、status、ingest 或泛化维护请求推断关系图操作。关系图缺失、过期或损坏时，仍可直接从 Markdown 检索。关系图只记录确定性的本地关系，不改变 `aiwiki.context.v1`，也不使用 LLM 推断事实。
+
+`aiwiki.context.v2` 只有在用户明确要求追溯关系、上游/下游依赖或冲突，且已有关系图是 fresh 时才使用：
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+这个显式关系图上下文 view 只读；depth 只能是 `1`、`2` 或 `3`。关系图不是 fresh 时，必须返回 state 和下一步，不能自动构建或重建关系图元数据。详见[派生状态 v1](schema/STATE.zh-CN.md)。
+
 ## 显式 Extension 意图
 
 只有在用户明确提出 extension 管理请求时才使用这些命令。列出使用 `aiwiki plugin list --json --path <workspace>`；只添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；只启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>`。对于模糊请求，要求用户给出明确动作以及所需目录或 ID；不要自动扫描、选择、启用或执行 extension。
 
 ## 合同测试矩阵
 
-CORE-0406 建立该维护者验证入口：变更 Core 兼容边界时运行 `npm run test:contracts`。该套件覆盖 `public-api.test.ts`、`cli-compatibility.test.ts`、`skill-matching.test.ts`、`extension-api.test.ts`、`schema-compatibility.test.ts`、`extension-failure-isolation.test.ts` 和 `release-gate.test.ts`。`skill-matching.test.ts` 会在外部消费者环境安装打包后的包，验证完整 Skill bundle 同步、工作区指导与显式 extension 意图。`release-gate.test.ts` 锁定 Core 0.4 的包清单、双语发布路径和对外交付边界。该套件只验证已文档化的公开导入与显式 Core CLI 命令面；不会引入 Pro 行为、extension 自动发现、自动启用或自动执行。可重建性覆盖延期到 `CORE-0501`，届时才具备可重建状态模型。
+CORE-0406 建立该维护者验证入口：变更 Core 兼容边界时运行 `npm run test:contracts`。该套件覆盖 `public-api.test.ts`、`cli-compatibility.test.ts`、`skill-matching.test.ts`、`extension-api.test.ts`、`schema-compatibility.test.ts`、`extension-failure-isolation.test.ts` 和 `release-gate.test.ts`。`skill-matching.test.ts` 会在外部消费者环境安装打包后的包，验证完整 Skill bundle 同步、工作区指导与显式 extension 意图。`release-gate.test.ts` 锁定 Core 0.4 的包清单、双语发布路径和对外交付边界。该套件只验证已文档化的公开导入与显式 Core CLI 命令面；不会引入 Pro 行为、extension 自动发现、自动启用或自动执行。CORE-0501 已增加打包 rebuild help 与双语派生状态文档合同；完整本地和远端 consumer 矩阵仍是 Task 6 发布门禁。
 
 ## 入库流程
 

@@ -102,9 +102,9 @@ test("packed Skill bundle installs every protocol and locks explicit extension i
     const skill = readFileSync(path.join(packagedSkillRoot, "SKILL.md"), "utf8");
     const extensionProtocol = readFileSync(path.join(packagedSkillRoot, "EXTENSION_PROTOCOL.md"), "utf8");
     for (const [text, requiredCommands] of [
-      [prompt, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki agent check", "aiwiki agent sync"]],
-      [handoff, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-file", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki agent check", "aiwiki agent sync"]],
-      [skill, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-file", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki agent check", "aiwiki agent sync"]]
+      [prompt, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki index status", "aiwiki agent check", "aiwiki agent sync"]],
+      [handoff, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-file", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki index status", "aiwiki agent check", "aiwiki agent sync"]],
+      [skill, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-file", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki index status", "aiwiki agent check", "aiwiki agent sync"]]
     ] as const) {
       for (const command of requiredCommands) {
         assert.ok(text.includes(command), `missing ${command}`);
@@ -119,6 +119,11 @@ test("packed Skill bundle installs every protocol and locks explicit extension i
     assert.match(prompt, /不要自动发现、启用或执行/);
     assert.match(extensionProtocol, /does not add Pro behavior/i);
     assert.match(extensionProtocol, /entitlement checks, license checks, scheduling/i);
+    assert.match(prompt, /不要自动构建或重建索引/);
+    for (const text of [handoff, skill]) {
+      assert.match(text, /Do not automatically build or rebuild the index/i);
+      assert.match(text, /Markdown-backed retrieval remains available/i);
+    }
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
   }

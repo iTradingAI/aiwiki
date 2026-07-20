@@ -29,11 +29,23 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.match(text, /aiwiki ingest-file --file <file>/);
   assert.match(text, /aiwiki show <query>/);
   assert.match(text, /aiwiki context <query>/);
+  assert.match(text, /aiwiki context <query> --view graph --graph-depth 1/);
   assert.match(text, /aiwiki query <query>/);
   assert.match(text, /aiwiki lint/);
+  assert.match(text, /aiwiki rebuild --path <workspace> --json/);
+  assert.match(text, /aiwiki rebuild --check --json/);
+  assert.match(text, /aiwiki rebuild --dry-run --json/);
+  assert.match(text, /aiwiki index build --path <workspace> --json/);
+  assert.match(text, /aiwiki index status --path <workspace> --json/);
+  assert.match(text, /aiwiki index rebuild --path <workspace> --json/);
   assert.match(text, /aiwiki lint --capsules --json/);
   assert.match(text, /aiwiki lint --strict --json/);
+  assert.match(text, /aiwiki lint --maintenance --json/);
   assert.match(text, /aiwiki lint --fix-empty-dirs --json/);
+  assert.match(text, /aiwiki health --json/);
+  assert.match(text, /aiwiki repair --plan --json/);
+  assert.equal((text.match(/^  aiwiki health --json$/gm) ?? []).length, 1);
+  assert.equal((text.match(/^  aiwiki repair --plan --json$/gm) ?? []).length, 1);
   assert.match(text, /aiwiki plugin list --json/);
   assert.match(text, /aiwiki plugin add <directory>/);
   assert.match(text, /aiwiki plugin enable <id>/);
@@ -51,6 +63,308 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
   assert.equal(stderr.text(), "");
+});
+
+test("CLI rebuild exposes stable modes, exit codes, and state-only side effects", async () => {
+  const root = await tempRoot("aiwiki-cli-rebuild");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+
+    const help = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--help"], { stdout: help, stderr: new MemoryWritable() }), 0);
+    assert.match(help.text(), /AIWiki rebuild/);
+    assert.match(help.text(), /--check/);
+    assert.match(help.text(), /--dry-run/);
+
+    const dryRunOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--dry-run", "--json", "--path", root], { stdout: dryRunOut, stderr: new MemoryWritable() }), 0);
+    const dryRun = JSON.parse(dryRunOut.text()) as { schema_version: string; mode: string; state: string; snapshot_id: string; counts: Record<string, number>; written_files: string[] };
+    assert.deepEqual(dryRun, {
+      schema_version: "aiwiki.rebuild.v1",
+      mode: "dry_run",
+      state: "would_rebuild",
+      snapshot_id: dryRun.snapshot_id,
+      counts: dryRun.counts,
+      written_files: []
+    });
+    await assert.rejects(access(stateDir));
+    await assert.rejects(access(lockPath));
+
+    const missingOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--json", "--path", root], { stdout: missingOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(missingOut.text()) as { state: string }).state, "missing");
+
+    const rebuiltOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--json", "--path", root], { stdout: rebuiltOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(rebuiltOut.text()) as { state: string }).state, "rebuilt");
+    assert.deepEqual((await readdir(stateDir)).sort(), ["artifacts.json", "capsules.json", "lifecycle.json", "relationships.json"]);
+
+    const currentOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--json", "--path", root], { stdout: currentOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(currentOut.text()) as { state: string }).state, "current");
+
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "rebuild.md"), [
+      "---",
+      'type: "wiki_entry"',
+      'title: "CLI rebuild fixture"',
+      "---",
+      "",
+      "Rebuild detects this Markdown change."
+    ].join("\n"), "utf8");
+    const staleOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--json", "--path", root], { stdout: staleOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(staleOut.text()) as { state: string }).state, "stale");
+
+    await runCli(["rebuild", "--json", "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const artifactsPath = path.join(stateDir, "artifacts.json");
+    const artifacts = JSON.parse(await readFile(artifactsPath, "utf8")) as { snapshot_id: string };
+    artifacts.snapshot_id = "invalid";
+    await writeFile(artifactsPath, JSON.stringify(artifacts), "utf8");
+    const invalidOut = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--json", "--path", root], { stdout: invalidOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(invalidOut.text()) as { state: string }).state, "invalid");
+
+    const conflictError = new MemoryWritable();
+    assert.equal(await runCli(["rebuild", "--check", "--dry-run", "--path", root], { stdout: new MemoryWritable(), stderr: conflictError }), 1);
+    assert.match(conflictError.text(), /rebuild --check and --dry-run cannot be used together/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI index exposes explicit build status and rebuild without changing Markdown retrieval", async () => {
+  const root = await tempRoot("aiwiki-cli-index");
+  const indexPath = path.join(root, ".aiwiki", "state", "index.json");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await mkdir(path.join(root, "05-wiki", "source-knowledge"), { recursive: true });
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "index.md"), [
+      "---",
+      'type: "wiki_entry"',
+      'title: "CLI Index Fixture"',
+      "---",
+      "",
+      "Index retrieval stays Markdown-backed."
+    ].join("\n"), "utf8");
+
+    const help = new MemoryWritable();
+    assert.equal(await runCli(["index", "--help"], { stdout: help, stderr: new MemoryWritable() }), 0);
+    assert.match(help.text(), /AIWiki index/);
+    assert.match(help.text(), /index build/);
+    assert.match(help.text(), /index status/);
+    assert.match(help.text(), /index rebuild/);
+
+    const missingOut = new MemoryWritable();
+    assert.equal(await runCli(["index", "status", "--json", "--path", root], { stdout: missingOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(missingOut.text()) as { state: string }).state, "missing");
+
+    const buildOut = new MemoryWritable();
+    assert.equal(await runCli(["index", "build", "--json", "--path", root], { stdout: buildOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(buildOut.text()) as { action: string }).action, "built");
+
+    const freshOut = new MemoryWritable();
+    assert.equal(await runCli(["index", "status", "--json", "--path", root], { stdout: freshOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(freshOut.text()) as { state: string }).state, "fresh");
+
+    const rebuildOut = new MemoryWritable();
+    assert.equal(await runCli(["index", "rebuild", "--json", "--path", root], { stdout: rebuildOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(rebuildOut.text()) as { action: string }).action, "rebuilt");
+
+    await rm(indexPath);
+    const contextOut = new MemoryWritable();
+    assert.equal(await runCli(["context", "index", "--path", root], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(contextOut.text()) as { schema_version: string }).schema_version, "aiwiki.context.v1");
+
+    const invalidError = new MemoryWritable();
+    assert.equal(await runCli(["index", "unknown", "--path", root], { stdout: new MemoryWritable(), stderr: invalidError }), 1);
+    assert.match(invalidError.text(), /index expects build, status, or rebuild/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI health keeps inspection read-only and writes reports only when explicitly requested", async () => {
+  const root = await tempRoot("aiwiki-cli-health-repair");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await mkdir(path.join(root, "05-wiki", "source-knowledge"), { recursive: true });
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "broken.md"), "[[05-wiki/source-knowledge/missing]]\n", "utf8");
+
+    const healthOut = new MemoryWritable();
+    assert.equal(await runCli(["health", "--json", "--path", root], { stdout: healthOut, stderr: new MemoryWritable() }), 0);
+    const health = JSON.parse(healthOut.text()) as { schema_version: string; summary: { by_domain: Record<string, number> }; derived_state: { index: string; graph: string } };
+    assert.equal(health.schema_version, "aiwiki.health.v1");
+    assert.equal(health.summary.by_domain.relationship > 0, true);
+    assert.equal(health.derived_state.index, "missing");
+    assert.equal(health.derived_state.graph, "missing");
+    await assert.rejects(access(path.join(root, "dashboards", "Knowledge Health.md")));
+
+    const healthHelp = new MemoryWritable();
+    assert.equal(await runCli(["health", "--help"], { stdout: healthHelp, stderr: new MemoryWritable() }), 0);
+    assert.match(healthHelp.text(), /health --write --json/);
+    assert.match(healthHelp.text(), /Without --write/);
+
+    const healthWriteOut = new MemoryWritable();
+    assert.equal(await runCli(["health", "--write", "--json", "--path", root], { stdout: healthWriteOut, stderr: new MemoryWritable() }), 0);
+    const written = JSON.parse(healthWriteOut.text()) as { schema_version: string; dashboard_path: string; run_path: string; health: { schema_version: string } };
+    assert.equal(written.schema_version, "aiwiki.health_report.v1");
+    assert.equal(written.dashboard_path, "dashboards/Knowledge Health.md");
+    assert.equal(written.health.schema_version, "aiwiki.health.v1");
+    assert.equal((await readFile(path.join(root, written.run_path), "utf8")).includes("aiwiki.health_report.v1"), true);
+    assert.match(await readFile(path.join(root, written.dashboard_path), "utf8"), /AIWIKI:HEALTH:START/);
+
+    const repairOut = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--plan", "--json", "--path", root], { stdout: repairOut, stderr: new MemoryWritable() }), 0);
+    const repair = JSON.parse(repairOut.text()) as { schema_version: string; dry_run: boolean; would_write: boolean; items: Array<{ evidence: string[]; suggested_changes: string[]; affected_files: string[]; suggested_command: string }> };
+    assert.equal(repair.schema_version, "aiwiki.repair_plan.v1");
+    assert.equal(repair.dry_run, true);
+    assert.equal(repair.would_write, false);
+    assert.ok(repair.items.every((item) => item.evidence.length > 0 && item.suggested_changes.length > 0 && item.affected_files.length > 0 && item.suggested_command.startsWith("aiwiki ")));
+
+    const repairHelp = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--help"], { stdout: repairHelp, stderr: new MemoryWritable() }), 0);
+    assert.match(repairHelp.text(), /Core does not apply repairs automatically/);
+
+    const rejected = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--apply", "--path", root], { stdout: new MemoryWritable(), stderr: rejected }), 1);
+    assert.match(rejected.text(), /repair --plan is the only Core repair mode/);
+    const missingPlan = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--path", root], { stdout: new MemoryWritable(), stderr: missingPlan }), 1);
+    assert.match(missingPlan.text(), /repair --plan is the only Core repair mode/);
+    const rejectedYes = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--plan", "--yes", "--path", root], { stdout: new MemoryWritable(), stderr: rejectedYes }), 1);
+    assert.match(rejectedYes.text(), /repair --plan is the only Core repair mode/);
+    const rejectedApplyValue = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--plan", "--apply=true", "--path", root], { stdout: new MemoryWritable(), stderr: rejectedApplyValue }), 1);
+    assert.match(rejectedApplyValue.text(), /repair --plan is the only Core repair mode/);
+    const rejectedYesValue = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--plan", "--yes=true", "--path", root], { stdout: new MemoryWritable(), stderr: rejectedYesValue }), 1);
+    assert.match(rejectedYesValue.text(), /repair --plan is the only Core repair mode/);
+    await assert.rejects(access(stateDir));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI graph exposes explicit build status and rebuild without changing Markdown retrieval", async () => {
+  const root = await tempRoot("aiwiki-cli-graph");
+  const graphPath = path.join(root, ".aiwiki", "state", "graph.json");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await mkdir(path.join(root, "05-wiki", "source-knowledge"), { recursive: true });
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "graph.md"), [
+      "---",
+      'type: "wiki_entry"',
+      'title: "CLI Graph Fixture"',
+      "---",
+      "",
+      "Graph retrieval stays Markdown-backed."
+    ].join("\n"), "utf8");
+
+    const help = new MemoryWritable();
+    assert.equal(await runCli(["graph", "--help"], { stdout: help, stderr: new MemoryWritable() }), 0);
+    assert.match(help.text(), /AIWiki graph/);
+    assert.match(help.text(), /graph build/);
+    assert.match(help.text(), /graph status/);
+    assert.match(help.text(), /graph rebuild/);
+
+    const missingOut = new MemoryWritable();
+    assert.equal(await runCli(["graph", "status", "--json", "--path", root], { stdout: missingOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(missingOut.text()) as { state: string }).state, "missing");
+
+    const buildOut = new MemoryWritable();
+    assert.equal(await runCli(["graph", "build", "--json", "--path", root], { stdout: buildOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(buildOut.text()) as { action: string }).action, "built");
+
+    const freshOut = new MemoryWritable();
+    assert.equal(await runCli(["graph", "status", "--json", "--path", root], { stdout: freshOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(freshOut.text()) as { state: string }).state, "fresh");
+
+    const rebuildOut = new MemoryWritable();
+    assert.equal(await runCli(["graph", "rebuild", "--json", "--path", root], { stdout: rebuildOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(rebuildOut.text()) as { action: string }).action, "rebuilt");
+
+    await rm(graphPath);
+    const contextOut = new MemoryWritable();
+    assert.equal(await runCli(["context", "graph", "--path", root], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(contextOut.text()) as { schema_version: string }).schema_version, "aiwiki.context.v1");
+
+    const invalidError = new MemoryWritable();
+    assert.equal(await runCli(["graph", "unknown", "--path", root], { stdout: new MemoryWritable(), stderr: invalidError }), 1);
+    assert.match(invalidError.text(), /graph expects build, status, or rebuild/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI graph context emits v2 only for the explicit graph view", async () => {
+  const root = await tempRoot("aiwiki-cli-graph-context");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await mkdir(path.join(root, "02-raw", "articles"), { recursive: true });
+    await mkdir(path.join(root, "05-wiki", "source-knowledge"), { recursive: true });
+    await writeFile(path.join(root, "02-raw", "articles", "source.md"), [
+      "---",
+      'type: "raw_article"',
+      'title: "Source Evidence"',
+      'capsule_id: "source-capsule"',
+      "---",
+      "",
+      "Source body"
+    ].join("\n"), "utf8");
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "graph-context.md"), [
+      "---",
+      'type: "wiki_entry"',
+      'title: "Graph Context"',
+      'capsule_id: "graph-capsule"',
+      "relationships:",
+      '  - type: "derives_from"',
+      '    target: "02-raw/articles/source.md"',
+      "---",
+      "",
+      "Graph Context body"
+    ].join("\n"), "utf8");
+
+    const defaultOutput = new MemoryWritable();
+    assert.equal(await runCli(["context", "Graph Context", "--path", root], { stdout: defaultOutput, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(defaultOutput.text()) as { schema_version: string }).schema_version, "aiwiki.context.v1");
+    const capsuleOutput = new MemoryWritable();
+    assert.equal(await runCli(["context", "Graph Context", "--view", "capsule", "--path", root], { stdout: capsuleOutput, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(capsuleOutput.text()) as { schema_version: string }).schema_version, "aiwiki.context.capsule.v1");
+
+    const invalidGraphContextCalls: Array<{ argv: string[]; expected: RegExp }> = [
+      { argv: ["context", "Graph Context", "--graph-depth", "1", "--path", root], expected: /graph-depth requires context --view graph/ },
+      { argv: ["context", "Graph Context", "--view", "graph", "--graph-depth", "0", "--path", root], expected: /graph-depth must be an integer from 1 to 3/ },
+      { argv: ["context", "Graph Context", "--view", "graph", "--capsules", "--path", root], expected: /context --view graph cannot be combined with --capsules/ }
+    ];
+    for (const { argv, expected } of invalidGraphContextCalls) {
+      const stderr = new MemoryWritable();
+      assert.equal(await runCli(argv, { stdout: new MemoryWritable(), stderr }), 1);
+      assert.match(stderr.text(), expected);
+    }
+    assert.equal(await runCli(["graph", "build", "--path", root, "--json"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+
+    const output = new MemoryWritable();
+    assert.equal(await runCli(["context", "Graph Context", "--view", "graph", "--graph-depth", "1", "--path", root], { stdout: output, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(output.text()) as {
+      schema_version: string;
+      query_scope: { view: string; graph_depth: number };
+      graph: { state: string };
+      relationships: Array<{ target: { path?: string }; relationship_path: Array<{ type: string; traversal: string }> }>;
+    };
+    assert.equal(parsed.schema_version, "aiwiki.context.v2");
+    assert.equal(parsed.query_scope.view, "graph");
+    assert.equal(parsed.query_scope.graph_depth, 1);
+    assert.equal(parsed.graph.state, "fresh");
+    assert.ok(parsed.relationships.some((item) => item.target.path === "02-raw/articles/source.md"
+      && item.relationship_path[0]?.type === "derives_from"
+      && item.relationship_path[0]?.traversal === "outbound"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("CLI plugin list add and enable manage only explicitly registered local extensions", async () => {
@@ -307,6 +621,9 @@ test("agent and context help explain sync and filters", async () => {
   assert.equal(await runCli(["context", "--help"], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
   assert.match(contextOut.text(), /aiwiki show <topic>/);
   assert.match(contextOut.text(), /--view capsule/);
+  assert.match(contextOut.text(), /--view graph --graph-depth 1/);
+  assert.match(contextOut.text(), /Default and capsule context JSON/);
+  assert.match(contextOut.text(), /Graph context is explicit and read-only/);
   assert.match(contextOut.text(), /--source-role/);
   assert.match(contextOut.text(), /result_quality/);
 });
@@ -356,7 +673,9 @@ test("documentation, Skill, prompt, and workspace guidance share the Core intent
     "aiwiki query",
     "aiwiki context",
     "aiwiki lint --json",
-    "aiwiki lint --fix-empty-dirs --json"
+    "aiwiki lint --fix-empty-dirs --json",
+    "aiwiki graph status --path <workspace> --json",
+    "aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>"
   ];
 
   assert.match(handoff, /Core Intent Matrix/);
@@ -387,6 +706,8 @@ test("documentation, Skill, prompt, and workspace guidance share the Core intent
     "result_quality",
     "recommended_next_action",
     "aiwiki lint --json",
+    "aiwiki graph status --path <workspace> --json",
+    "aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>",
     "aiwiki prompt agent",
     "fallback"
   ]) {
@@ -403,6 +724,7 @@ test("documentation, Skill, prompt, and workspace guidance share the Core intent
       "aiwiki agent sync --yes",
       "result_quality",
       "recommended_next_action",
+      "aiwiki graph status --path <workspace> --json",
       "aiwiki prompt agent"
     ]) {
       assert.ok(guidance.includes(term), `expected workspace guidance to contain ${term}`);
@@ -524,6 +846,11 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     "configShow",
     "doctor",
     "status",
+    "rebuild",
+    "index",
+    "graph",
+    "health",
+    "repair",
     "context",
     "query",
     "show",
@@ -554,6 +881,12 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     [["config", "show"], "configShow"],
     [["doctor"], "doctor"],
     [["status"], "status"],
+    [["rebuild"], "rebuild"],
+    [["rebuild", "--help"], "rebuild"],
+    [["index", "status"], "index"],
+    [["graph", "status"], "graph"],
+    [["health"], "health"],
+    [["repair", "--plan"], "repair"],
     [["context", "topic"], "context"],
     [["query", "topic"], "query"],
     [["show", "topic"], "show"],

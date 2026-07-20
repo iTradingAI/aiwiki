@@ -73,6 +73,8 @@ aiwiki status --path <workspace>
 aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
 aiwiki show <topic> --path <workspace>
+aiwiki index status --path <workspace> --json
+aiwiki graph status --path <workspace> --json
 aiwiki plugin list --json --path <workspace>
 ```
 
@@ -89,6 +91,12 @@ Match user requests to this command contract before using generic file tools:
 | ingest material | `aiwiki ingest-file --file <file>` or `aiwiki ingest-agent --stdin` | report ingest status, quality, Source Card, and Processing Summary | record unreadable sources as failed-fetch payloads; do not ask users to save payloads |
 | query or reuse knowledge | `aiwiki query <topic>` or `aiwiki context <topic>`; use `aiwiki show <topic>` for a source package | read result quality, recommended next action, provenance, and gaps | try the relevant AIWiki command before file search and explain any fallback |
 | check or organize a workspace | `aiwiki lint --json`, then `aiwiki lint --fix-empty-dirs --json` only when allowed and safe | explain errors, warnings, safe fixes, and report path | leave non-safe issues for review; do not default to ad hoc Markdown edits |
+| explicitly review workspace health or request a maintenance plan | run `aiwiki health --json`; only when the user asks for a plan, run `aiwiki repair --plan --json` | read `aiwiki.health.v1` across all eight maintenance domains, then read `aiwiki.repair_plan.v1` issue evidence, risk, affected files, and suggested commands | both commands are read-only; never infer Markdown changes, derived-state writes, or dashboard creation from a generic maintenance request |
+| explicitly generate or save a health report | run `aiwiki health --write --json` | read `aiwiki.health_report.v1` metrics, dashboard path, and immutable JSON run path | refresh only the marker-bounded managed section of `dashboards/Knowledge Health.md`; never modify knowledge Markdown or derived state |
+| explicitly inspect or rebuild derived state | preview with `aiwiki rebuild --dry-run --json`; use `--check` to classify state and default rebuild only when the user asks to write it | explain `would_rebuild`, `current`, `missing`, `stale`, or `invalid`; retrieval remains Markdown-backed | do not infer rebuild from generic maintenance; report a lock conflict and do not delete another process's lock |
+| explicitly inspect, build, or rebuild the structured index | inspect with `aiwiki index status --path <workspace> --json`; build or rebuild only when the user asks to write metadata | explain `fresh`, `missing`, `stale`, or `invalid`, category counts, duplicate-source URLs, and resolved local links | Do not automatically build or rebuild the index; Markdown-backed retrieval remains available when the index is missing, stale, or invalid |
+| explicitly inspect, build, or rebuild the relationship graph | inspect with `aiwiki graph status --path <workspace> --json`; build or rebuild only when the user asks to write metadata | explain `fresh`, `missing`, `stale`, or `invalid`, typed-edge counts, unresolved targets, and lock conflicts | Do not automatically build or rebuild the graph; Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid; default Context v1 remains independent |
+| explicitly trace a relationship, upstream/downstream dependency, or conflict | with an already fresh graph, run `aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>` | read `aiwiki.context.v2`, graph state, relationship paths, evidence status, lifecycle/risk warnings, and `recommended_next_action` | do not use graph context for ordinary retrieval; never build or rebuild graph state automatically; `--graph-depth` is only `1`, `2`, or `3` |
 | explicit extension administration | `aiwiki plugin list --json --path <workspace>`; add only a user-supplied directory with `aiwiki plugin add <directory> --path <workspace>`; enable only a user-supplied ID with `aiwiki plugin enable <id> --path <workspace>` | report the command result and the exact extension state | for “find a plugin”, “auto choose a skill”, or “enable a suitable extension”, ask for an explicit action, directory, or ID; do not discover, enable, or execute automatically |
 
 ## Schema Compatibility Boundary
@@ -96,6 +104,34 @@ Match user requests to this command contract before using generic file tools:
 Keep the current command-first matching unchanged. Existing workspaces with `schema_version: 1` remain compatible as `aiwiki.workspace.v1`; Agent outputs remain `aiwiki.context.v1` and `aiwiki.context.capsule.v1`. Do not invent a schema migration command or rewrite user frontmatter for this feature. Declared future schema majors require manual review.
 
 CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 adds only explicit extension administration: `aiwiki plugin list --json`, `aiwiki plugin add <directory> --path <workspace>`, and `aiwiki plugin enable <id> --path <workspace>`. CORE-0407 locks the matching contract: do not infer these commands from ordinary natural-language requests, automatically discover extensions, or describe the Host as a sandbox. Read [Extension Protocol](EXTENSION_PROTOCOL.md) before handling an extension request.
+
+## Health And Repair Intent
+
+Only match health when the user explicitly asks for a knowledge-base health review, maintenance risks, or the status of a broad cleanup. Run `aiwiki health --json` and read the additive `aiwiki.health.v1` output: the eight domain counts, derived-state status, issues, and `recommended_next_action`. It is read-only and must not create Markdown, a dashboard, or rebuild/index/graph state.
+
+Only match health-report generation when the user explicitly asks to generate or save a health report. Run `aiwiki health --write --json` and read `aiwiki.health_report.v1`: metrics, dashboard path, and immutable JSON run path. It may refresh only the marker-bounded managed section of `dashboards/Knowledge Health.md` and add one JSON report under `09-runs/`; it must not change knowledge Markdown or derived state.
+
+Only match repair planning when the user explicitly asks for a proposed maintenance checklist. Run `aiwiki repair --plan --json` and read the additive `aiwiki.repair_plan.v1` output: issue, evidence, suggested changes, risk, affected files, and suggested command. It is read-only: do not execute a suggested command or infer any workspace write.
+
+## Derived State Rebuild Intent
+
+Only match rebuild when the user explicitly asks to inspect or rebuild derived state. Start with `aiwiki rebuild --dry-run --json` for a no-write preview. Use `aiwiki rebuild --check --json` to report `current`, `missing`, `stale`, or `invalid`; non-current exits 1 by design. Run `aiwiki rebuild --path <workspace> --json` only when the user asks to write the removable snapshots. Do not add rebuild to normal query, context, show, lint, or status flows. Rebuild never modifies Markdown. On a lock conflict, report it and wait; do not remove the lock or invent `--force`. See `docs/schema/STATE.md` in the package.
+
+## Structured Index Intent
+
+Only match structured-index work when the user explicitly asks to check whether the index is current, build it, or rebuild it. Start with `aiwiki index status --path <workspace> --json`; `fresh` exits 0, while `missing`, `stale`, and `invalid` exit 1 by design. Run `aiwiki index build --path <workspace> --json` or `aiwiki index rebuild --path <workspace> --json` only when the user asks to write the removable index metadata. Do not automatically build or rebuild the index from query, context, show, lint, status, ingest, or generic maintenance requests. Markdown-backed retrieval remains available when the index is missing, stale, or invalid. The index stores vault-relative metadata, counts, source-URL duplication signals, and resolved local links; it is not a semantic or vector index. See `docs/schema/STATE.md` in the package.
+
+## Relationship Graph Intent
+
+Only match relationship-graph maintenance when the user explicitly asks to check whether the graph is current, build it, or rebuild it. Start with `aiwiki graph status --path <workspace> --json`; `fresh` exits 0, while `missing`, `stale`, and `invalid` exit 1 by design. Run `aiwiki graph build --path <workspace> --json` or `aiwiki graph rebuild --path <workspace> --json` only when the user asks to write removable graph metadata. Do not automatically build or rebuild the graph from query, context, show, lint, status, ingest, or generic maintenance requests. Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph records deterministic local relationships only; it does not infer facts with an LLM or alter `aiwiki.context.v1`.
+
+Use `aiwiki.context.v2` only when the user explicitly asks to trace a relationship, upstream/downstream dependency, or conflict, and an existing graph is fresh:
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+This explicit graph-aware context view is read-only. Its depth is limited to `1`, `2`, or `3`; a non-fresh graph must return its state and a next action instead of building or rebuilding graph metadata. See `docs/schema/STATE.md` in the package.
 
 ## Skill Protocol Files
 
@@ -304,6 +340,21 @@ aiwiki lint --lifecycle --json
 aiwiki lint --okf --json
 aiwiki lint --strict --json
 ```
+
+For an explicit broad health review, prefer the read-only maintenance snapshot:
+
+```bash
+aiwiki health --json
+aiwiki health --write --json
+```
+
+When the user explicitly asks for a proposed repair checklist, follow it with:
+
+```bash
+aiwiki repair --plan --json
+```
+
+Read `aiwiki.health.v1` and `aiwiki.repair_plan.v1` as read-only results. Run `aiwiki health --write --json` only for an explicit report-generation request; read `aiwiki.health_report.v1`, report its paths, and do not turn it into a knowledge Markdown edit or derived-state build.
 
 If `safe_fixes.only_safe_fixes` is true and the user has allowed cleanup, apply the built-in safe fix and rerun JSON lint:
 

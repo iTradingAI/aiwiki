@@ -9,6 +9,7 @@ import { buildCapsuleContext } from "../../capsule-context.js";
 import { buildCapsules, capsuleMetrics } from "../../capsule.js";
 import type { CapsuleLintOptions } from "../../capsule-lint.js";
 import { buildContext, type ContextFilters, type ContextResult } from "../../context.js";
+import { buildGraphContext } from "../../graph-context.js";
 import { evaluateExtensionLintFindings } from "../../extension/host.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "../../ingest.js";
 import { attachAppliedSafeFixes, filterLintReport, lintWorkspace, mergeLintIssues, removeEmptyOptionalDirs, renderLintReport, renderLintSummary, writeLintReport, type LintIssue, type LintSeverity } from "../../lint.js";
@@ -32,6 +33,11 @@ import {
 import type { CommandContext } from "../command-context.js";
 import type { CoreCommandHandlers } from "../command-registry.js";
 import { createPluginCommandHandler } from "./plugin.js";
+import { handleIndexCommand } from "./index.js";
+import { handleGraphCommand } from "./graph.js";
+import { handleHealthCommand } from "./health.js";
+import { handleRebuildCommand } from "./rebuild.js";
+import { handleRepairCommand } from "./repair.js";
 
 export function createCoreCommandHandlers(): CoreCommandHandlers {
 
@@ -227,6 +233,13 @@ const root = await resolveWorkspace(flagString(args, "path"));
       if (!query) {
         throw new CliError("请提供查询主题。");
       }
+      if (graphViewRequested(args)) {
+        writeLine(streams.stdout, JSON.stringify(await buildGraphContext(root, query, graphContextOptions(args)), null, 2));
+        return 0;
+      }
+      if (args.flags.has("graph-depth")) {
+        throw new CliError("--graph-depth requires context --view graph");
+      }
       if (capsuleViewRequested(args)) {
         writeLine(streams.stdout, JSON.stringify(await buildCapsuleContext(root, query, contextOptions(args)), null, 2));
         return 0;
@@ -372,6 +385,11 @@ const contentFile = flagString(args, "content-file");
     configShow: handleConfigShow,
     doctor: handleDoctor,
     status: handleStatus,
+    rebuild: handleRebuildCommand,
+    index: handleIndexCommand,
+    graph: handleGraphCommand,
+    health: handleHealthCommand,
+    repair: handleRepairCommand,
     context: handleContext,
     query: handleQuery,
     show: handleShow,
@@ -395,12 +413,26 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki ingest-file --file <file>");
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
+  writeLine(stream, "  aiwiki rebuild --path <workspace> --json");
+  writeLine(stream, "  aiwiki rebuild --check --json");
+  writeLine(stream, "  aiwiki rebuild --dry-run --json");
+  writeLine(stream, "  aiwiki index build --path <workspace> --json");
+  writeLine(stream, "  aiwiki index status --path <workspace> --json");
+  writeLine(stream, "  aiwiki index rebuild --path <workspace> --json");
+  writeLine(stream, "  aiwiki graph build --path <workspace> --json");
+  writeLine(stream, "  aiwiki graph status --path <workspace> --json");
+  writeLine(stream, "  aiwiki graph rebuild --path <workspace> --json");
+  writeLine(stream, "  aiwiki health --json");
+  writeLine(stream, "  aiwiki health --write --json");
+  writeLine(stream, "  aiwiki repair --plan --json");
   writeLine(stream, "  aiwiki show <query>");
   writeLine(stream, "  aiwiki context <query>");
+  writeLine(stream, "  aiwiki context <query> --view graph --graph-depth 1");
   writeLine(stream, "  aiwiki query <query>");
   writeLine(stream, "  aiwiki lint");
   writeLine(stream, "  aiwiki lint --capsules --json");
   writeLine(stream, "  aiwiki lint --strict --json");
+  writeLine(stream, "  aiwiki lint --maintenance --json");
   writeLine(stream, "  aiwiki lint --fix-empty-dirs --json");
   writeLine(stream, "  aiwiki plugin list --json");
   writeLine(stream, "  aiwiki plugin add <directory>");
@@ -441,6 +473,7 @@ function printContextHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki show --artifact-path <artifact.md> --path <workspace>");
   writeLine(stream, "  aiwiki context <topic> --limit 10");
   writeLine(stream, "  aiwiki context <topic> --view capsule");
+  writeLine(stream, "  aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>");
   writeLine(stream, "  aiwiki query <topic> --view capsule");
   writeLine(stream, "  aiwiki query <topic> --view files --type wiki_entries --status active");
   writeLine(stream, "");
@@ -450,8 +483,10 @@ function printContextHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  --wiki-type source_knowledge|personal_knowledge");
   writeLine(stream, "  --status active|to-review|ready|draft");
   writeLine(stream, "  --limit <1-50>");
+  writeLine(stream, "  --graph-depth <1-3> (only with context --view graph)");
   writeLine(stream, "");
-  writeLine(stream, "context JSON includes query_scope, result_quality, recommended_next_action, match_reasons, quality_signals, related_refs, and reuse_guidance.");
+  writeLine(stream, "Default and capsule context JSON include query scope, result_quality, quality signals, and a recommended next action.");
+  writeLine(stream, "Graph context is explicit and read-only: use it only for requested relationship tracing with an already fresh graph. It returns aiwiki.context.v2 with graph state, bounded paths, evidence, lifecycle/risk warnings, and a next action.");
 }
 
 function parseLintSeverity(value: string | undefined): LintSeverity | undefined {
@@ -469,6 +504,7 @@ function lintOptions(args: ParsedArgs): CapsuleLintOptions {
     capsules: flagBool(args, "capsules"),
     lifecycle: flagBool(args, "lifecycle"),
     okf: flagBool(args, "okf"),
+    maintenance: flagBool(args, "maintenance"),
     strict: flagBool(args, "strict")
   };
 }
@@ -1042,7 +1078,10 @@ Required command-first loop:
 7. Retrieve reusable knowledge with \`aiwiki query <topic> --path <workspace>\` for human-readable output or \`aiwiki context <topic> --path <workspace>\` for Agent JSON. Before answering, read \`result_quality\` and \`recommended_next_action\`.
 8. Use Source Capsule views when the user asks for one source package, provenance, lifecycle state, or OKF readiness: \`aiwiki show <topic> --path <workspace>\`, \`aiwiki query <topic> --path <workspace>\`, or \`aiwiki context <topic> --view capsule --path <workspace>\`.
 9. Use \`aiwiki query <topic> --view files --path <workspace>\` only when the older file-level match list is needed.
-10. Only act on explicit extension requests: list with \`aiwiki plugin list --json --path <workspace>\`, add the directory the user supplied with \`aiwiki plugin add <directory> --path <workspace>\`, or enable the exact ID the user supplied with \`aiwiki plugin enable <id> --path <workspace>\`. Do not automatically discover, enable, or execute extensions. Ask for an explicit action, directory, or ID when the request is ambiguous.
+10. Only when the user explicitly asks whether the structured index is current, build it, or rebuild it, inspect it with \`aiwiki index status --path <workspace> --json\`. Run \`aiwiki index build --path <workspace> --json\` or \`aiwiki index rebuild --path <workspace> --json\` only when the user explicitly asks to write index metadata. Do not automatically build or rebuild the index; Markdown-backed retrieval remains available when the index is missing, stale, or invalid.
+11. Only when the user explicitly asks whether the relationship graph is current, build it, or rebuild it, inspect it with \`aiwiki graph status --path <workspace> --json\`. Run \`aiwiki graph build --path <workspace> --json\` or \`aiwiki graph rebuild --path <workspace> --json\` only when the user explicitly asks to write graph metadata. Do not automatically build or rebuild the graph; Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph does not change default \`aiwiki.context.v1\`.
+12. Only when the user explicitly asks to trace a relationship, upstream/downstream dependency, or conflict, and the graph is already fresh, run \`aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>\`. Read its \`aiwiki.context.v2\` graph state, relationship paths, evidence, lifecycle/risk warnings, and recommended next action before answering. Do not use this graph view for ordinary retrieval, and do not build or rebuild graph state automatically; \`--graph-depth\` accepts only \`1\`, \`2\`, or \`3\`.
+13. Only act on explicit extension requests: list with \`aiwiki plugin list --json --path <workspace>\`, add the directory the user supplied with \`aiwiki plugin add <directory> --path <workspace>\`, or enable the exact ID the user supplied with \`aiwiki plugin enable <id> --path <workspace>\`. Do not automatically discover, enable, or execute extensions. Ask for an explicit action, directory, or ID when the request is ambiguous.
 
 Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, say which AIWiki command was insufficient and why. For unsupported host-Agent integration, use \`aiwiki prompt agent\` rather than writing unknown host configuration.
 ${AIWIKI_AGENT_GUIDANCE_END}`;
@@ -1102,6 +1141,9 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "");
   writeLine(stream, "查询：当用户要求从 AIWiki 里了解某个主题时，调用 `aiwiki context <主题>`；需要来源包、生命周期或 OKF readiness 时，调用 `aiwiki context <主题> --view capsule` 或 `aiwiki show <主题>`。回答前读取 `result_quality` 和 `recommended_next_action`，说明来源、质量和已知缺口。");
   writeLine(stream, "整理：当用户要求检查或整理知识库时，先调用 `aiwiki lint --json`；深层 capsule 检查使用 `aiwiki lint --capsules --json`、`--lifecycle`、`--okf` 或 `--strict`；若只有 safe fix 且用户允许整理，再调用 `aiwiki lint --fix-empty-dirs --json`，随后重跑 `aiwiki lint --json`。");
+  writeLine(stream, "索引：只有用户明确要求检查索引、构建索引、重建索引或确认索引是否过期时，才先运行 `aiwiki index status --path <workspace> --json`。只有用户明确要求写入时，才运行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json`。不要自动构建或重建索引；索引缺失、过期或损坏时，`context` 和 `query` 仍直接读取 Markdown。");
+  writeLine(stream, "关系图：只有用户明确要求检查关系图、构建关系图、重建关系图或确认关系图是否过期时，才先运行 `aiwiki graph status --path <workspace> --json`。只有用户明确要求写入时，才运行 `aiwiki graph build --path <workspace> --json` 或 `aiwiki graph rebuild --path <workspace> --json`。不要自动构建或重建关系图；关系图缺失、过期或损坏时，`context` 和 `query` 仍直接读取 Markdown。关系图不改变默认的 `aiwiki.context.v1`。");
+  writeLine(stream, "关系追溯：只有用户明确要求追溯关系、上游/下游依赖或冲突，且关系图已经是 fresh 时，才运行 `aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>`。读取 `aiwiki.context.v2` 的图状态、关系路径、evidence、生命周期/风险提示和下一步后再回答。不要将它用于日常检索，也不要自动构建或重建关系图；`--graph-depth` 只能是 `1`、`2` 或 `3`。");
   writeLine(stream, "升级：当用户要求同步、升级或修复宿主 Agent 接入时，先调用 `aiwiki agent check --json`，再使用 `aiwiki agent sync --dry-run` 预览；确认后运行 `aiwiki agent sync --yes`。不支持的宿主使用 `aiwiki prompt agent`，不要写入未知配置。");
   writeLine(stream, "插件：只有用户明确要求时才执行：列出用 `aiwiki plugin list --json --path <workspace>`；添加用户给出的目录用 `aiwiki plugin add <directory> --path <workspace>`；启用用户给出的精确 ID 用 `aiwiki plugin enable <id> --path <workspace>`。对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，说明需要明确动作、目录或 ID；不要自动发现、启用或执行 extension。");
   writeLine(stream, "fallback：只有对应 AIWiki 命令无法回答请求时，才使用文件搜索或临时脚本；必须说明哪个命令不足以及原因。不要把网页抓取、手工 payload 或未知宿主配置当作默认回退路径。");
@@ -1237,6 +1279,21 @@ function contextOptions(args: ParsedArgs): { filters: ContextFilters; limit?: nu
 function capsuleViewRequested(args: ParsedArgs): boolean {
   const view = flagString(args, "view");
   return view === "capsule" || flagBool(args, "capsules");
+}
+
+function graphViewRequested(args: ParsedArgs): boolean {
+  return flagString(args, "view") === "graph";
+}
+
+function graphContextOptions(args: ParsedArgs): { filters: ContextFilters; limit?: number; graphDepth: 1 | 2 | 3 } {
+  if (flagBool(args, "capsules")) {
+    throw new CliError("context --view graph cannot be combined with --capsules");
+  }
+  const value = flagString(args, "graph-depth");
+  if (args.flags.has("graph-depth") && (!value || !/^[1-3]$/.test(value))) {
+    throw new CliError("--graph-depth must be an integer from 1 to 3");
+  }
+  return { ...contextOptions(args), graphDepth: value === undefined ? 1 : Number(value) as 1 | 2 | 3 };
 }
 
 function queryView(args: ParsedArgs): "capsule" | "files" {

@@ -259,6 +259,16 @@ aiwiki lint --json
 
 Default lint stays file/structure-oriented and remains quiet for legacy workspaces that do not yet have capsule metadata.
 
+For an explicit health review, use the read-only maintenance surfaces:
+
+```bash
+aiwiki health --json --path <workspace>
+aiwiki health --write --json --path <workspace>
+aiwiki repair --plan --json --path <workspace>
+```
+
+`aiwiki.health.v1` reports eight maintenance domains and derived-state status without writing. When the user explicitly asks to generate or save a health report, `aiwiki health --write --json` returns `aiwiki.health_report.v1`, refreshes only the managed section of `dashboards/Knowledge Health.md`, and writes an immutable JSON report under `09-runs/`. It does not change knowledge Markdown or build rebuild/index/graph state. `aiwiki.repair_plan.v1` remains a read-only advisory list with evidence, risk, affected files, and suggested commands.
+
 For 0.3.0 checks:
 
 ```bash
@@ -282,6 +292,48 @@ Current automatic safe fix:
 - remove known empty optional enhancement directories
 
 AIWiki must not delete core directories, unknown directories, non-empty directories, or files as a safe fix.
+
+### Inspect Or Rebuild Derived State
+
+Use rebuild only when you explicitly ask the assistant to inspect or rebuild derived state. It is not a regular lint step and is not required before `query`, `context`, `show`, `lint`, or `status`.
+
+```bash
+aiwiki rebuild --dry-run --json --path <workspace>
+aiwiki rebuild --check --json --path <workspace>
+aiwiki rebuild --path <workspace> --json
+```
+
+`--dry-run` previews the current Markdown-derived snapshot without writing. `--check` exits 1 for missing, stale, or invalid state. The default command writes only the four removable files under `.aiwiki/state/`; it does not modify Markdown. If another rebuild is active, report the lock conflict and wait rather than deleting the lock. Deleting state is safe because it can be explicitly rebuilt later. See [Derived State v1](schema/STATE.md).
+
+### Inspect Or Rebuild The Structured Index
+
+The structured index is a removable local metadata file for artifact categories, source-URL duplication signals, and resolved local wiki links. It is not semantic search or a vector index, and it does not replace the Markdown records used by `query` and `context`.
+
+```bash
+aiwiki index status --path <workspace> --json
+aiwiki index build --path <workspace> --json
+aiwiki index rebuild --path <workspace> --json
+```
+
+Use `index status` only when the user explicitly asks whether the index is current. It reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. Run `index build` or `index rebuild` only when the user explicitly asks to write the metadata. Do not automatically build or rebuild the index from query, context, show, lint, status, ingest, or generic maintenance work. Markdown-backed retrieval remains available when the index is missing, stale, or invalid.
+
+### Inspect Or Rebuild The Relationship Graph
+
+The relationship graph is a removable local projection of explicit local relationships, wikilinks, generated references, and Source Capsule membership. It does not infer knowledge facts, replace Markdown, or enable graph-aware context by itself.
+
+```bash
+aiwiki graph status --path <workspace> --json
+aiwiki graph build --path <workspace> --json
+aiwiki graph rebuild --path <workspace> --json
+```
+
+Use `graph status` only when the user explicitly asks whether the relationship graph is current. It reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. Run `graph build` or `graph rebuild` only when the user explicitly asks to write graph metadata. Do not automatically build or rebuild the graph from query, context, show, lint, status, ingest, or generic maintenance work. Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph does not change default `aiwiki.context.v1`. Use `aiwiki.context.v2` only when the user explicitly asks to trace a relationship, upstream/downstream dependency, or conflict, and the graph is fresh:
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+`--graph-depth` accepts only `1`, `2`, or `3` and defaults to `1`. Graph context never writes state; a non-fresh graph returns an explicit bounded v2 result with its state and recommended next action.
 
 ## 6. Generated Artifacts
 
@@ -349,7 +401,7 @@ Obsidian is optional. Dataview is optional. AIWiki does not edit `.obsidian`, in
 
 AIWiki reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1` without rewriting `aiwiki.yaml`. Current Agent JSON remains `aiwiki.context.v1` by default and `aiwiki.context.capsule.v1` for the capsule view. Unknown additive frontmatter remains readable; a declared unknown future major requires manual review and has no automatic migration command.
 
-See the [Schema Compatibility catalog](schema/README.md) for optional marker fields and the migration boundary. CORE-0404 exposes the declaration-only [Extension API v0.1](schema/EXTENSION_SCHEMA.md). CORE-0405 adds the explicit [Extension Host v0.1](schema/EXTENSION_HOST.md):
+See the [Schema Compatibility catalog](schema/README.md) and [Derived State v1](schema/STATE.md) for optional marker fields, the migration boundary, and removable state behavior. CORE-0404 exposes the declaration-only [Extension API v0.1](schema/EXTENSION_SCHEMA.md). CORE-0405 adds the explicit [Extension Host v0.1](schema/EXTENSION_HOST.md):
 
 ```text
 aiwiki plugin list --json

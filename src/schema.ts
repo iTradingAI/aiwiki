@@ -46,6 +46,48 @@ export const AIWIKI_SCHEMAS = {
     storage: "markdown_frontmatter",
     compatibility: "additive_fields_only"
   },
+  stateArtifacts: {
+    id: "aiwiki.state.artifacts.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  stateCapsules: {
+    id: "aiwiki.state.capsules.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  stateRelationships: {
+    id: "aiwiki.state.relationships.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  stateLifecycle: {
+    id: "aiwiki.state.lifecycle.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  stateIndex: {
+    id: "aiwiki.index.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  stateGraph: {
+    id: "aiwiki.graph.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
   context: {
     id: "aiwiki.context.v1",
     status: "active",
@@ -83,10 +125,31 @@ export const AIWIKI_SCHEMAS = {
   },
   contextV2: {
     id: "aiwiki.context.v2",
-    status: "reserved",
+    status: "active",
     aliases: [],
-    storage: "reserved",
-    compatibility: "reserved"
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  health: {
+    id: "aiwiki.health.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  healthReport: {
+    id: "aiwiki.health_report.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  repairPlan: {
+    id: "aiwiki.repair_plan.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
   },
   extension: {
     id: "aiwiki.extension.v1",
@@ -114,7 +177,7 @@ export function schemaId<K extends AiwikiSchemaKey>(key: K): (typeof AIWIKI_SCHE
 }
 
 export function assessSchemaCompatibility(key: AiwikiSchemaKey, suppliedVersion?: unknown): SchemaCompatibility {
-  const definition = AIWIKI_SCHEMAS[key];
+  const definition: AiwikiSchemaDefinition = AIWIKI_SCHEMAS[key];
   const supplied = normalizeVersion(suppliedVersion);
 
   if (definition.status === "reserved") {

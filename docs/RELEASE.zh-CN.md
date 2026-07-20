@@ -10,7 +10,7 @@
 - 只有命名的 Core 发布门槛任务可以创建 `dev` -> `main` PR：`CORE-0408`（`0.4.0`）、`CORE-0506`（`0.5.0`）、`CORE-0601`（`0.6.0`）、`CORE-0700`（`0.7.0`）和 `CORE-1000`（`1.0.0`）。
 - 控制面任务 `CORE-0000` 是一次性例外：它通过 `dev` -> `main` PR 建立本基线，但不得创建版本、标签或 npm 发布。
 - 每个 `main` PR 都必须通过 `.github/workflows/ci.yml` 中唯一命名的 `CI / verify`、解决全部讨论，并留下完成的 Codex 技术审查记录。CI 同时运行于源分支和拟合并结果；仓库维护者只在这些门禁满足后合并。
-- Core 0.4 发布门禁使用两个 PR：`task -> dev` 负责版本准备和精确 task 产物证明；只有已验证的 `dev -> main` PR 才能进入公开分支。合并后还必须通过 `main push CI` 和精确 main tarball 远端 smoke，之后才可以创建 tag。
+- Core 0.5 发布门禁使用两个 PR：`task -> dev` 负责版本准备和精确 task 产物证明；只有已验证的 `dev -> main` PR 才能进入公开分支。合并后还必须通过 `main push CI` 和精确 main tarball 远端 smoke，之后才可以创建 tag。
 
 ## 技术审核智能体
 
@@ -38,11 +38,11 @@ npm pack --dry-run
 
 npm 包只应包含 CLI 运行文件、用户文档、示例和需要打包的 skill 文件。
 
-## Core 0.4 发布门禁
+## Core 0.5 发布门禁
 
-CORE-0408 只有在包清单、已安装 consumer 和中英文文档一致时才接受 Core 0.4。`release-gate.test.ts` 与 `npm run release:check` 要求 CLI、Public API、Extension API、Schema、extension failure isolation 和完整 Skill bundle 都在包内。manifest 必须包含公开运行入口、双语 Release/Agent handoff、schema 文档、examples 及每个常规 `skill/**` 文件；必须排除 `docs/assets/`、`.omx/`、`.npm-cache/`、`Plan/`、`node_modules/`、tests 和临时 smoke 产物。
+CORE-0506 只有在包清单、已安装 consumer、Health Report 行为和中英文文档一致时才接受 Core 0.5。`release-gate.test.ts` 与 `npm run release:check` 要求 CLI、Public API、Extension API、Schema、extension failure isolation、完整 Skill bundle，以及显式的 `aiwiki health --write --json` 报告合同都在包内。报告必须输出带有 metrics 的 `aiwiki.health_report.v1`，只刷新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录，不能修改知识 Markdown 或派生 state。manifest 必须包含公开运行入口、双语 Release/Agent handoff、schema 文档、examples 及每个常规 `skill/**` 文件；必须排除 `docs/assets/`、`.omx/`、`.npm-cache/`、`Plan/`、`node_modules/`、tests 和临时 smoke 产物。
 
-CORE-0408 不增加 Pro 行为、entitlement、自动 extension discovery、自动 enable、自动 execute、schedule 或 watcher。
+CORE-0506 不增加 Pro 行为、entitlement、自动 extension discovery、自动 enable、自动 execute、schedule 或 watcher。
 
 ## Public API 包合同
 
@@ -73,7 +73,7 @@ CORE-0406 建立这套可复用的 Core 合同测试。使用 `npm run test:cont
 - `extension-api.test.ts`：仅声明的 extension 作者 API 及其包边界。
 - `schema-compatibility.test.ts`：历史 schema 可读性、只读迁移预检、未来主版本人工复核和稳定的 context schema。
 - `extension-failure-isolation.test.ts`：manifest 边界、显式启用、命令所有权和失败 extension 隔离。
-- `release-gate.test.ts`：Core 0.4 package/lockfile、JSON pack manifest、双语发布路径和对外交付边界。
+- `release-gate.test.ts`：Core 0.5 package/lockfile、JSON pack manifest、Health Report metrics 合同、双语发布路径和对外交付边界。
 
 extension 和未来 Pro 集成只能依赖上述已文档化的公开包入口与显式 Core CLI 命令面。该矩阵锁定完整打包 Skill 匹配，并禁止 extension 自动发现、自动启用和自动执行；不新增 Pro 行为。真实的可重建性合同需要后续的可重建状态模型，已延期至 `CORE-0501`；在此之前不得声称已有该覆盖。
 
@@ -111,7 +111,7 @@ git push origin v<version>
   -> 精确 task 分支的 publish dry-run
   -> npm pack 并记录 SHA-256
   -> 在远端测试服务器安装精确 tarball
-  -> 运行 Core 0.4 CLI、API、extension、Schema、Skill bundle 和 failure isolation smoke
+  -> 运行 Core 0.5 CLI、API、extension、Schema、Skill bundle、Health Report 和 failure isolation smoke
   -> 任务 PR -> dev
   -> dev merge CI / verify 和重新打包的精确 dev tarball 远端 smoke
   -> 发布门槛 PR dev -> main
@@ -126,7 +126,7 @@ git push origin v<version>
 
 远端 smoke 失败时，不得创建或合并对应 PR。应在本地修复、重新构建、重新打包并重新执行远端测试。
 
-Core 0.4 精确 tarball smoke 必须在任务专属临时 consumer 中安装经 SHA-256 校验的包，并覆盖：
+Core 0.5 精确 tarball smoke 必须在任务专属临时 consumer 中安装经 SHA-256 校验的包，并覆盖：
 
 ```bash
 aiwiki show "<主题>" --path <workspace>
@@ -139,13 +139,16 @@ aiwiki lint --capsules --path <workspace>
 aiwiki lint --lifecycle --path <workspace>
 aiwiki lint --okf --path <workspace>
 aiwiki status --path <workspace>
+aiwiki health --json --path <workspace>
+aiwiki health --write --json --path <workspace>
+aiwiki repair --plan --json --path <workspace>
 aiwiki agent sync --path <workspace> --yes --json
 aiwiki agent sync --agent codex --yes --json
 aiwiki agent check --agent codex --json
 aiwiki plugin list --json --path <workspace>
 ```
 
-远端 consumer 还必须导入 `@itradingai/aiwiki`、`/contracts`、`/extension-api`，确认内部 deep import 以 `ERR_PACKAGE_PATH_NOT_EXPORTED` 失败，逐文件比较安装包 Skill 与 Codex target bundle，并证明失败 extension 被禁用后 Core `status` 仍可用。
+远端 consumer 还必须导入 `@itradingai/aiwiki`、`/contracts`、`/extension-api`，确认内部 deep import 以 `ERR_PACKAGE_PATH_NOT_EXPORTED` 失败，逐文件比较安装包 Skill 与 Codex target bundle，证明失败 extension 被禁用后 Core `status` 仍可用，并验证 `aiwiki.health_report.v1` 包含 metrics、dashboard 与运行记录路径，且没有修改知识 Markdown 或派生 state。
 
 稳定契约：
 
@@ -160,7 +163,7 @@ aiwiki plugin list --json --path <workspace>
 AIWiki 使用 npm Trusted Publishing。工作流默认只执行验证：先从精确 task 分支运行，再从发布 PR 选定的 dev merge 运行：
 
 ```bash
-gh workflow run publish.yml --repo iTradingAI/aiwiki --ref task/CORE-0408-core-04-release -f mode=dry-run
+gh workflow run publish.yml --repo iTradingAI/aiwiki --ref task/CORE-0506-knowledge-health-release -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
 gh workflow run publish.yml --repo iTradingAI/aiwiki --ref dev -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
@@ -180,7 +183,7 @@ npm view @itradingai/aiwiki version
 npm view @itradingai/aiwiki versions --json
 ```
 
-随后在新的远端临时 consumer 中只从 registry 安装 `@itradingai/aiwiki@0.4.0`，重跑 CLI、公开 import、schema 文档和 Skill bundle 的最小 sanity。该检查未通过前不得对外宣布发布完成。
+随后在新的远端临时 consumer 中只从 registry 安装 `@itradingai/aiwiki@0.5.0`，重跑 CLI、公开 import、schema 文档、Skill bundle 和 Health Report 的最小 sanity。该检查未通过前不得对外宣布发布完成。
 
 Trusted Publishing 失败时，检查 npm Trusted Publisher 配置、仓库名、workflow 文件名和 `id-token: write` 权限。
 

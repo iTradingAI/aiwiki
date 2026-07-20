@@ -34,6 +34,11 @@ export type CoreCommandHandlers = Readonly<{
   configShow: CommandHandler;
   doctor: CommandHandler;
   status: CommandHandler;
+  rebuild: CommandHandler;
+  index: CommandHandler;
+  graph: CommandHandler;
+  health: CommandHandler;
+  repair: CommandHandler;
   context: CommandHandler;
   query: CommandHandler;
   show: CommandHandler;
@@ -87,6 +92,51 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
       id: "retrieval-help",
       matches: ({ args, command }) => (command === "context" || command === "query" || command === "show") && args.flags.has("help"),
       handle: handlers.retrievalHelp
+    },
+    {
+      id: "rebuild",
+      matches: ({ command }) => command === "rebuild",
+      handle: handlers.rebuild,
+      help: [
+        { usage: "aiwiki rebuild --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki rebuild --check --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki rebuild --dry-run --json", visibility: "public", scope: "base" }
+      ]
+    },
+    {
+      id: "index",
+      matches: ({ command }) => command === "index",
+      handle: handlers.index,
+      help: [
+        { usage: "aiwiki index build --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki index status --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki index rebuild --path <workspace> --json", visibility: "public", scope: "base" }
+      ]
+    },
+    {
+      id: "graph",
+      matches: ({ command }) => command === "graph",
+      handle: handlers.graph,
+      help: [
+        { usage: "aiwiki graph build --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki graph status --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki graph rebuild --path <workspace> --json", visibility: "public", scope: "base" }
+      ]
+    },
+    {
+      id: "health",
+      matches: ({ command }) => command === "health",
+      handle: handlers.health,
+      help: [
+        { usage: "aiwiki health --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki health --write --json", visibility: "public", scope: "base" }
+      ]
+    },
+    {
+      id: "repair",
+      matches: ({ command }) => command === "repair",
+      handle: handlers.repair,
+      help: [{ usage: "aiwiki repair --plan --json", visibility: "public", scope: "base" }]
     },
     {
       id: "plugin-help",
@@ -205,6 +255,7 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
         { usage: "aiwiki lint", visibility: "public", scope: "base" },
         { usage: "aiwiki lint --capsules --json", visibility: "public", scope: "base" },
         { usage: "aiwiki lint --strict --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki lint --maintenance --json", visibility: "public", scope: "base" },
         { usage: "aiwiki lint --fix-empty-dirs --json", visibility: "public", scope: "base" }
       ]
     },

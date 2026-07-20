@@ -78,7 +78,7 @@ test("release check exposes executable pack manifest validation", async () => {
   );
 });
 
-test("Core 0.4 release manifest and bilingual release guides expose the public delivery contract", () => {
+test("Core 0.5 release manifest and bilingual release guides expose the public delivery contract", () => {
   const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
   const lockfile = JSON.parse(readFileSync("package-lock.json", "utf8")) as { packages: Record<string, { version?: string }> };
   const packageFiles = JSON.parse(runNpm(["pack", "--dry-run", "--json", "--ignore-scripts"])) as Array<{ files?: Array<{ path?: string }> }>;
@@ -87,8 +87,8 @@ test("Core 0.4 release manifest and bilingual release guides expose the public d
   const release = readFileSync("docs/RELEASE.md", "utf8");
   const releaseZh = readFileSync("docs/RELEASE.zh-CN.md", "utf8");
 
-  assert.equal(packageJson.version, "0.4.0");
-  assert.equal(lockfile.packages[""]?.version, "0.4.0");
+  assert.equal(packageJson.version, "0.5.0");
+  assert.equal(lockfile.packages[""]?.version, "0.5.0");
   for (const required of [
     "dist/src/cli.js",
     "dist/src/public/index.js",
@@ -110,7 +110,7 @@ test("Core 0.4 release manifest and bilingual release guides expose the public d
   for (const forbiddenPrefix of ["docs/assets/", ".omx/", ".npm-cache/", "Plan/", "node_modules/", "tests/"]) {
     assert.equal(packedPaths.some((file) => file.startsWith(forbiddenPrefix)), false, `unexpected ${forbiddenPrefix}`);
   }
-  for (const [document, marker] of [[release, "Core 0.4 Release Gate"], [releaseZh, "Core 0.4 发布门禁"]] as const) {
+  for (const [document, marker] of [[release, "Core 0.5 Release Gate"], [releaseZh, "Core 0.5 发布门禁"]] as const) {
     assert.match(document, new RegExp(marker));
     assert.match(document, /task -> dev/);
     assert.match(document, /dev -> main/);
@@ -119,5 +119,8 @@ test("Core 0.4 release manifest and bilingual release guides expose the public d
     for (const contract of ["CLI", "Public API", "Extension API", "Schema", "failure isolation", "Skill bundle"]) {
       assert.match(document, new RegExp(contract, "i"));
     }
+    assert.match(document, /aiwiki health --write --json/);
+    assert.match(document, /aiwiki\.health_report\.v1/);
+    assert.match(document, /metrics/i);
   }
 });

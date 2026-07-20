@@ -10,7 +10,7 @@ This guide defines the delivery and release gates for AIWiki maintainers.
 - Only named Core release gates open a `dev` -> `main` pull request: `CORE-0408` (`0.4.0`), `CORE-0506` (`0.5.0`), `CORE-0601` (`0.6.0`), `CORE-0700` (`0.7.0`), and `CORE-1000` (`1.0.0`).
 - The control-plane task `CORE-0000` is the one-time exception that establishes this baseline with a `dev` -> `main` pull request. It must not create a version, tag, or npm publication.
 - A `main` pull request requires the uniquely named `CI / verify` check from `.github/workflows/ci.yml`, resolved conversations, and a completed Codex technical review record. CI runs on the source branch and the proposed pull request merge result. The repository maintainer merges only after those gates are satisfied.
-- Core 0.4 Release Gate uses two PRs: `task -> dev` prepares the version and proves the exact task artifact; only the verified `dev -> main` PR can enter the public branch. After that merge, the `main` push CI and an exact main tarball remote smoke must pass before the tag is created.
+- Core 0.5 Release Gate uses two PRs: `task -> dev` prepares the version and proves the exact task artifact; only the verified `dev -> main` PR can enter the public branch. After that merge, the `main` push CI and an exact main tarball remote smoke must pass before the tag is created.
 
 ## Technical Review Agent
 
@@ -38,11 +38,11 @@ npm pack --dry-run
 
 The package should contain CLI runtime files, user documentation, examples, and packaged skill files only.
 
-## Core 0.4 Release Gate
+## Core 0.5 Release Gate
 
-CORE-0408 accepts Core 0.4 only when the package manifest, installed consumer, and bilingual documentation agree. `release-gate.test.ts` and `npm run release:check` require the CLI, Public API, Extension API, Schema, extension failure isolation, and complete Skill bundle to be present in the package. The manifest must include the public runtime entries, release and Agent handoff guides in both languages, schema guides, examples, and every regular `skill/**` file. It must exclude `docs/assets/`, `.omx/`, `.npm-cache/`, `Plan/`, `node_modules/`, tests, and temporary smoke artifacts.
+CORE-0506 accepts Core 0.5 only when the package manifest, installed consumer, Health Report behavior, and bilingual documentation agree. `release-gate.test.ts` and `npm run release:check` require the CLI, Public API, Extension API, Schema, extension failure isolation, complete Skill bundle, and explicit `aiwiki health --write --json` report contract to be present in the package. The report must emit `aiwiki.health_report.v1` with metrics, refresh only the marker-bounded section of `dashboards/Knowledge Health.md`, and write an immutable JSON run record under `09-runs/` without modifying knowledge Markdown or derived state. The manifest must include the public runtime entries, release and Agent handoff guides in both languages, schema guides, examples, and every regular `skill/**` file. It must exclude `docs/assets/`, `.omx/`, `.npm-cache/`, `Plan/`, `node_modules/`, tests, and temporary smoke artifacts.
 
-CORE-0408 does not add Pro behavior, entitlement, automatic extension discovery, automatic enablement, automatic execution, schedules, or watchers.
+CORE-0506 does not add Pro behavior, entitlement, automatic extension discovery, automatic enablement, automatic execution, schedules, or watchers.
 
 ## Public API Package Contract
 
@@ -73,7 +73,7 @@ CORE-0406 establishes this reusable Core contract suite. Run it with `npm run te
 - `extension-api.test.ts`: the declaration-only extension author API and its package boundary.
 - `schema-compatibility.test.ts`: legacy schema readability, read-only migration planning, future-major manual review, and stable context schemas.
 - `extension-failure-isolation.test.ts`: manifest containment, explicit enablement, command ownership, and failed-extension isolation.
-- `release-gate.test.ts`: Core 0.4 package version/lockfile, JSON pack manifest, bilingual release path, and public delivery boundary.
+- `release-gate.test.ts`: Core 0.5 package version/lockfile, JSON pack manifest, Health Report metrics contract, bilingual release path, and public delivery boundary.
 
 Extensions and future Pro integrations may depend only on the documented public package entries and explicit Core CLI surfaces above. This matrix locks full packaged Skill matching and forbids automatic extension discovery, enablement, and execution; it adds no Pro behavior. A real rebuildability contract requires the later rebuildable state model and is deferred to `CORE-0501`; do not claim that coverage before then.
 
@@ -111,7 +111,7 @@ local verification
   -> publish dry-run on the exact task branch
   -> npm pack with a recorded SHA-256
   -> install the exact tarball on the remote test server
-  -> run Core 0.4 CLI, API, extension, Schema, Skill bundle, and failure-isolation smoke
+  -> run Core 0.5 CLI, API, extension, Schema, Skill bundle, Health Report, and failure-isolation smoke
   -> task pull request -> dev
   -> dev merge CI / verify and a freshly packed exact dev tarball remote smoke
   -> release-gate pull request dev -> main
@@ -126,7 +126,7 @@ local verification
 
 If the remote smoke fails, do not open or merge the relevant pull request. Fix locally, rebuild, repack, and rerun the remote smoke.
 
-The Core 0.4 exact-tarball smoke must install the SHA-256-verified package in a task-specific temporary consumer and exercise:
+The Core 0.5 exact-tarball smoke must install the SHA-256-verified package in a task-specific temporary consumer and exercise:
 
 ```bash
 aiwiki show "<topic>" --path <workspace>
@@ -139,13 +139,16 @@ aiwiki lint --capsules --path <workspace>
 aiwiki lint --lifecycle --path <workspace>
 aiwiki lint --okf --path <workspace>
 aiwiki status --path <workspace>
+aiwiki health --json --path <workspace>
+aiwiki health --write --json --path <workspace>
+aiwiki repair --plan --json --path <workspace>
 aiwiki agent sync --path <workspace> --yes --json
 aiwiki agent sync --agent codex --yes --json
 aiwiki agent check --agent codex --json
 aiwiki plugin list --json --path <workspace>
 ```
 
-The remote consumer must also import `@itradingai/aiwiki`, `/contracts`, and `/extension-api`, reject an internal deep import with `ERR_PACKAGE_PATH_NOT_EXPORTED`, compare every installed Skill file with the Codex target bundle, and prove that a failing extension is disabled while Core `status` still works.
+The remote consumer must also import `@itradingai/aiwiki`, `/contracts`, and `/extension-api`, reject an internal deep import with `ERR_PACKAGE_PATH_NOT_EXPORTED`, compare every installed Skill file with the Codex target bundle, prove that a failing extension is disabled while Core `status` still works, and verify that `aiwiki.health_report.v1` contains metrics plus dashboard and run paths while leaving knowledge Markdown and derived state unchanged.
 
 Expected stable contracts:
 
@@ -160,7 +163,7 @@ Expected stable contracts:
 AIWiki uses npm Trusted Publishing. The workflow defaults to verification-only mode. Run it first from the exact task branch, then again from the dev merge selected for the release PR:
 
 ```bash
-gh workflow run publish.yml --repo iTradingAI/aiwiki --ref task/CORE-0408-core-04-release -f mode=dry-run
+gh workflow run publish.yml --repo iTradingAI/aiwiki --ref task/CORE-0506-knowledge-health-release -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
 gh workflow run publish.yml --repo iTradingAI/aiwiki --ref dev -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
@@ -180,7 +183,7 @@ npm view @itradingai/aiwiki version
 npm view @itradingai/aiwiki versions --json
 ```
 
-Then create a new remote temporary consumer that installs only `@itradingai/aiwiki@0.4.0` from the registry and reruns the CLI, public import, schema-document, and Skill bundle sanity checks. Do not announce the release before this registry sanity passes.
+Then create a new remote temporary consumer that installs only `@itradingai/aiwiki@0.5.0` from the registry and reruns the CLI, public import, schema-document, Skill bundle, and Health Report sanity checks. Do not announce the release before this registry sanity passes.
 
 If Trusted Publishing fails, verify the npm Trusted Publisher settings, repository name, workflow filename, and `id-token: write` permission.
 

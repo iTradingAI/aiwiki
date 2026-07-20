@@ -168,6 +168,66 @@ aiwiki lint --okf --json
 aiwiki lint --strict --json
 ```
 
+### Review workspace health
+
+When you explicitly ask for a health review or maintenance plan, the assistant can run:
+
+```bash
+aiwiki health --json
+aiwiki health --write --json
+aiwiki repair --plan --json
+```
+
+`aiwiki.health.v1` is a read-only eight-domain snapshot. When you explicitly ask your Agent to generate or save a health report, `aiwiki health --write --json` returns `aiwiki.health_report.v1`, refreshes only the managed section of `dashboards/Knowledge Health.md`, and writes one JSON report under `09-runs/`. It does not change knowledge Markdown or derived state. `aiwiki.repair_plan.v1` remains a read-only list of evidence, affected files, risk, and suggested commands; it never runs repairs on your behalf.
+
+### Inspect your structured index
+
+Tell your assistant:
+
+```text
+Check whether my AIWiki structured index is current.
+```
+
+The assistant should inspect it without writing first:
+
+```bash
+aiwiki index status --path <workspace> --json
+```
+
+The index is a small local map of content categories, duplicate source URLs, and local wiki links. It helps an Agent report the organization of a large knowledge base, but it is not a vector database or a replacement for your Markdown files. If it is missing or outdated, `query` and `context` still work from Markdown. The assistant builds it only when you explicitly ask it to build or rebuild the index.
+
+### Inspect your relationship graph
+
+Tell your assistant:
+
+```text
+Check whether my AIWiki relationship graph is current.
+```
+
+The assistant checks it without writing first:
+
+```bash
+aiwiki graph status --path <workspace> --json
+```
+
+The relationship graph is a small local map of explicit links between your knowledge files. It records only deterministic local connections, such as a source supporting a wiki entry or a note linking to another note. It does not use an LLM to invent facts, does not replace your Markdown files, and does not change normal `context` or `query` results. If it is missing or outdated, those commands still work from Markdown; the assistant builds or rebuilds the graph only when you explicitly ask it to do so.
+
+### Trace how knowledge is related
+
+Tell your assistant:
+
+```text
+Trace the relationship between this topic and its source, including any upstream dependency or conflict.
+```
+
+When an existing relationship graph is fresh, the assistant can return the explicit graph-aware context view:
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+This produces `aiwiki.context.v2` with bounded relationship paths, evidence state, and lifecycle/risk warnings. It is used only for an explicit relationship request; ordinary context stays on `aiwiki.context.v1`. The assistant never builds or rebuilds the graph automatically for this command.
+
 ## What AIWiki Creates
 
 A successful ingest creates a traceable knowledge package:
@@ -197,6 +257,12 @@ AIWiki 0.3.0 also treats those files as one logical Source Capsule. A capsule gr
 Legacy workspace `schema_version: 1` is read as `aiwiki.workspace.v1` without rewriting the file. Default Agent JSON remains `aiwiki.context.v1` and capsule view remains `aiwiki.context.capsule.v1`; declared unknown future majors require manual review. See the [Schema Compatibility catalog](docs/schema/README.md).
 
 CORE-0403 does not change existing Skill matching. CORE-0407 owns the future matching contract, including precedence, fallback, and acceptance tests.
+
+The structured index uses the additive `aiwiki.index.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. See [Derived State v1](docs/schema/STATE.md).
+
+The relationship graph uses the additive `aiwiki.graph.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. Its separately requested graph-aware view is `aiwiki.context.v2`, with `--graph-depth` limited to `1`, `2`, or `3`. See [Derived State v1](docs/schema/STATE.md).
+
+The additive `aiwiki.health.v1` and `aiwiki.repair_plan.v1` JSON contracts remain read-only in Core: health reports risks and repair only proposes reviewed next steps. `aiwiki.health_report.v1` is available only through the explicit `aiwiki health --write --json` report-generation path; it refreshes the managed dashboard section and stores an immutable JSON run record without changing knowledge Markdown or derived state.
 
 See:
 

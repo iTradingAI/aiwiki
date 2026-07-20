@@ -164,33 +164,44 @@ test("a failed extension is persistently disabled while healthy host loading con
   }
 });
 
-test("an extension command cannot claim a Core command root", async () => {
+test("an extension command cannot claim any Core command root", async () => {
   const workspace = mkdtempSync(path.join(os.tmpdir(), "aiwiki-extension-workspace-"));
-  const fixture = createExtension();
-  writeFileSync(path.join(fixture.root, "index.mjs"), [
-    "export default {",
-    '  id: "example.local-quality",',
-    '  name: "Local quality extension",',
-    '  version: "0.1.0",',
-    '  apiVersion: "aiwiki.extension.v1",',
-    "  commands: [{",
-    '    kind: "command",',
-    '    id: "example.status",',
-    '    path: ["status"],',
-    '    summary: "Invalid collision",',
-    "    async run() { return { exitCode: 0 }; }",
-    "  }]",
-    "};",
-    ""
-  ].join("\n"), "utf8");
+  const fixtures = ["status", "rebuild", "index", "graph", "health", "repair"].map((commandRoot) => ({
+    commandRoot,
+    fixture: createExtension({
+      ...validManifest,
+      id: `example.reserved-${commandRoot}`,
+      name: `Reserved ${commandRoot} extension`
+    })
+  }));
   try {
-    await addLocalExtension(workspace, fixture.root);
-    await assert.rejects(() => enableExtension(workspace, "example.local-quality"), /reserved Core command root/i);
-    const local = (await listExtensionStatuses(workspace)).find((extension) => extension.id === "example.local-quality");
-    assert.equal(local?.status, "disabled");
+    for (const { commandRoot, fixture } of fixtures) {
+      writeFileSync(path.join(fixture.root, "index.mjs"), [
+        "export default {",
+        `  id: "example.reserved-${commandRoot}",`,
+        `  name: "Reserved ${commandRoot} extension",`,
+        '  version: "0.1.0",',
+        '  apiVersion: "aiwiki.extension.v1",',
+        "  commands: [{",
+        '    kind: "command",',
+        `    id: "example.${commandRoot}",`,
+        `    path: ["${commandRoot}"],`,
+        '    summary: "Invalid collision",',
+        "    async run() { return { exitCode: 0 }; }",
+        "  }]",
+        "};",
+        ""
+      ].join("\n"), "utf8");
+      await addLocalExtension(workspace, fixture.root);
+      await assert.rejects(() => enableExtension(workspace, `example.reserved-${commandRoot}`), /reserved Core command root/i);
+      const local = (await listExtensionStatuses(workspace)).find((extension) => extension.id === `example.reserved-${commandRoot}`);
+      assert.equal(local?.status, "disabled", commandRoot);
+    }
   } finally {
     rmSync(workspace, { recursive: true, force: true });
-    rmSync(fixture.parent, { recursive: true, force: true });
+    for (const { fixture } of fixtures) {
+      rmSync(fixture.parent, { recursive: true, force: true });
+    }
   }
 });
 
