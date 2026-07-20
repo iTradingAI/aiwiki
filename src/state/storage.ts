@@ -145,10 +145,22 @@ function sameSemanticProjection(left: RebuildProjection, right: RebuildProjectio
 
 function toSemanticValue(projection: RebuildProjection): unknown {
   return {
-    artifacts: projection.artifacts.data.map(({ modified_at: _modifiedAt, ...artifact }) => artifact),
-    capsules: projection.capsules.data,
-    lifecycle: projection.lifecycle.data,
-    relationships: projection.relationships.data
+    artifacts: {
+      summary: projection.artifacts.summary,
+      data: projection.artifacts.data.map(({ modified_at: _modifiedAt, ...artifact }) => artifact)
+    },
+    capsules: {
+      summary: projection.capsules.summary,
+      data: projection.capsules.data
+    },
+    lifecycle: {
+      summary: projection.lifecycle.summary,
+      data: projection.lifecycle.data
+    },
+    relationships: {
+      summary: projection.relationships.summary,
+      data: projection.relationships.data
+    }
   };
 }
 

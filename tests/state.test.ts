@@ -324,6 +324,14 @@ test("state storage classifies missing invalid and stale projections without wri
     await writeStoredProjection(root, expected);
     assert.equal(await compareStoredProjection(root, expected), "current");
 
+    const capsulesPath = path.join(root, ".aiwiki", "state", "capsules.json");
+    const capsules = JSON.parse(await readFile(capsulesPath, "utf8")) as { summary: { total: number } };
+    capsules.summary.total += 1;
+    await writeFile(capsulesPath, JSON.stringify(capsules), "utf8");
+    assert.equal(await compareStoredProjection(root, expected), "invalid");
+
+    await writeStoredProjection(root, expected);
+
     const artifactsPath = path.join(root, ".aiwiki", "state", "artifacts.json");
     const artifacts = JSON.parse(await readFile(artifactsPath, "utf8")) as { snapshot_id: string };
     artifacts.snapshot_id = "tampered";
