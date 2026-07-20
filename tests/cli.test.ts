@@ -29,6 +29,7 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.match(text, /aiwiki ingest-file --file <file>/);
   assert.match(text, /aiwiki show <query>/);
   assert.match(text, /aiwiki context <query>/);
+  assert.match(text, /aiwiki context <query> --view graph --graph-depth 1/);
   assert.match(text, /aiwiki query <query>/);
   assert.match(text, /aiwiki lint/);
   assert.match(text, /aiwiki rebuild --path <workspace> --json/);
@@ -225,6 +226,73 @@ test("CLI graph exposes explicit build status and rebuild without changing Markd
     const invalidError = new MemoryWritable();
     assert.equal(await runCli(["graph", "unknown", "--path", root], { stdout: new MemoryWritable(), stderr: invalidError }), 1);
     assert.match(invalidError.text(), /graph expects build, status, or rebuild/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI graph context emits v2 only for the explicit graph view", async () => {
+  const root = await tempRoot("aiwiki-cli-graph-context");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await mkdir(path.join(root, "02-raw", "articles"), { recursive: true });
+    await mkdir(path.join(root, "05-wiki", "source-knowledge"), { recursive: true });
+    await writeFile(path.join(root, "02-raw", "articles", "source.md"), [
+      "---",
+      'type: "raw_article"',
+      'title: "Source Evidence"',
+      'capsule_id: "source-capsule"',
+      "---",
+      "",
+      "Source body"
+    ].join("\n"), "utf8");
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "graph-context.md"), [
+      "---",
+      'type: "wiki_entry"',
+      'title: "Graph Context"',
+      'capsule_id: "graph-capsule"',
+      "relationships:",
+      '  - type: "derives_from"',
+      '    target: "02-raw/articles/source.md"',
+      "---",
+      "",
+      "Graph Context body"
+    ].join("\n"), "utf8");
+
+    const defaultOutput = new MemoryWritable();
+    assert.equal(await runCli(["context", "Graph Context", "--path", root], { stdout: defaultOutput, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(defaultOutput.text()) as { schema_version: string }).schema_version, "aiwiki.context.v1");
+    const capsuleOutput = new MemoryWritable();
+    assert.equal(await runCli(["context", "Graph Context", "--view", "capsule", "--path", root], { stdout: capsuleOutput, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(capsuleOutput.text()) as { schema_version: string }).schema_version, "aiwiki.context.capsule.v1");
+
+    const invalidGraphContextCalls: Array<{ argv: string[]; expected: RegExp }> = [
+      { argv: ["context", "Graph Context", "--graph-depth", "1", "--path", root], expected: /graph-depth requires context --view graph/ },
+      { argv: ["context", "Graph Context", "--view", "graph", "--graph-depth", "0", "--path", root], expected: /graph-depth must be an integer from 1 to 3/ },
+      { argv: ["context", "Graph Context", "--view", "graph", "--capsules", "--path", root], expected: /context --view graph cannot be combined with --capsules/ }
+    ];
+    for (const { argv, expected } of invalidGraphContextCalls) {
+      const stderr = new MemoryWritable();
+      assert.equal(await runCli(argv, { stdout: new MemoryWritable(), stderr }), 1);
+      assert.match(stderr.text(), expected);
+    }
+    assert.equal(await runCli(["graph", "build", "--path", root, "--json"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+
+    const output = new MemoryWritable();
+    assert.equal(await runCli(["context", "Graph Context", "--view", "graph", "--graph-depth", "1", "--path", root], { stdout: output, stderr: new MemoryWritable() }), 0);
+    const parsed = JSON.parse(output.text()) as {
+      schema_version: string;
+      query_scope: { view: string; graph_depth: number };
+      graph: { state: string };
+      relationships: Array<{ target: { path?: string }; relationship_path: Array<{ type: string; traversal: string }> }>;
+    };
+    assert.equal(parsed.schema_version, "aiwiki.context.v2");
+    assert.equal(parsed.query_scope.view, "graph");
+    assert.equal(parsed.query_scope.graph_depth, 1);
+    assert.equal(parsed.graph.state, "fresh");
+    assert.ok(parsed.relationships.some((item) => item.target.path === "02-raw/articles/source.md"
+      && item.relationship_path[0]?.type === "derives_from"
+      && item.relationship_path[0]?.traversal === "outbound"));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -484,6 +552,9 @@ test("agent and context help explain sync and filters", async () => {
   assert.equal(await runCli(["context", "--help"], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
   assert.match(contextOut.text(), /aiwiki show <topic>/);
   assert.match(contextOut.text(), /--view capsule/);
+  assert.match(contextOut.text(), /--view graph --graph-depth 1/);
+  assert.match(contextOut.text(), /Default and capsule context JSON/);
+  assert.match(contextOut.text(), /Graph context is explicit and read-only/);
   assert.match(contextOut.text(), /--source-role/);
   assert.match(contextOut.text(), /result_quality/);
 });
@@ -534,7 +605,8 @@ test("documentation, Skill, prompt, and workspace guidance share the Core intent
     "aiwiki context",
     "aiwiki lint --json",
     "aiwiki lint --fix-empty-dirs --json",
-    "aiwiki graph status --path <workspace> --json"
+    "aiwiki graph status --path <workspace> --json",
+    "aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>"
   ];
 
   assert.match(handoff, /Core Intent Matrix/);
@@ -566,6 +638,7 @@ test("documentation, Skill, prompt, and workspace guidance share the Core intent
     "recommended_next_action",
     "aiwiki lint --json",
     "aiwiki graph status --path <workspace> --json",
+    "aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>",
     "aiwiki prompt agent",
     "fallback"
   ]) {

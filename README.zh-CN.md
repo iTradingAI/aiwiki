@@ -196,6 +196,22 @@ aiwiki graph status --path <workspace> --json
 
 关系图是一份小型本地关系图，记录知识文件之间已经明确存在的连接，例如资料支持某个 Wiki 条目、或一个笔记链接到另一个笔记。它只记录确定性的本地关系，不会用 LLM 编造事实，不会替代 Markdown 文件，也不改变日常 `context` 或 `query` 结果。关系图缺失或过期时，这些命令仍可直接从 Markdown 工作；只有你明确要求构建或重建关系图时，助手才会写入它。
 
+### 追溯知识之间的关系
+
+对 AI 助手说：
+
+```text
+帮我追溯这个主题和它的资料之间有什么关系，包括上游依赖或冲突。
+```
+
+当已有关系图是 fresh 时，助手可以返回显式的关系图上下文 view：
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+这个命令会返回 `aiwiki.context.v2`，包含受限的关系路径、evidence 状态和生命周期/风险提示。只有明确的关系追溯请求才使用它；日常 context 仍保持 `aiwiki.context.v1`。助手不会因为这个命令自动构建或重建关系图。
+
 ## AIWiki 会生成什么
 
 一次成功入库会生成一组可追踪的知识文件：
@@ -219,6 +235,16 @@ aiwiki graph status --path <workspace> --json
 Wiki Entry 是主要复用层；Raw 和 Source Card 保留来源和追踪关系，方便以后回查。
 
 AIWiki 0.3.0 还会把这些文件视为一个逻辑 Source Capsule。一个 capsule 会把同一来源的 Wiki Entry、Source Card、Raw、可选建议文件和运行记录组织在一起。新生成文件会增加 `capsule_id`、`artifact_role`、`visibility`、生命周期状态、关系字段和 OKF-ready 字段。旧知识库不需要批量迁移；AIWiki 会从现有 Markdown 目录推断 capsule。
+
+## Schema 兼容性
+
+旧工作区的 `schema_version: 1` 会在不重写文件的前提下读取为 `aiwiki.workspace.v1`。默认 Agent JSON 仍是 `aiwiki.context.v1`，capsule view 仍是 `aiwiki.context.capsule.v1`；已启用的显式关系图 view 是 `aiwiki.context.v2`。未知的未来 major 需要人工审查。详见[Schema 兼容目录](docs/schema/README.zh-CN.md)。
+
+CORE-0403 不改变既有 Skill 匹配。CORE-0407 约束匹配优先级、fallback 和验收测试。
+
+结构化索引使用附加的 `aiwiki.index.v1` 元数据合同。它需显式构建、可删除，并且不改变默认 `aiwiki.context.v1` 检索输出。详见[派生状态 v1](docs/schema/STATE.zh-CN.md)。
+
+关系图使用附加的 `aiwiki.graph.v1` 元数据合同。它需显式构建、可删除，并且不改变默认 `aiwiki.context.v1` 检索输出。单独明确请求的关系图 view 是 `aiwiki.context.v2`，`--graph-depth` 只能是 `1`、`2` 或 `3`。详见[派生状态 v1](docs/schema/STATE.zh-CN.md)。
 
 可直接查看：
 

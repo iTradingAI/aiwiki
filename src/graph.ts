@@ -73,6 +73,11 @@ export type RelationshipGraphStatus = {
   file: ".aiwiki/state/graph.json";
 };
 
+export type RelationshipGraphRead = {
+  status: RelationshipGraphStatus;
+  graph?: RelationshipGraph;
+};
+
 const GRAPH_RELATIVE_PATH = [".aiwiki", "state", "graph.json"] as const;
 const WIKILINK_PATTERN = /\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/g;
 const GENERATED_RELATIONSHIPS: ReadonlyArray<{ key: string; type: RelationshipType }> = [
@@ -96,6 +101,10 @@ export async function buildRelationshipGraph(rootPath: string, now = new Date().
 }
 
 export async function inspectRelationshipGraph(rootPath: string): Promise<RelationshipGraphStatus> {
+  return (await readRelationshipGraph(rootPath)).status;
+}
+
+export async function readRelationshipGraph(rootPath: string): Promise<RelationshipGraphRead> {
   const root = path.resolve(rootPath);
   const sourceSnapshotId = (await buildRebuildProjection(root)).snapshotId;
   let graph: RelationshipGraph | undefined;
@@ -103,18 +112,18 @@ export async function inspectRelationshipGraph(rootPath: string): Promise<Relati
     graph = await readGraph(root);
   } catch (error) {
     if (error instanceof GraphStorageError) {
-      return statusFor("invalid", sourceSnapshotId, emptySummary());
+      return { status: statusFor("invalid", sourceSnapshotId, emptySummary()) };
     }
     throw error;
   }
 
   if (!graph) {
-    return statusFor("missing", sourceSnapshotId, emptySummary());
+    return { status: statusFor("missing", sourceSnapshotId, emptySummary()) };
   }
   if (graph.source_snapshot_id !== sourceSnapshotId) {
-    return statusFor("stale", sourceSnapshotId, graph.summary, graph.source_snapshot_id);
+    return { status: statusFor("stale", sourceSnapshotId, graph.summary, graph.source_snapshot_id) };
   }
-  return statusFor("fresh", sourceSnapshotId, graph.summary, graph.source_snapshot_id);
+  return { status: statusFor("fresh", sourceSnapshotId, graph.summary, graph.source_snapshot_id), graph };
 }
 
 async function buildGraph(root: string, now: string): Promise<RelationshipGraph> {

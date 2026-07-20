@@ -200,6 +200,22 @@ aiwiki graph status --path <workspace> --json
 
 The relationship graph is a small local map of explicit links between your knowledge files. It records only deterministic local connections, such as a source supporting a wiki entry or a note linking to another note. It does not use an LLM to invent facts, does not replace your Markdown files, and does not change normal `context` or `query` results. If it is missing or outdated, those commands still work from Markdown; the assistant builds or rebuilds the graph only when you explicitly ask it to do so.
 
+### Trace how knowledge is related
+
+Tell your assistant:
+
+```text
+Trace the relationship between this topic and its source, including any upstream dependency or conflict.
+```
+
+When an existing relationship graph is fresh, the assistant can return the explicit graph-aware context view:
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+This produces `aiwiki.context.v2` with bounded relationship paths, evidence state, and lifecycle/risk warnings. It is used only for an explicit relationship request; ordinary context stays on `aiwiki.context.v1`. The assistant never builds or rebuilds the graph automatically for this command.
+
 ## What AIWiki Creates
 
 A successful ingest creates a traceable knowledge package:
@@ -232,7 +248,7 @@ CORE-0403 does not change existing Skill matching. CORE-0407 owns the future mat
 
 The structured index uses the additive `aiwiki.index.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. See [Derived State v1](docs/schema/STATE.md).
 
-The relationship graph uses the additive `aiwiki.graph.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output or add `--graph-depth`. See [Derived State v1](docs/schema/STATE.md).
+The relationship graph uses the additive `aiwiki.graph.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. Its separately requested graph-aware view is `aiwiki.context.v2`, with `--graph-depth` limited to `1`, `2`, or `3`. See [Derived State v1](docs/schema/STATE.md).
 
 See:
 

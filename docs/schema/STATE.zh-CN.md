@@ -82,4 +82,10 @@ aiwiki graph rebuild --path <workspace> --json
 
 其 `aiwiki.graph.v1` envelope 记录由 Markdown 派生的 `source_snapshot_id`、稳定的 artifact/capsule 节点、有类型的确定性边和无法解析 target 的诊断。`graph status` 为只读操作，报告 `fresh`、`missing`、`stale` 或 `invalid`；只有 `fresh` 的退出码为 0。`graph build` 和 `graph rebuild` 在持有 `.aiwiki/locks/graph.lock` 时原子写入，且只写入 `graph.json`。
 
-不要自动构建或重建关系图，也不要从 query、context、show、lint、status、ingest 或泛化维护流程推断关系图操作。关系图缺失、过期或损坏时，仍可直接从 Markdown 检索。关系图不改变 `aiwiki.context.v1`；graph-aware Context v2 是后续显式 opt-in 能力。
+不要自动构建或重建关系图，也不要从 query、context、show、lint、status、ingest 或泛化维护流程推断关系图操作。关系图缺失、过期或损坏时，仍可直接从 Markdown 检索。关系图不改变 `aiwiki.context.v1`。`aiwiki.context.v2` 是显式的关系图上下文视图；只有在用户明确要求追溯关系、上游/下游依赖或冲突，且关系图已经是 fresh 时，才使用：
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+`--graph-depth` 只接受 `1`、`2` 或 `3`，默认是 `1`。Context v2 不会构建或重建关系图元数据；关系图缺失、过期或损坏时，仍返回受限的 v2 结果，并说明状态和下一步。

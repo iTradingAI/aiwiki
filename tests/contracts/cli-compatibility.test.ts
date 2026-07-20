@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -50,7 +50,7 @@ function runInstalledCliResult(consumerRoot: string, args: string[]): RunResult 
   return runResult(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", ["node_modules\\.bin\\aiwiki.cmd", ...args].join(" ")], consumerRoot);
 }
 
-test("packed CLI preserves Core command and schema compatibility", () => {
+test("packed CLI preserves Core command and Context view compatibility", () => {
   const repositoryRoot = process.cwd();
   const consumerRoot = mkdtempSync(path.join(os.tmpdir(), "aiwiki-cli-contract-"));
   const vaultPath = "vault";
@@ -66,6 +66,69 @@ test("packed CLI preserves Core command and schema compatibility", () => {
     assert.equal(existsSync(cliPath), true, "installed package did not create the aiwiki bin");
     assert.equal(runInstalledCli(consumerRoot, ["--version"]).trim(), `aiwiki ${packageVersion}`);
     runInstalledCli(consumerRoot, ["init", "--path", vaultPath, "--yes"]);
+
+    const vaultRoot = path.join(consumerRoot, vaultPath);
+    const graphPath = path.join(vaultRoot, ".aiwiki", "state", "graph.json");
+    mkdirSync(path.join(vaultRoot, "02-raw", "articles"), { recursive: true });
+    mkdirSync(path.join(vaultRoot, "05-wiki", "source-knowledge"), { recursive: true });
+    writeFileSync(path.join(vaultRoot, "02-raw", "articles", "source.md"), [
+      "---",
+      'type: "raw_article"',
+      'title: "Source Evidence"',
+      'capsule_id: "source-evidence"',
+      "---",
+      "",
+      "Source evidence"
+    ].join("\n"), "utf8");
+    writeFileSync(path.join(vaultRoot, "05-wiki", "source-knowledge", "graph-contract.md"), [
+      "---",
+      'type: "wiki_entry"',
+      'title: "Graph Contract"',
+      'capsule_id: "contract-graph"',
+      "relationships:",
+      '  - type: "derives_from"',
+      '    target: "02-raw/articles/source.md"',
+      "---",
+      "",
+      "Graph contract entry"
+    ].join("\n"), "utf8");
+
+    const graphMissing = JSON.parse(runInstalledCli(consumerRoot, ["context", "Graph Contract", "--view", "graph", "--path", vaultPath])) as { schema_version: string; graph: { state: string }; relationships: unknown[]; recommended_next_action: string };
+    assert.equal(graphMissing.schema_version, "aiwiki.context.v2");
+    assert.equal(graphMissing.graph.state, "missing");
+    assert.deepEqual(graphMissing.relationships, []);
+    assert.equal(graphMissing.recommended_next_action, "inspect_or_build_graph_explicitly");
+    assert.equal(existsSync(graphPath), false);
+
+    const graphBuild = JSON.parse(runInstalledCli(consumerRoot, ["graph", "build", "--json", "--path", vaultPath])) as { action: string };
+    assert.equal(graphBuild.action, "built");
+    const graphContext = JSON.parse(runInstalledCli(consumerRoot, ["context", "Graph Contract", "--view", "graph", "--graph-depth", "1", "--path", vaultPath])) as {
+      schema_version: string;
+      graph: { state: string };
+      relationships: Array<{ target: { path?: string }; relationship_path: Array<{ type: string; traversal: string }> }>;
+    };
+    assert.equal(graphContext.schema_version, "aiwiki.context.v2");
+    assert.equal(graphContext.graph.state, "fresh");
+    assert.ok(graphContext.relationships.some((item) => item.target.path === "02-raw/articles/source.md"
+      && item.relationship_path[0]?.type === "derives_from"
+      && item.relationship_path[0]?.traversal === "outbound"));
+
+    const freshGraph = readFileSync(graphPath, "utf8");
+    mkdirSync(path.join(vaultRoot, "07-topics", "ready"), { recursive: true });
+    writeFileSync(path.join(vaultRoot, "07-topics", "ready", "stale.md"), "# Stale graph\n", "utf8");
+    const graphStale = JSON.parse(runInstalledCli(consumerRoot, ["context", "Graph Contract", "--view", "graph", "--path", vaultPath])) as { graph: { state: string }; relationships: unknown[] };
+    assert.equal(graphStale.graph.state, "stale");
+    assert.deepEqual(graphStale.relationships, []);
+    assert.equal(readFileSync(graphPath, "utf8"), freshGraph);
+
+    writeFileSync(graphPath, "not json\n", "utf8");
+    const graphInvalid = JSON.parse(runInstalledCli(consumerRoot, ["context", "Graph Contract", "--view", "graph", "--path", vaultPath])) as { graph: { state: string }; relationships: unknown[] };
+    assert.equal(graphInvalid.graph.state, "invalid");
+    assert.deepEqual(graphInvalid.relationships, []);
+    assert.equal(readFileSync(graphPath, "utf8"), "not json\n");
+    const invalidGraphDepth = runInstalledCliResult(consumerRoot, ["context", "Graph Contract", "--graph-depth", "1", "--path", vaultPath]);
+    assert.equal(invalidGraphDepth.status, 1);
+    assert.match(invalidGraphDepth.stderr, /graph-depth requires context --view graph/);
 
     const context = JSON.parse(runInstalledCli(consumerRoot, ["context", "contract", "--path", vaultPath])) as { schema_version: string };
     const capsule = JSON.parse(runInstalledCli(consumerRoot, ["context", "contract", "--view", "capsule", "--path", vaultPath])) as { schema_version: string };
@@ -93,6 +156,7 @@ test("packed CLI preserves Core command and schema compatibility", () => {
     for (const command of [
       "aiwiki setup",
       "aiwiki context <query>",
+      "aiwiki context <query> --view graph --graph-depth 1",
       "aiwiki index build --path <workspace> --json",
       "aiwiki index status --path <workspace> --json",
       "aiwiki index rebuild --path <workspace> --json",

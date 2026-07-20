@@ -317,7 +317,13 @@ aiwiki graph build --path <workspace> --json
 aiwiki graph rebuild --path <workspace> --json
 ```
 
-Use `graph status` only when the user explicitly asks whether the relationship graph is current. It reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. Run `graph build` or `graph rebuild` only when the user explicitly asks to write graph metadata. Do not automatically build or rebuild the graph from query, context, show, lint, status, ingest, or generic maintenance work. Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. This command does not change `aiwiki.context.v1` and does not add `--graph-depth`.
+Use `graph status` only when the user explicitly asks whether the relationship graph is current. It reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. Run `graph build` or `graph rebuild` only when the user explicitly asks to write graph metadata. Do not automatically build or rebuild the graph from query, context, show, lint, status, ingest, or generic maintenance work. Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph does not change default `aiwiki.context.v1`. Use `aiwiki.context.v2` only when the user explicitly asks to trace a relationship, upstream/downstream dependency, or conflict, and the graph is fresh:
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+`--graph-depth` accepts only `1`, `2`, or `3` and defaults to `1`. Graph context never writes state; a non-fresh graph returns an explicit bounded v2 result with its state and recommended next action.
 
 ## 6. Generated Artifacts
 

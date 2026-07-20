@@ -22,7 +22,8 @@ test("schema catalog keeps active v1 contracts and activates the extension contr
   assert.equal(AIWIKI_SCHEMAS.stateGraph.id, "aiwiki.graph.v1");
   assert.equal(AIWIKI_SCHEMAS.stateGraph.status, "active");
   assert.equal(AIWIKI_SCHEMAS.stateGraph.storage, "json_output");
-  assert.equal(AIWIKI_SCHEMAS.contextV2.status, "reserved");
+  assert.equal(AIWIKI_SCHEMAS.contextV2.status, "active");
+  assert.equal(AIWIKI_SCHEMAS.contextV2.storage, "json_output");
   assert.equal(AIWIKI_SCHEMAS.extension.id, "aiwiki.extension.v1");
   assert.equal(AIWIKI_SCHEMAS.extension.status, "active");
   assert.equal(AIWIKI_SCHEMAS.extension.storage, "extension_contract");

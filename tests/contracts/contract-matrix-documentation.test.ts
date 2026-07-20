@@ -106,7 +106,7 @@ test("structured index documentation keeps metadata explicit and Markdown retrie
   assert.match(readmeZh, /不是向量数据库/);
 });
 
-test("relationship graph documentation keeps graph writes explicit and Context v1 independent", async () => {
+test("graph-aware context documentation keeps v2 opt-in while Context v1 remains independent", async () => {
   const [state, stateZh, usage, usageZh, handoff, handoffZh, skill, readme, readmeZh] = await Promise.all([
     readFile("docs/schema/STATE.md", "utf8"),
     readFile("docs/schema/STATE.zh-CN.md", "utf8"),
@@ -125,6 +125,9 @@ test("relationship graph documentation keeps graph writes explicit and Context v
     assert.match(document, /aiwiki graph rebuild --path <workspace> --json/);
     assert.match(document, /Do not automatically build or rebuild the graph/i);
     assert.match(document, /Markdown-backed retrieval remains available/i);
+    assert.match(document, /aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>/);
+    assert.match(document, /aiwiki\.context\.v2/);
+    assert.match(document, /only when the user explicitly asks.*relationship/i);
   }
   for (const document of [stateZh, usageZh, handoffZh]) {
     assert.match(document, /aiwiki graph status --path <workspace> --json/);
@@ -132,11 +135,16 @@ test("relationship graph documentation keeps graph writes explicit and Context v
     assert.match(document, /aiwiki graph rebuild --path <workspace> --json/);
     assert.match(document, /不要自动构建或重建关系图/);
     assert.match(document, /仍可直接从 Markdown 检索/);
+    assert.match(document, /aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>/);
+    assert.match(document, /aiwiki\.context\.v2/);
+    assert.match(document, /只有在用户明确要求.*关系/);
   }
   assert.match(state, /aiwiki\.graph\.v1/);
   assert.match(state, /does not change `aiwiki\.context\.v1`/i);
+  assert.match(state, /`aiwiki\.context\.v2` is an explicit graph-aware context view/i);
   assert.match(stateZh, /aiwiki\.graph\.v1/);
   assert.match(stateZh, /不改变 `aiwiki\.context\.v1`/);
+  assert.match(stateZh, /`aiwiki\.context\.v2` 是显式的关系图上下文视图/);
   assert.match(readme, /relationship graph/i);
   assert.match(readmeZh, /关系图/);
 });

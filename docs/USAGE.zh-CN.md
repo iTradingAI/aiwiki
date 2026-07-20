@@ -249,7 +249,13 @@ aiwiki graph build --path <workspace> --json
 aiwiki graph rebuild --path <workspace> --json
 ```
 
-只有用户明确要求确认关系图是否最新时才使用 `graph status`。它会报告 `fresh`、`missing`、`stale` 或 `invalid`；只有 `fresh` 的退出码为 0。只有用户明确要求写入关系图元数据时，才运行 `graph build` 或 `graph rebuild`。不要自动构建或重建关系图，也不要从 query、context、show、lint、status、ingest 或泛化维护请求推断关系图操作。关系图缺失、过期或损坏时，仍可直接从 Markdown 检索。该命令不改变 `aiwiki.context.v1`，也不新增 `--graph-depth`。
+只有用户明确要求确认关系图是否最新时才使用 `graph status`。它会报告 `fresh`、`missing`、`stale` 或 `invalid`；只有 `fresh` 的退出码为 0。只有用户明确要求写入关系图元数据时，才运行 `graph build` 或 `graph rebuild`。不要自动构建或重建关系图，也不要从 query、context、show、lint、status、ingest 或泛化维护请求推断关系图操作。关系图缺失、过期或损坏时，仍可直接从 Markdown 检索。关系图不改变默认的 `aiwiki.context.v1`。`aiwiki.context.v2` 只有在用户明确要求追溯关系、上游/下游依赖或冲突，并且关系图是 fresh 时才使用：
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+`--graph-depth` 只接受 `1`、`2` 或 `3`，默认是 `1`。图上下文不会写入 state；关系图不是 fresh 时，返回受限的 v2 结果，明确说明状态和建议的下一步。
 
 ## 6. 生成的文件
 
