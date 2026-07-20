@@ -295,6 +295,18 @@ aiwiki rebuild --path <workspace> --json
 
 `--dry-run` previews the current Markdown-derived snapshot without writing. `--check` exits 1 for missing, stale, or invalid state. The default command writes only the four removable files under `.aiwiki/state/`; it does not modify Markdown. If another rebuild is active, report the lock conflict and wait rather than deleting the lock. Deleting state is safe because it can be explicitly rebuilt later. See [Derived State v1](schema/STATE.md).
 
+### Inspect Or Rebuild The Structured Index
+
+The structured index is a removable local metadata file for artifact categories, source-URL duplication signals, and resolved local wiki links. It is not semantic search or a vector index, and it does not replace the Markdown records used by `query` and `context`.
+
+```bash
+aiwiki index status --path <workspace> --json
+aiwiki index build --path <workspace> --json
+aiwiki index rebuild --path <workspace> --json
+```
+
+Use `index status` only when the user explicitly asks whether the index is current. It reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. Run `index build` or `index rebuild` only when the user explicitly asks to write the metadata. Do not automatically build or rebuild the index from query, context, show, lint, status, ingest, or generic maintenance work. Markdown-backed retrieval remains available when the index is missing, stale, or invalid.
+
 ## 6. Generated Artifacts
 
 Core artifacts:

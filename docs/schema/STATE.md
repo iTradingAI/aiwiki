@@ -55,3 +55,17 @@ aiwiki rebuild --dry-run --json
 - It is safe to delete `.aiwiki/state/` and run an explicit rebuild later. Context, capsule context, show, lint, and status continue to read Markdown when state is missing.
 
 Ask an Agent to use rebuild only when the user explicitly asks to inspect or rebuild derived state. Normal query, context, show, lint, and status flows do not require a rebuild first.
+
+## Structured Index
+
+`.aiwiki/state/index.json` is an independent, removable structured-index file. `aiwiki rebuild` does not create, update, or validate it; use the explicit `aiwiki index` commands instead.
+
+```bash
+aiwiki index status --path <workspace> --json
+aiwiki index build --path <workspace> --json
+aiwiki index rebuild --path <workspace> --json
+```
+
+Its `aiwiki.index.v1` envelope records a Markdown-derived `source_snapshot_id`, vault-relative artifact records, category counts, source-URL duplication counts, and resolved local wiki links. It is not semantic or vector search and stores no Markdown body, body preview, absolute path, external URL target, or embedding.
+
+`index status` is read-only and reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. `index build` and `index rebuild` write atomically while holding `.aiwiki/locks/index.lock`; they do not modify Markdown or the four rebuild snapshots. Do not automatically build or rebuild the index from query, context, show, lint, status, ingest, or generic maintenance flows. Markdown-backed retrieval remains available when the index is missing, stale, or invalid.

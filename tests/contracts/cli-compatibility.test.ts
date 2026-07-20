@@ -72,6 +72,9 @@ test("packed CLI preserves Core command and schema compatibility", () => {
     const plugins = JSON.parse(runInstalledCli(consumerRoot, ["plugin", "list", "--json", "--path", vaultPath])) as { extensions: Array<{ id: string; source: string; status: string }> };
     const help = runInstalledCli(consumerRoot, ["--help"]);
     const rebuildHelp = runInstalledCli(consumerRoot, ["rebuild", "--help"]);
+    const indexHelp = runInstalledCli(consumerRoot, ["index", "--help"]);
+    const indexBuild = JSON.parse(runInstalledCli(consumerRoot, ["index", "build", "--json", "--path", vaultPath])) as { schema_version: string; action: string };
+    const indexStatus = JSON.parse(runInstalledCli(consumerRoot, ["index", "status", "--json", "--path", vaultPath])) as { schema_version: string; state: string };
     const unknown = runInstalledCliResult(consumerRoot, ["not-a-command", "--path", vaultPath]);
     const packageRoot = path.join(consumerRoot, "node_modules", "@itradingai", "aiwiki");
 
@@ -83,12 +86,29 @@ test("packed CLI preserves Core command and schema compatibility", () => {
     );
     assert.equal(unknown.status, 1);
     assert.match(unknown.stderr, /未知命令: not-a-command/);
-    for (const command of ["aiwiki setup", "aiwiki context <query>", "aiwiki plugin list --json", "aiwiki plugin add <directory>", "aiwiki plugin enable <id>"]) {
+    assert.equal(indexBuild.schema_version, "aiwiki.index_command.v1");
+    assert.equal(indexBuild.action, "built");
+    assert.equal(indexStatus.schema_version, "aiwiki.index_status.v1");
+    assert.equal(indexStatus.state, "fresh");
+    for (const command of [
+      "aiwiki setup",
+      "aiwiki context <query>",
+      "aiwiki index build --path <workspace> --json",
+      "aiwiki index status --path <workspace> --json",
+      "aiwiki index rebuild --path <workspace> --json",
+      "aiwiki plugin list --json",
+      "aiwiki plugin add <directory>",
+      "aiwiki plugin enable <id>"
+    ]) {
       assert.match(help, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
     assert.match(rebuildHelp, /AIWiki rebuild/);
     assert.match(rebuildHelp, /aiwiki rebuild --check --json/);
     assert.match(rebuildHelp, /aiwiki rebuild --dry-run --json/);
+    assert.match(indexHelp, /AIWiki index/);
+    assert.match(indexHelp, /aiwiki index build --path <workspace> --json/);
+    assert.match(indexHelp, /aiwiki index status --path <workspace> --json/);
+    assert.match(indexHelp, /aiwiki index rebuild --path <workspace> --json/);
     assert.equal(existsSync(path.join(packageRoot, "docs", "schema", "STATE.md")), true);
     assert.equal(existsSync(path.join(packageRoot, "docs", "schema", "STATE.zh-CN.md")), true);
     for (const unsupported of ["aiwiki pro", "aiwiki plugin disable", "aiwiki plugin remove", "aiwiki plugin doctor"]) {

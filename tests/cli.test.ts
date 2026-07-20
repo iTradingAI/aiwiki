@@ -34,6 +34,9 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.match(text, /aiwiki rebuild --path <workspace> --json/);
   assert.match(text, /aiwiki rebuild --check --json/);
   assert.match(text, /aiwiki rebuild --dry-run --json/);
+  assert.match(text, /aiwiki index build --path <workspace> --json/);
+  assert.match(text, /aiwiki index status --path <workspace> --json/);
+  assert.match(text, /aiwiki index rebuild --path <workspace> --json/);
   assert.match(text, /aiwiki lint --capsules --json/);
   assert.match(text, /aiwiki lint --strict --json/);
   assert.match(text, /aiwiki lint --fix-empty-dirs --json/);
@@ -120,6 +123,57 @@ test("CLI rebuild exposes stable modes, exit codes, and state-only side effects"
     const conflictError = new MemoryWritable();
     assert.equal(await runCli(["rebuild", "--check", "--dry-run", "--path", root], { stdout: new MemoryWritable(), stderr: conflictError }), 1);
     assert.match(conflictError.text(), /rebuild --check and --dry-run cannot be used together/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI index exposes explicit build status and rebuild without changing Markdown retrieval", async () => {
+  const root = await tempRoot("aiwiki-cli-index");
+  const indexPath = path.join(root, ".aiwiki", "state", "index.json");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await mkdir(path.join(root, "05-wiki", "source-knowledge"), { recursive: true });
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "index.md"), [
+      "---",
+      'type: "wiki_entry"',
+      'title: "CLI Index Fixture"',
+      "---",
+      "",
+      "Index retrieval stays Markdown-backed."
+    ].join("\n"), "utf8");
+
+    const help = new MemoryWritable();
+    assert.equal(await runCli(["index", "--help"], { stdout: help, stderr: new MemoryWritable() }), 0);
+    assert.match(help.text(), /AIWiki index/);
+    assert.match(help.text(), /index build/);
+    assert.match(help.text(), /index status/);
+    assert.match(help.text(), /index rebuild/);
+
+    const missingOut = new MemoryWritable();
+    assert.equal(await runCli(["index", "status", "--json", "--path", root], { stdout: missingOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(missingOut.text()) as { state: string }).state, "missing");
+
+    const buildOut = new MemoryWritable();
+    assert.equal(await runCli(["index", "build", "--json", "--path", root], { stdout: buildOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(buildOut.text()) as { action: string }).action, "built");
+
+    const freshOut = new MemoryWritable();
+    assert.equal(await runCli(["index", "status", "--json", "--path", root], { stdout: freshOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(freshOut.text()) as { state: string }).state, "fresh");
+
+    const rebuildOut = new MemoryWritable();
+    assert.equal(await runCli(["index", "rebuild", "--json", "--path", root], { stdout: rebuildOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(rebuildOut.text()) as { action: string }).action, "rebuilt");
+
+    await rm(indexPath);
+    const contextOut = new MemoryWritable();
+    assert.equal(await runCli(["context", "index", "--path", root], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(contextOut.text()) as { schema_version: string }).schema_version, "aiwiki.context.v1");
+
+    const invalidError = new MemoryWritable();
+    assert.equal(await runCli(["index", "unknown", "--path", root], { stdout: new MemoryWritable(), stderr: invalidError }), 1);
+    assert.match(invalidError.text(), /index expects build, status, or rebuild/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -70,3 +70,38 @@ test("rebuild documentation keeps derived state explicit, removable, and out of 
   assert.match(handoffZh, /只有用户明确要求检查或重建派生状态时/);
   assert.match(skill, /Only match rebuild when the user explicitly asks to inspect or rebuild derived state/i);
 });
+
+test("structured index documentation keeps metadata explicit and Markdown retrieval independent", async () => {
+  const [state, stateZh, usage, usageZh, handoff, handoffZh, skill, readme, readmeZh] = await Promise.all([
+    readFile("docs/schema/STATE.md", "utf8"),
+    readFile("docs/schema/STATE.zh-CN.md", "utf8"),
+    readFile("docs/USAGE.md", "utf8"),
+    readFile("docs/USAGE.zh-CN.md", "utf8"),
+    readFile("docs/AGENT_HANDOFF.md", "utf8"),
+    readFile("docs/AGENT_HANDOFF.zh-CN.md", "utf8"),
+    readFile("skill/SKILL.md", "utf8"),
+    readFile("README.md", "utf8"),
+    readFile("README.zh-CN.md", "utf8")
+  ]);
+
+  for (const document of [state, usage, handoff, skill]) {
+    assert.match(document, /aiwiki index status --path <workspace> --json/);
+    assert.match(document, /aiwiki index build --path <workspace> --json/);
+    assert.match(document, /aiwiki index rebuild --path <workspace> --json/);
+    assert.match(document, /Do not automatically build or rebuild the index/i);
+    assert.match(document, /Markdown-backed retrieval remains available/i);
+  }
+  for (const document of [stateZh, usageZh, handoffZh]) {
+    assert.match(document, /aiwiki index status --path <workspace> --json/);
+    assert.match(document, /aiwiki index build --path <workspace> --json/);
+    assert.match(document, /aiwiki index rebuild --path <workspace> --json/);
+    assert.match(document, /不要自动构建或重建索引/);
+    assert.match(document, /仍可直接从 Markdown 检索/);
+  }
+  assert.match(state, /aiwiki\.index\.v1/);
+  assert.match(state, /not semantic or vector/i);
+  assert.match(stateZh, /aiwiki\.index\.v1/);
+  assert.match(stateZh, /不是语义或向量索引/);
+  assert.match(readme, /not a vector database/i);
+  assert.match(readmeZh, /不是向量数据库/);
+});

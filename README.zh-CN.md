@@ -164,6 +164,22 @@ aiwiki lint --strict --json
 
 如果你想让助手进一步整理知识库，可以参考 [使用指南](docs/USAGE.zh-CN.md) 里的检查流程。
 
+### 检查结构化索引
+
+对 AI 助手说：
+
+```text
+帮我确认 AIWiki 的结构化索引是不是最新。
+```
+
+助手应先只读检查：
+
+```bash
+aiwiki index status --path <workspace> --json
+```
+
+索引是一份小型本地目录，记录内容分类、重复来源 URL 和本地 wiki 链接。它能帮助 Agent 说明大型知识库的组织情况，但不是向量数据库，也不会替代 Markdown 文件。索引缺失或过期时，`query` 和 `context` 仍可直接从 Markdown 工作。只有你明确要求构建或重建索引时，助手才会写入它。
+
 ## AIWiki 会生成什么
 
 一次成功入库会生成一组可追踪的知识文件：
@@ -254,6 +270,8 @@ AIWiki 不是简单拼接两套方法。
 工作区的历史 `schema_version: 1` 会作为 `aiwiki.workspace.v1` 读取且不会回写。默认 Agent JSON 保持 `aiwiki.context.v1`，capsule 视图保持 `aiwiki.context.capsule.v1`；声明了未知未来主版本时只能人工复核。详见[Schema Compatibility 目录](docs/schema/README.zh-CN.md)。
 
 CORE-0403 不改变现有 Skill 匹配；CORE-0407 负责后续匹配合同、优先级、fallback 和验收。
+
+结构化索引使用新增但兼容的 `aiwiki.index.v1` 元数据合同。它必须显式构建、可安全删除，并且不改变默认 `aiwiki.context.v1` 的检索输出。详见[派生状态 v1](docs/schema/STATE.zh-CN.md)。
 
 ## Agent 接入
 

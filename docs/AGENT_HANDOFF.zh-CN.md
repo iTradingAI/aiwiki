@@ -69,6 +69,7 @@ aiwiki show <topic> --path <workspace>
 | 查询、引用或复用本地知识 | 人类可读结果用 `aiwiki query <topic>`，Agent JSON 用 `aiwiki context <topic>`；单个来源包用 `aiwiki show <topic>` 或 capsule view | 回答前读取 `result_quality`、`recommended_next_action`、来源和已知缺口 | 先尝试对应 AIWiki 命令；仅在命令不足时使用文件搜索，并说明原因 |
 | 检查、整理或安全修复工作区 | `aiwiki lint --json`；仅在允许且只有安全修复时执行 `aiwiki lint --fix-empty-dirs --json`，再运行 `aiwiki lint --json` | 解释 error、warning、安全修复范围和 lint 报告路径 | 非安全问题保留为可追踪复核项；不要默认手工修改 Markdown |
 | 只有用户明确要求检查或重建派生状态时 | 先用 `aiwiki rebuild --dry-run --json` 预览；用 `--check` 分类 state；只有用户要求写入时才执行默认 rebuild | 解释 `would_rebuild`、`current`、`missing`、`stale` 或 `invalid`；日常读取仍以 Markdown 为准 | 不要从泛化维护请求推断 rebuild；报告锁冲突，不要删除其他进程的 lock |
+| 只有用户明确要求确认结构化索引是否最新、构建索引或重建索引时 | 先用 `aiwiki index status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、分类计数和重复来源 URL 数 | 不要自动构建或重建索引；索引缺失、过期或损坏时仍可直接从 Markdown 检索 |
 | 显式 extension 管理 | 列表使用 `aiwiki plugin list --json --path <workspace>`；仅添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；仅启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>` | 汇报命令结果和精确 extension 状态 | 对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，要求明确动作、目录或 ID；不要自动发现、启用或执行 |
 
 ## Schema Compatibility Boundary
@@ -80,6 +81,10 @@ CORE-0404 提供仅声明的 Extension API v0.1。CORE-0405 只提供显式 exte
 ## 派生状态 Rebuild 意图
 
 只有用户明确要求检查或重建派生状态时才匹配 rebuild。预览先执行 `aiwiki rebuild --dry-run --json`。使用 `aiwiki rebuild --check --json` 报告 `current`、`missing`、`stale` 或 `invalid`；非 `current` 退出 1 是预期行为。只有用户要求写入可删除 snapshot 时才执行 `aiwiki rebuild --path <workspace> --json`。rebuild 不会修改 Markdown，Context、Show、Lint 和 Status 也不需要先有 state。遇到锁冲突时报告并等待；不要删除 lock，也不要虚构 force 路径。详见[派生状态 v1](schema/STATE.zh-CN.md)。
+
+## 结构化索引意图
+
+只有用户明确要求确认索引是否最新、构建索引或重建索引时才匹配结构化索引。先执行 `aiwiki index status --path <workspace> --json`；`fresh` 的退出码为 0，`missing`、`stale` 和 `invalid` 的退出码为 1 是预期行为。只有用户要求写入可删除的索引元数据时，才执行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json`。不要从 query、context、show、lint、status、ingest 或泛化维护请求自动构建或重建索引。索引缺失、过期或损坏时，仍可直接从 Markdown 检索。索引仅保存 vault 相对路径元数据、计数、来源 URL 重复信号和已解析的本地链接；它不是语义或向量索引。详见[派生状态 v1](schema/STATE.zh-CN.md)。
 
 ## 显式 Extension 意图
 
