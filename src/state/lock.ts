@@ -25,15 +25,14 @@ export async function withRebuildLock<T>(rootPath: string, action: () => Promise
   }
 
   const content = JSON.stringify({ pid: process.pid, started_at: new Date().toISOString(), command: "aiwiki rebuild" }, null, 2) + "\n";
-  let written = false;
   try {
     await handle.writeFile(content, "utf8");
-    written = true;
     await handle.close();
     return await action();
   } finally {
     await handle.close().catch(() => undefined);
-    if (!written || await lockMatches(lockPath, content)) {
+    // Retain an unrecognized lock rather than deleting a path no longer owned by this call.
+    if (await lockMatches(lockPath, content)) {
       await fs.rm(lockPath, { force: true }).catch(() => undefined);
     }
   }

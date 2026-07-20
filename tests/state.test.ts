@@ -6,9 +6,15 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { AIWIKI_SCHEMAS } from "../src/schema.js";
+import { buildCapsuleContext } from "../src/capsule-context.js";
+import { buildContext } from "../src/context.js";
 import { withRebuildLock } from "../src/state/lock.js";
 import { buildRebuildProjection } from "../src/state/projection.js";
+import { rebuildWorkspaceState } from "../src/state/rebuild.js";
 import { compareStoredProjection, readStoredProjection, writeStoredProjection } from "../src/state/storage.js";
+import { showCapsule } from "../src/show.js";
+import { lintWorkspace } from "../src/lint.js";
+import { statusSummary } from "../src/workspace.js";
 import { tempRoot } from "./helpers.js";
 
 test("state projection registers four derived-state schemas", () => {
@@ -411,6 +417,139 @@ test("rebuild lock does not remove a replacement lock it did not create", async 
       await writeFile(lockPath, replacement, "utf8");
     });
     assert.equal(await readFile(lockPath, "utf8"), replacement);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild lock fails closed when metadata writing no longer owns the lock path", async () => {
+  const root = await tempRoot("aiwiki-state-lock-write-failure");
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+  const replacement = JSON.stringify({ pid: 1, started_at: "2000-01-01T00:00:00.000Z", command: "external" }, null, 2) + "\n";
+  const originalOpen = fs.open;
+  let injected = false;
+
+  try {
+    fs.open = async (...args) => {
+      const handle = await originalOpen(...args);
+      if (!injected && args[0] === lockPath && args[1] === "wx") {
+        injected = true;
+        (handle as unknown as { writeFile: (data: string, encoding: BufferEncoding) => Promise<void> }).writeFile = async () => {
+          await writeFile(lockPath, replacement, "utf8");
+          throw new Error("simulated lock metadata failure");
+        };
+      }
+      return handle;
+    };
+
+    await assert.rejects(withRebuildLock(root, async () => "unreachable"), /simulated lock metadata failure/);
+    assert.equal(await readFile(lockPath, "utf8"), replacement);
+  } finally {
+    fs.open = originalOpen;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild check and dry-run report derived-state gaps without creating state or a lock", async () => {
+  const root = await createProjectionFixture("aiwiki-state-rebuild-readonly");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+  try {
+    const check = await rebuildWorkspaceState(root, "check");
+    assert.deepEqual(check, {
+      schema_version: "aiwiki.rebuild.v1",
+      mode: "check",
+      state: "missing",
+      snapshot_id: check.snapshot_id,
+      counts: check.counts,
+      written_files: []
+    });
+    assert.deepEqual(check.counts, { artifacts: 7, capsules: 1, relationships: 4, lifecycle: 7 });
+    await assert.rejects(access(stateDir));
+    await assert.rejects(access(lockPath));
+
+    const dryRun = await rebuildWorkspaceState(root, "dry_run");
+    assert.equal(dryRun.schema_version, "aiwiki.rebuild.v1");
+    assert.equal(dryRun.mode, "dry_run");
+    assert.equal(dryRun.state, "would_rebuild");
+    assert.equal(dryRun.snapshot_id, check.snapshot_id);
+    assert.deepEqual(dryRun.counts, check.counts);
+    assert.deepEqual(dryRun.written_files, []);
+    await assert.rejects(access(stateDir));
+    await assert.rejects(access(lockPath));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild writes, detects stale Markdown, and restores a complete current state", async () => {
+  const root = await createProjectionFixture("aiwiki-state-rebuild-write");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  try {
+    const first = await rebuildWorkspaceState(root, "write");
+    assert.equal(first.schema_version, "aiwiki.rebuild.v1");
+    assert.equal(first.mode, "write");
+    assert.equal(first.state, "rebuilt");
+    assert.deepEqual(first.written_files, stateFilePaths());
+    assert.deepEqual((await readdir(stateDir)).sort(), stateFileNames());
+
+    const current = await rebuildWorkspaceState(root, "check");
+    assert.equal(current.state, "current");
+    assert.equal(current.snapshot_id, first.snapshot_id);
+    assert.deepEqual(current.counts, first.counts);
+    assert.deepEqual(current.written_files, []);
+
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const original = await readFile(artifactPath, "utf8");
+    await writeFile(artifactPath, original.replace("Primary wiki body", "Rebuild detects this markdown update"), "utf8");
+    const stale = await rebuildWorkspaceState(root, "check");
+    assert.equal(stale.state, "stale");
+    assert.notEqual(stale.snapshot_id, first.snapshot_id);
+
+    await rm(stateDir, { recursive: true, force: true });
+    const recovered = await rebuildWorkspaceState(root, "write");
+    assert.equal(recovered.state, "rebuilt");
+    assert.equal(recovered.snapshot_id, stale.snapshot_id);
+    assert.deepEqual(recovered.written_files, stateFilePaths());
+    assert.deepEqual((await readdir(stateDir)).sort(), stateFileNames());
+    assert.equal((await rebuildWorkspaceState(root, "check")).state, "current");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild write rejects a held workspace lock before it can write state", async () => {
+  const root = await createProjectionFixture("aiwiki-state-rebuild-conflict");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  try {
+    await withRebuildLock(root, async () => {
+      await assert.rejects(rebuildWorkspaceState(root, "write"), /rebuild.*lock|lock.*rebuild/i);
+      await assert.rejects(access(stateDir));
+    });
+    await assert.rejects(access(stateDir));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state rebuild remains optional because markdown readers work after state removal", async () => {
+  const root = await createProjectionFixture("aiwiki-state-rebuild-fallback");
+  try {
+    await rebuildWorkspaceState(root, "write");
+    await rm(path.join(root, ".aiwiki", "state"), { recursive: true, force: true });
+
+    const context = await buildContext(root, "Projection Alpha");
+    const capsules = await buildCapsuleContext(root, "Projection Alpha");
+    const shown = await showCapsule(root, { id: "src_projection_demo", json: true });
+    const lint = await lintWorkspace(root);
+    const status = await statusSummary(root);
+
+    assert.ok(context.matches.wiki_entries.some((item) => item.path === "05-wiki/source-knowledge/alpha-entry.md"));
+    assert.ok(capsules.capsules.some((item) => item.id === "src_projection_demo"));
+    assert.match(shown, /src_projection_demo/);
+    assert.ok(Array.isArray(lint.issues));
+    assert.equal(status.runCount, 1);
+    await assert.rejects(access(path.join(root, ".aiwiki", "state")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
