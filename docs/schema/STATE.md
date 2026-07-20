@@ -82,4 +82,10 @@ aiwiki graph rebuild --path <workspace> --json
 
 Its `aiwiki.graph.v1` envelope records a Markdown-derived `source_snapshot_id`, stable artifact/capsule nodes, typed deterministic edges, and unresolved-target diagnostics. `graph status` is read-only and reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. `graph build` and `graph rebuild` write only `graph.json` atomically while holding `.aiwiki/locks/graph.lock`.
 
-Do not automatically build or rebuild the graph from query, context, show, lint, status, ingest, or generic maintenance flows. Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph does not change `aiwiki.context.v1`; graph-aware Context v2 is a later opt-in capability.
+Do not automatically build or rebuild the graph from query, context, show, lint, status, ingest, or generic maintenance flows. Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph does not change `aiwiki.context.v1`. `aiwiki.context.v2` is an explicit graph-aware context view; use it only when the user explicitly asks to trace a relationship, upstream/downstream dependency, or conflict, after a fresh graph already exists:
+
+```bash
+aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
+```
+
+`--graph-depth` accepts only `1`, `2`, or `3` and defaults to `1`. Context v2 never builds or rebuilds graph metadata; a missing, stale, or invalid graph returns a bounded v2 result that explains the state and next action.

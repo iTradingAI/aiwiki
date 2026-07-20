@@ -125,10 +125,10 @@ export const AIWIKI_SCHEMAS = {
   },
   contextV2: {
     id: "aiwiki.context.v2",
-    status: "reserved",
+    status: "active",
     aliases: [],
-    storage: "reserved",
-    compatibility: "reserved"
+    storage: "json_output",
+    compatibility: "additive_fields_only"
   },
   extension: {
     id: "aiwiki.extension.v1",
@@ -156,7 +156,7 @@ export function schemaId<K extends AiwikiSchemaKey>(key: K): (typeof AIWIKI_SCHE
 }
 
 export function assessSchemaCompatibility(key: AiwikiSchemaKey, suppliedVersion?: unknown): SchemaCompatibility {
-  const definition = AIWIKI_SCHEMAS[key];
+  const definition: AiwikiSchemaDefinition = AIWIKI_SCHEMAS[key];
   const supplied = normalizeVersion(suppliedVersion);
 
   if (definition.status === "reserved") {

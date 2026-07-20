@@ -21,7 +21,7 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 | Extension author contract | `aiwiki.extension.v1` | Package public contract | Declaration API remains stable; explicit hosting is documented separately. |
 | Extension Host | `aiwiki.extension-host.v1` | Local host state | Explicit local/bundled loading, state, and failure isolation; see [Extension Host v0.1](EXTENSION_HOST.md). |
 
-`aiwiki.context.v2` remains reserved. `aiwiki.extension.v1` is active as the [Extension API v0.1](EXTENSION_SCHEMA.md). CORE-0405 adds only the explicit [Extension Host v0.1](EXTENSION_HOST.md): `plugin add` and `plugin enable` activate local or bundled extensions; there is no automatic discovery.
+`aiwiki.context.v2` is active as the explicit graph-aware Context view; default Context remains `aiwiki.context.v1`, and Context v2 never builds graph state automatically. `aiwiki.extension.v1` is active as the [Extension API v0.1](EXTENSION_SCHEMA.md). CORE-0405 adds only the explicit [Extension Host v0.1](EXTENSION_HOST.md): `plugin add` and `plugin enable` activate local or bundled extensions; there is no automatic discovery.
 
 ## Compatibility And Migration
 
