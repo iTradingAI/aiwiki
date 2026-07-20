@@ -71,7 +71,9 @@ test("packed CLI preserves Core command and schema compatibility", () => {
     const capsule = JSON.parse(runInstalledCli(consumerRoot, ["context", "contract", "--view", "capsule", "--path", vaultPath])) as { schema_version: string };
     const plugins = JSON.parse(runInstalledCli(consumerRoot, ["plugin", "list", "--json", "--path", vaultPath])) as { extensions: Array<{ id: string; source: string; status: string }> };
     const help = runInstalledCli(consumerRoot, ["--help"]);
+    const rebuildHelp = runInstalledCli(consumerRoot, ["rebuild", "--help"]);
     const unknown = runInstalledCliResult(consumerRoot, ["not-a-command", "--path", vaultPath]);
+    const packageRoot = path.join(consumerRoot, "node_modules", "@itradingai", "aiwiki");
 
     assert.equal(context.schema_version, "aiwiki.context.v1");
     assert.equal(capsule.schema_version, "aiwiki.context.capsule.v1");
@@ -84,6 +86,11 @@ test("packed CLI preserves Core command and schema compatibility", () => {
     for (const command of ["aiwiki setup", "aiwiki context <query>", "aiwiki plugin list --json", "aiwiki plugin add <directory>", "aiwiki plugin enable <id>"]) {
       assert.match(help, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
+    assert.match(rebuildHelp, /AIWiki rebuild/);
+    assert.match(rebuildHelp, /aiwiki rebuild --check --json/);
+    assert.match(rebuildHelp, /aiwiki rebuild --dry-run --json/);
+    assert.equal(existsSync(path.join(packageRoot, "docs", "schema", "STATE.md")), true);
+    assert.equal(existsSync(path.join(packageRoot, "docs", "schema", "STATE.zh-CN.md")), true);
     for (const unsupported of ["aiwiki pro", "aiwiki plugin disable", "aiwiki plugin remove", "aiwiki plugin doctor"]) {
       assert.doesNotMatch(help, new RegExp(unsupported.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
     }

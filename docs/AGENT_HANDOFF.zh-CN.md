@@ -68,6 +68,7 @@ aiwiki show <topic> --path <workspace>
 | 入库本地文件或宿主 Agent 已读取的资料 | `aiwiki ingest-file --file <file>` 或 `aiwiki ingest-agent --stdin` | 汇报入库状态、Wiki Entry 质量、Source Card、Processing Summary 和 warning | 无法读取的来源使用 failed-fetch payload 留痕；不能要求用户写入或保存 payload |
 | 查询、引用或复用本地知识 | 人类可读结果用 `aiwiki query <topic>`，Agent JSON 用 `aiwiki context <topic>`；单个来源包用 `aiwiki show <topic>` 或 capsule view | 回答前读取 `result_quality`、`recommended_next_action`、来源和已知缺口 | 先尝试对应 AIWiki 命令；仅在命令不足时使用文件搜索，并说明原因 |
 | 检查、整理或安全修复工作区 | `aiwiki lint --json`；仅在允许且只有安全修复时执行 `aiwiki lint --fix-empty-dirs --json`，再运行 `aiwiki lint --json` | 解释 error、warning、安全修复范围和 lint 报告路径 | 非安全问题保留为可追踪复核项；不要默认手工修改 Markdown |
+| 只有用户明确要求检查或重建派生状态时 | 先用 `aiwiki rebuild --dry-run --json` 预览；用 `--check` 分类 state；只有用户要求写入时才执行默认 rebuild | 解释 `would_rebuild`、`current`、`missing`、`stale` 或 `invalid`；日常读取仍以 Markdown 为准 | 不要从泛化维护请求推断 rebuild；报告锁冲突，不要删除其他进程的 lock |
 | 显式 extension 管理 | 列表使用 `aiwiki plugin list --json --path <workspace>`；仅添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；仅启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>` | 汇报命令结果和精确 extension 状态 | 对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，要求明确动作、目录或 ID；不要自动发现、启用或执行 |
 
 ## Schema Compatibility Boundary
@@ -76,13 +77,17 @@ aiwiki show <topic> --path <workspace>
 
 CORE-0404 提供仅声明的 Extension API v0.1。CORE-0405 只提供显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`。CORE-0407 锁定该匹配边界：不要从普通自然语言推断这些命令、自动发现 extension、自动启用 extension、自动执行 extension，也不要把 Host 描述成 sandbox。精确映射见随包交付的 `skill/EXTENSION_PROTOCOL.md`。
 
+## 派生状态 Rebuild 意图
+
+只有用户明确要求检查或重建派生状态时才匹配 rebuild。预览先执行 `aiwiki rebuild --dry-run --json`。使用 `aiwiki rebuild --check --json` 报告 `current`、`missing`、`stale` 或 `invalid`；非 `current` 退出 1 是预期行为。只有用户要求写入可删除 snapshot 时才执行 `aiwiki rebuild --path <workspace> --json`。rebuild 不会修改 Markdown，Context、Show、Lint 和 Status 也不需要先有 state。遇到锁冲突时报告并等待；不要删除 lock，也不要虚构 force 路径。详见[派生状态 v1](schema/STATE.zh-CN.md)。
+
 ## 显式 Extension 意图
 
 只有在用户明确提出 extension 管理请求时才使用这些命令。列出使用 `aiwiki plugin list --json --path <workspace>`；只添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；只启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>`。对于模糊请求，要求用户给出明确动作以及所需目录或 ID；不要自动扫描、选择、启用或执行 extension。
 
 ## 合同测试矩阵
 
-CORE-0406 建立该维护者验证入口：变更 Core 兼容边界时运行 `npm run test:contracts`。该套件覆盖 `public-api.test.ts`、`cli-compatibility.test.ts`、`skill-matching.test.ts`、`extension-api.test.ts`、`schema-compatibility.test.ts`、`extension-failure-isolation.test.ts` 和 `release-gate.test.ts`。`skill-matching.test.ts` 会在外部消费者环境安装打包后的包，验证完整 Skill bundle 同步、工作区指导与显式 extension 意图。`release-gate.test.ts` 锁定 Core 0.4 的包清单、双语发布路径和对外交付边界。该套件只验证已文档化的公开导入与显式 Core CLI 命令面；不会引入 Pro 行为、extension 自动发现、自动启用或自动执行。可重建性覆盖延期到 `CORE-0501`，届时才具备可重建状态模型。
+CORE-0406 建立该维护者验证入口：变更 Core 兼容边界时运行 `npm run test:contracts`。该套件覆盖 `public-api.test.ts`、`cli-compatibility.test.ts`、`skill-matching.test.ts`、`extension-api.test.ts`、`schema-compatibility.test.ts`、`extension-failure-isolation.test.ts` 和 `release-gate.test.ts`。`skill-matching.test.ts` 会在外部消费者环境安装打包后的包，验证完整 Skill bundle 同步、工作区指导与显式 extension 意图。`release-gate.test.ts` 锁定 Core 0.4 的包清单、双语发布路径和对外交付边界。该套件只验证已文档化的公开导入与显式 Core CLI 命令面；不会引入 Pro 行为、extension 自动发现、自动启用或自动执行。CORE-0501 已增加打包 rebuild help 与双语派生状态文档合同；完整本地和远端 consumer 矩阵仍是 Task 6 发布门禁。
 
 ## 入库流程
 

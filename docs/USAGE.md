@@ -283,6 +283,18 @@ Current automatic safe fix:
 
 AIWiki must not delete core directories, unknown directories, non-empty directories, or files as a safe fix.
 
+### Inspect Or Rebuild Derived State
+
+Use rebuild only when you explicitly ask the assistant to inspect or rebuild derived state. It is not a regular lint step and is not required before `query`, `context`, `show`, `lint`, or `status`.
+
+```bash
+aiwiki rebuild --dry-run --json --path <workspace>
+aiwiki rebuild --check --json --path <workspace>
+aiwiki rebuild --path <workspace> --json
+```
+
+`--dry-run` previews the current Markdown-derived snapshot without writing. `--check` exits 1 for missing, stale, or invalid state. The default command writes only the four removable files under `.aiwiki/state/`; it does not modify Markdown. If another rebuild is active, report the lock conflict and wait rather than deleting the lock. Deleting state is safe because it can be explicitly rebuilt later. See [Derived State v1](schema/STATE.md).
+
 ## 6. Generated Artifacts
 
 Core artifacts:
@@ -349,7 +361,7 @@ Obsidian is optional. Dataview is optional. AIWiki does not edit `.obsidian`, in
 
 AIWiki reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1` without rewriting `aiwiki.yaml`. Current Agent JSON remains `aiwiki.context.v1` by default and `aiwiki.context.capsule.v1` for the capsule view. Unknown additive frontmatter remains readable; a declared unknown future major requires manual review and has no automatic migration command.
 
-See the [Schema Compatibility catalog](schema/README.md) for optional marker fields and the migration boundary. CORE-0404 exposes the declaration-only [Extension API v0.1](schema/EXTENSION_SCHEMA.md). CORE-0405 adds the explicit [Extension Host v0.1](schema/EXTENSION_HOST.md):
+See the [Schema Compatibility catalog](schema/README.md) and [Derived State v1](schema/STATE.md) for optional marker fields, the migration boundary, and removable state behavior. CORE-0404 exposes the declaration-only [Extension API v0.1](schema/EXTENSION_SCHEMA.md). CORE-0405 adds the explicit [Extension Host v0.1](schema/EXTENSION_HOST.md):
 
 ```text
 aiwiki plugin list --json

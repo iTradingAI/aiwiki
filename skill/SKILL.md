@@ -89,6 +89,7 @@ Match user requests to this command contract before using generic file tools:
 | ingest material | `aiwiki ingest-file --file <file>` or `aiwiki ingest-agent --stdin` | report ingest status, quality, Source Card, and Processing Summary | record unreadable sources as failed-fetch payloads; do not ask users to save payloads |
 | query or reuse knowledge | `aiwiki query <topic>` or `aiwiki context <topic>`; use `aiwiki show <topic>` for a source package | read result quality, recommended next action, provenance, and gaps | try the relevant AIWiki command before file search and explain any fallback |
 | check or organize a workspace | `aiwiki lint --json`, then `aiwiki lint --fix-empty-dirs --json` only when allowed and safe | explain errors, warnings, safe fixes, and report path | leave non-safe issues for review; do not default to ad hoc Markdown edits |
+| explicitly inspect or rebuild derived state | preview with `aiwiki rebuild --dry-run --json`; use `--check` to classify state and default rebuild only when the user asks to write it | explain `would_rebuild`, `current`, `missing`, `stale`, or `invalid`; retrieval remains Markdown-backed | do not infer rebuild from generic maintenance; report a lock conflict and do not delete another process's lock |
 | explicit extension administration | `aiwiki plugin list --json --path <workspace>`; add only a user-supplied directory with `aiwiki plugin add <directory> --path <workspace>`; enable only a user-supplied ID with `aiwiki plugin enable <id> --path <workspace>` | report the command result and the exact extension state | for “find a plugin”, “auto choose a skill”, or “enable a suitable extension”, ask for an explicit action, directory, or ID; do not discover, enable, or execute automatically |
 
 ## Schema Compatibility Boundary
@@ -96,6 +97,10 @@ Match user requests to this command contract before using generic file tools:
 Keep the current command-first matching unchanged. Existing workspaces with `schema_version: 1` remain compatible as `aiwiki.workspace.v1`; Agent outputs remain `aiwiki.context.v1` and `aiwiki.context.capsule.v1`. Do not invent a schema migration command or rewrite user frontmatter for this feature. Declared future schema majors require manual review.
 
 CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 adds only explicit extension administration: `aiwiki plugin list --json`, `aiwiki plugin add <directory> --path <workspace>`, and `aiwiki plugin enable <id> --path <workspace>`. CORE-0407 locks the matching contract: do not infer these commands from ordinary natural-language requests, automatically discover extensions, or describe the Host as a sandbox. Read [Extension Protocol](EXTENSION_PROTOCOL.md) before handling an extension request.
+
+## Derived State Rebuild Intent
+
+Only match rebuild when the user explicitly asks to inspect or rebuild derived state. Start with `aiwiki rebuild --dry-run --json` for a no-write preview. Use `aiwiki rebuild --check --json` to report `current`, `missing`, `stale`, or `invalid`; non-current exits 1 by design. Run `aiwiki rebuild --path <workspace> --json` only when the user asks to write the removable snapshots. Do not add rebuild to normal query, context, show, lint, or status flows. Rebuild never modifies Markdown. On a lock conflict, report it and wait; do not remove the lock or invent `--force`. See `docs/schema/STATE.md` in the package.
 
 ## Skill Protocol Files
 
