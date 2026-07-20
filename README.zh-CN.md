@@ -180,6 +180,22 @@ aiwiki index status --path <workspace> --json
 
 索引是一份小型本地目录，记录内容分类、重复来源 URL 和本地 wiki 链接。它能帮助 Agent 说明大型知识库的组织情况，但不是向量数据库，也不会替代 Markdown 文件。索引缺失或过期时，`query` 和 `context` 仍可直接从 Markdown 工作。只有你明确要求构建或重建索引时，助手才会写入它。
 
+### 检查关系图
+
+对 AI 助手说：
+
+```text
+帮我确认 AIWiki 的关系图是不是最新。
+```
+
+助手应先只读检查：
+
+```bash
+aiwiki graph status --path <workspace> --json
+```
+
+关系图是一份小型本地关系图，记录知识文件之间已经明确存在的连接，例如资料支持某个 Wiki 条目、或一个笔记链接到另一个笔记。它只记录确定性的本地关系，不会用 LLM 编造事实，不会替代 Markdown 文件，也不改变日常 `context` 或 `query` 结果。关系图缺失或过期时，这些命令仍可直接从 Markdown 工作；只有你明确要求构建或重建关系图时，助手才会写入它。
+
 ## AIWiki 会生成什么
 
 一次成功入库会生成一组可追踪的知识文件：

@@ -33,6 +33,7 @@ import type { CommandContext } from "../command-context.js";
 import type { CoreCommandHandlers } from "../command-registry.js";
 import { createPluginCommandHandler } from "./plugin.js";
 import { handleIndexCommand } from "./index.js";
+import { handleGraphCommand } from "./graph.js";
 import { handleRebuildCommand } from "./rebuild.js";
 
 export function createCoreCommandHandlers(): CoreCommandHandlers {
@@ -376,6 +377,7 @@ const contentFile = flagString(args, "content-file");
     status: handleStatus,
     rebuild: handleRebuildCommand,
     index: handleIndexCommand,
+    graph: handleGraphCommand,
     context: handleContext,
     query: handleQuery,
     show: handleShow,
@@ -405,6 +407,9 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki index build --path <workspace> --json");
   writeLine(stream, "  aiwiki index status --path <workspace> --json");
   writeLine(stream, "  aiwiki index rebuild --path <workspace> --json");
+  writeLine(stream, "  aiwiki graph build --path <workspace> --json");
+  writeLine(stream, "  aiwiki graph status --path <workspace> --json");
+  writeLine(stream, "  aiwiki graph rebuild --path <workspace> --json");
   writeLine(stream, "  aiwiki show <query>");
   writeLine(stream, "  aiwiki context <query>");
   writeLine(stream, "  aiwiki query <query>");
@@ -1053,7 +1058,8 @@ Required command-first loop:
 8. Use Source Capsule views when the user asks for one source package, provenance, lifecycle state, or OKF readiness: \`aiwiki show <topic> --path <workspace>\`, \`aiwiki query <topic> --path <workspace>\`, or \`aiwiki context <topic> --view capsule --path <workspace>\`.
 9. Use \`aiwiki query <topic> --view files --path <workspace>\` only when the older file-level match list is needed.
 10. Only when the user explicitly asks whether the structured index is current, build it, or rebuild it, inspect it with \`aiwiki index status --path <workspace> --json\`. Run \`aiwiki index build --path <workspace> --json\` or \`aiwiki index rebuild --path <workspace> --json\` only when the user explicitly asks to write index metadata. Do not automatically build or rebuild the index; Markdown-backed retrieval remains available when the index is missing, stale, or invalid.
-11. Only act on explicit extension requests: list with \`aiwiki plugin list --json --path <workspace>\`, add the directory the user supplied with \`aiwiki plugin add <directory> --path <workspace>\`, or enable the exact ID the user supplied with \`aiwiki plugin enable <id> --path <workspace>\`. Do not automatically discover, enable, or execute extensions. Ask for an explicit action, directory, or ID when the request is ambiguous.
+11. Only when the user explicitly asks whether the relationship graph is current, build it, or rebuild it, inspect it with \`aiwiki graph status --path <workspace> --json\`. Run \`aiwiki graph build --path <workspace> --json\` or \`aiwiki graph rebuild --path <workspace> --json\` only when the user explicitly asks to write graph metadata. Do not automatically build or rebuild the graph; Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph does not change \`aiwiki.context.v1\` or enable \`--graph-depth\`.
+12. Only act on explicit extension requests: list with \`aiwiki plugin list --json --path <workspace>\`, add the directory the user supplied with \`aiwiki plugin add <directory> --path <workspace>\`, or enable the exact ID the user supplied with \`aiwiki plugin enable <id> --path <workspace>\`. Do not automatically discover, enable, or execute extensions. Ask for an explicit action, directory, or ID when the request is ambiguous.
 
 Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, say which AIWiki command was insufficient and why. For unsupported host-Agent integration, use \`aiwiki prompt agent\` rather than writing unknown host configuration.
 ${AIWIKI_AGENT_GUIDANCE_END}`;
@@ -1114,6 +1120,7 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "查询：当用户要求从 AIWiki 里了解某个主题时，调用 `aiwiki context <主题>`；需要来源包、生命周期或 OKF readiness 时，调用 `aiwiki context <主题> --view capsule` 或 `aiwiki show <主题>`。回答前读取 `result_quality` 和 `recommended_next_action`，说明来源、质量和已知缺口。");
   writeLine(stream, "整理：当用户要求检查或整理知识库时，先调用 `aiwiki lint --json`；深层 capsule 检查使用 `aiwiki lint --capsules --json`、`--lifecycle`、`--okf` 或 `--strict`；若只有 safe fix 且用户允许整理，再调用 `aiwiki lint --fix-empty-dirs --json`，随后重跑 `aiwiki lint --json`。");
   writeLine(stream, "索引：只有用户明确要求检查索引、构建索引、重建索引或确认索引是否过期时，才先运行 `aiwiki index status --path <workspace> --json`。只有用户明确要求写入时，才运行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json`。不要自动构建或重建索引；索引缺失、过期或损坏时，`context` 和 `query` 仍直接读取 Markdown。");
+  writeLine(stream, "关系图：只有用户明确要求检查关系图、构建关系图、重建关系图或确认关系图是否过期时，才先运行 `aiwiki graph status --path <workspace> --json`。只有用户明确要求写入时，才运行 `aiwiki graph build --path <workspace> --json` 或 `aiwiki graph rebuild --path <workspace> --json`。不要自动构建或重建关系图；关系图缺失、过期或损坏时，`context` 和 `query` 仍直接读取 Markdown。关系图不改变 `aiwiki.context.v1`，也不启用 `--graph-depth`。");
   writeLine(stream, "升级：当用户要求同步、升级或修复宿主 Agent 接入时，先调用 `aiwiki agent check --json`，再使用 `aiwiki agent sync --dry-run` 预览；确认后运行 `aiwiki agent sync --yes`。不支持的宿主使用 `aiwiki prompt agent`，不要写入未知配置。");
   writeLine(stream, "插件：只有用户明确要求时才执行：列出用 `aiwiki plugin list --json --path <workspace>`；添加用户给出的目录用 `aiwiki plugin add <directory> --path <workspace>`；启用用户给出的精确 ID 用 `aiwiki plugin enable <id> --path <workspace>`。对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，说明需要明确动作、目录或 ID；不要自动发现、启用或执行 extension。");
   writeLine(stream, "fallback：只有对应 AIWiki 命令无法回答请求时，才使用文件搜索或临时脚本；必须说明哪个命令不足以及原因。不要把网页抓取、手工 payload 或未知宿主配置当作默认回退路径。");

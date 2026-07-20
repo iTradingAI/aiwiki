@@ -184,6 +184,22 @@ aiwiki index status --path <workspace> --json
 
 The index is a small local map of content categories, duplicate source URLs, and local wiki links. It helps an Agent report the organization of a large knowledge base, but it is not a vector database or a replacement for your Markdown files. If it is missing or outdated, `query` and `context` still work from Markdown. The assistant builds it only when you explicitly ask it to build or rebuild the index.
 
+### Inspect your relationship graph
+
+Tell your assistant:
+
+```text
+Check whether my AIWiki relationship graph is current.
+```
+
+The assistant checks it without writing first:
+
+```bash
+aiwiki graph status --path <workspace> --json
+```
+
+The relationship graph is a small local map of explicit links between your knowledge files. It records only deterministic local connections, such as a source supporting a wiki entry or a note linking to another note. It does not use an LLM to invent facts, does not replace your Markdown files, and does not change normal `context` or `query` results. If it is missing or outdated, those commands still work from Markdown; the assistant builds or rebuilds the graph only when you explicitly ask it to do so.
+
 ## What AIWiki Creates
 
 A successful ingest creates a traceable knowledge package:
@@ -215,6 +231,8 @@ Legacy workspace `schema_version: 1` is read as `aiwiki.workspace.v1` without re
 CORE-0403 does not change existing Skill matching. CORE-0407 owns the future matching contract, including precedence, fallback, and acceptance tests.
 
 The structured index uses the additive `aiwiki.index.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. See [Derived State v1](docs/schema/STATE.md).
+
+The relationship graph uses the additive `aiwiki.graph.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output or add `--graph-depth`. See [Derived State v1](docs/schema/STATE.md).
 
 See:
 

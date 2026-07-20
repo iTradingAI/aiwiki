@@ -307,6 +307,18 @@ aiwiki index rebuild --path <workspace> --json
 
 Use `index status` only when the user explicitly asks whether the index is current. It reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. Run `index build` or `index rebuild` only when the user explicitly asks to write the metadata. Do not automatically build or rebuild the index from query, context, show, lint, status, ingest, or generic maintenance work. Markdown-backed retrieval remains available when the index is missing, stale, or invalid.
 
+### Inspect Or Rebuild The Relationship Graph
+
+The relationship graph is a removable local projection of explicit local relationships, wikilinks, generated references, and Source Capsule membership. It does not infer knowledge facts, replace Markdown, or enable graph-aware context by itself.
+
+```bash
+aiwiki graph status --path <workspace> --json
+aiwiki graph build --path <workspace> --json
+aiwiki graph rebuild --path <workspace> --json
+```
+
+Use `graph status` only when the user explicitly asks whether the relationship graph is current. It reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. Run `graph build` or `graph rebuild` only when the user explicitly asks to write graph metadata. Do not automatically build or rebuild the graph from query, context, show, lint, status, ingest, or generic maintenance work. Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. This command does not change `aiwiki.context.v1` and does not add `--graph-depth`.
+
 ## 6. Generated Artifacts
 
 Core artifacts:

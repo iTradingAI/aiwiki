@@ -239,6 +239,18 @@ aiwiki index rebuild --path <workspace> --json
 
 只有用户明确要求确认索引是否最新时才使用 `index status`。它会报告 `fresh`、`missing`、`stale` 或 `invalid`；只有 `fresh` 的退出码为 0。只有用户明确要求写入元数据时，才运行 `index build` 或 `index rebuild`。不要自动构建或重建索引，也不要从 query、context、show、lint、status、ingest 或泛化维护请求推断索引操作。索引缺失、过期或损坏时，仍可直接从 Markdown 检索。
 
+### 检查或重建关系图
+
+关系图是显式本地关系、wikilink、生成引用和 Source Capsule 成员关系的可删除投影。它不会推断知识事实、不会替代 Markdown，也不会自行启用 graph-aware context。
+
+```bash
+aiwiki graph status --path <workspace> --json
+aiwiki graph build --path <workspace> --json
+aiwiki graph rebuild --path <workspace> --json
+```
+
+只有用户明确要求确认关系图是否最新时才使用 `graph status`。它会报告 `fresh`、`missing`、`stale` 或 `invalid`；只有 `fresh` 的退出码为 0。只有用户明确要求写入关系图元数据时，才运行 `graph build` 或 `graph rebuild`。不要自动构建或重建关系图，也不要从 query、context、show、lint、status、ingest 或泛化维护请求推断关系图操作。关系图缺失、过期或损坏时，仍可直接从 Markdown 检索。该命令不改变 `aiwiki.context.v1`，也不新增 `--graph-depth`。
+
 ## 6. 生成的文件
 
 核心产物：

@@ -17,6 +17,7 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 | Agent sync/check | `aiwiki.agent_sync.v1`, `aiwiki.agent_check.v1` | Agent JSON output | Existing output contracts remain stable. |
 | Derived state | `aiwiki.state.*.v1` | `.aiwiki/state/*.json` | Rebuildable cache only; see [Derived State v1](STATE.md). |
 | Structured index | `aiwiki.index.v1` | `.aiwiki/state/index.json` | Explicitly built removable metadata; not semantic or vector search. |
+| Relationship graph | `aiwiki.graph.v1` | `.aiwiki/state/graph.json` | Explicitly built deterministic local-relationship metadata; does not change Context v1. |
 | Extension author contract | `aiwiki.extension.v1` | Package public contract | Declaration API remains stable; explicit hosting is documented separately. |
 | Extension Host | `aiwiki.extension-host.v1` | Local host state | Explicit local/bundled loading, state, and failure isolation; see [Extension Host v0.1](EXTENSION_HOST.md). |
 
@@ -45,3 +46,5 @@ Extension API v0.1 does not add a new natural-language intent, command, or autom
 Derived state adds one explicit maintenance intent only: inspect or rebuild `.aiwiki/state/` when the user asks for it. It does not change normal query, context, show, lint, or status matching. See [Derived State v1](STATE.md).
 
 Structured index adds a separate explicit intent only: check, build, or rebuild `.aiwiki/state/index.json` when the user asks for it. It does not alter retrieval and must not be built automatically from query, context, show, lint, status, ingest, or generic maintenance work. See [Derived State v1](STATE.md).
+
+Relationship graph adds another separate explicit intent only: check, build, or rebuild `.aiwiki/state/graph.json` when the user asks for it. It records deterministic local relationships only, does not alter `aiwiki.context.v1`, and must not be built automatically from query, context, show, lint, status, ingest, or generic maintenance work. See [Derived State v1](STATE.md).

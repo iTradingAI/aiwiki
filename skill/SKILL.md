@@ -74,6 +74,7 @@ aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
 aiwiki show <topic> --path <workspace>
 aiwiki index status --path <workspace> --json
+aiwiki graph status --path <workspace> --json
 aiwiki plugin list --json --path <workspace>
 ```
 
@@ -92,6 +93,7 @@ Match user requests to this command contract before using generic file tools:
 | check or organize a workspace | `aiwiki lint --json`, then `aiwiki lint --fix-empty-dirs --json` only when allowed and safe | explain errors, warnings, safe fixes, and report path | leave non-safe issues for review; do not default to ad hoc Markdown edits |
 | explicitly inspect or rebuild derived state | preview with `aiwiki rebuild --dry-run --json`; use `--check` to classify state and default rebuild only when the user asks to write it | explain `would_rebuild`, `current`, `missing`, `stale`, or `invalid`; retrieval remains Markdown-backed | do not infer rebuild from generic maintenance; report a lock conflict and do not delete another process's lock |
 | explicitly inspect, build, or rebuild the structured index | inspect with `aiwiki index status --path <workspace> --json`; build or rebuild only when the user asks to write metadata | explain `fresh`, `missing`, `stale`, or `invalid`, category counts, duplicate-source URLs, and resolved local links | Do not automatically build or rebuild the index; Markdown-backed retrieval remains available when the index is missing, stale, or invalid |
+| explicitly inspect, build, or rebuild the relationship graph | inspect with `aiwiki graph status --path <workspace> --json`; build or rebuild only when the user asks to write metadata | explain `fresh`, `missing`, `stale`, or `invalid`, typed-edge counts, unresolved targets, and lock conflicts | Do not automatically build or rebuild the graph; Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid; do not claim Context v2 or `--graph-depth` support |
 | explicit extension administration | `aiwiki plugin list --json --path <workspace>`; add only a user-supplied directory with `aiwiki plugin add <directory> --path <workspace>`; enable only a user-supplied ID with `aiwiki plugin enable <id> --path <workspace>` | report the command result and the exact extension state | for “find a plugin”, “auto choose a skill”, or “enable a suitable extension”, ask for an explicit action, directory, or ID; do not discover, enable, or execute automatically |
 
 ## Schema Compatibility Boundary
@@ -107,6 +109,10 @@ Only match rebuild when the user explicitly asks to inspect or rebuild derived s
 ## Structured Index Intent
 
 Only match structured-index work when the user explicitly asks to check whether the index is current, build it, or rebuild it. Start with `aiwiki index status --path <workspace> --json`; `fresh` exits 0, while `missing`, `stale`, and `invalid` exit 1 by design. Run `aiwiki index build --path <workspace> --json` or `aiwiki index rebuild --path <workspace> --json` only when the user asks to write the removable index metadata. Do not automatically build or rebuild the index from query, context, show, lint, status, ingest, or generic maintenance requests. Markdown-backed retrieval remains available when the index is missing, stale, or invalid. The index stores vault-relative metadata, counts, source-URL duplication signals, and resolved local links; it is not a semantic or vector index. See `docs/schema/STATE.md` in the package.
+
+## Relationship Graph Intent
+
+Only match relationship-graph work when the user explicitly asks to check whether the graph is current, build it, or rebuild it. Start with `aiwiki graph status --path <workspace> --json`; `fresh` exits 0, while `missing`, `stale`, and `invalid` exit 1 by design. Run `aiwiki graph build --path <workspace> --json` or `aiwiki graph rebuild --path <workspace> --json` only when the user asks to write removable graph metadata. Do not automatically build or rebuild the graph from query, context, show, lint, status, ingest, or generic maintenance requests. Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph records deterministic local relationships only; it does not infer facts with an LLM, alter `aiwiki.context.v1`, or enable `--graph-depth`. See `docs/schema/STATE.md` in the package.
 
 ## Skill Protocol Files
 

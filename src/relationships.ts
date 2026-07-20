@@ -2,11 +2,16 @@ import { frontmatterArray, frontmatterObjectArray, type FrontmatterValue } from 
 import type { ConfidenceLevel } from "./lifecycle.js";
 
 export type RelationshipType =
+  | "derives_from"
+  | "summarizes"
   | "supports"
   | "contradicts"
+  | "updates"
   | "supersedes"
   | "superseded_by"
   | "related_to"
+  | "used_by"
+  | "mentions_topic"
   | "uses"
   | "depends_on"
   | "derived_from"
@@ -73,13 +78,18 @@ export function validateRelationships(relationships: TypedRelationship[]): strin
   return warnings;
 }
 
-function isRelationshipType(value: string | undefined): value is RelationshipType {
+export function isRelationshipType(value: string | undefined): value is RelationshipType {
   return Boolean(value && [
+    "derives_from",
+    "summarizes",
     "supports",
     "contradicts",
+    "updates",
     "supersedes",
     "superseded_by",
     "related_to",
+    "used_by",
+    "mentions_topic",
     "uses",
     "depends_on",
     "derived_from",

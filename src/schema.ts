@@ -81,6 +81,13 @@ export const AIWIKI_SCHEMAS = {
     storage: "json_output",
     compatibility: "additive_fields_only"
   },
+  stateGraph: {
+    id: "aiwiki.graph.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
   context: {
     id: "aiwiki.context.v1",
     status: "active",

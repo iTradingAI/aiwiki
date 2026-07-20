@@ -179,6 +179,57 @@ test("CLI index exposes explicit build status and rebuild without changing Markd
   }
 });
 
+test("CLI graph exposes explicit build status and rebuild without changing Markdown retrieval", async () => {
+  const root = await tempRoot("aiwiki-cli-graph");
+  const graphPath = path.join(root, ".aiwiki", "state", "graph.json");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await mkdir(path.join(root, "05-wiki", "source-knowledge"), { recursive: true });
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "graph.md"), [
+      "---",
+      'type: "wiki_entry"',
+      'title: "CLI Graph Fixture"',
+      "---",
+      "",
+      "Graph retrieval stays Markdown-backed."
+    ].join("\n"), "utf8");
+
+    const help = new MemoryWritable();
+    assert.equal(await runCli(["graph", "--help"], { stdout: help, stderr: new MemoryWritable() }), 0);
+    assert.match(help.text(), /AIWiki graph/);
+    assert.match(help.text(), /graph build/);
+    assert.match(help.text(), /graph status/);
+    assert.match(help.text(), /graph rebuild/);
+
+    const missingOut = new MemoryWritable();
+    assert.equal(await runCli(["graph", "status", "--json", "--path", root], { stdout: missingOut, stderr: new MemoryWritable() }), 1);
+    assert.equal((JSON.parse(missingOut.text()) as { state: string }).state, "missing");
+
+    const buildOut = new MemoryWritable();
+    assert.equal(await runCli(["graph", "build", "--json", "--path", root], { stdout: buildOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(buildOut.text()) as { action: string }).action, "built");
+
+    const freshOut = new MemoryWritable();
+    assert.equal(await runCli(["graph", "status", "--json", "--path", root], { stdout: freshOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(freshOut.text()) as { state: string }).state, "fresh");
+
+    const rebuildOut = new MemoryWritable();
+    assert.equal(await runCli(["graph", "rebuild", "--json", "--path", root], { stdout: rebuildOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(rebuildOut.text()) as { action: string }).action, "rebuilt");
+
+    await rm(graphPath);
+    const contextOut = new MemoryWritable();
+    assert.equal(await runCli(["context", "graph", "--path", root], { stdout: contextOut, stderr: new MemoryWritable() }), 0);
+    assert.equal((JSON.parse(contextOut.text()) as { schema_version: string }).schema_version, "aiwiki.context.v1");
+
+    const invalidError = new MemoryWritable();
+    assert.equal(await runCli(["graph", "unknown", "--path", root], { stdout: new MemoryWritable(), stderr: invalidError }), 1);
+    assert.match(invalidError.text(), /graph expects build, status, or rebuild/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("CLI plugin list add and enable manage only explicitly registered local extensions", async () => {
   const root = await tempRoot("aiwiki-cli-plugin");
   const extensionRoot = await tempRoot("aiwiki-cli-plugin-extension");
@@ -482,7 +533,8 @@ test("documentation, Skill, prompt, and workspace guidance share the Core intent
     "aiwiki query",
     "aiwiki context",
     "aiwiki lint --json",
-    "aiwiki lint --fix-empty-dirs --json"
+    "aiwiki lint --fix-empty-dirs --json",
+    "aiwiki graph status --path <workspace> --json"
   ];
 
   assert.match(handoff, /Core Intent Matrix/);
@@ -513,6 +565,7 @@ test("documentation, Skill, prompt, and workspace guidance share the Core intent
     "result_quality",
     "recommended_next_action",
     "aiwiki lint --json",
+    "aiwiki graph status --path <workspace> --json",
     "aiwiki prompt agent",
     "fallback"
   ]) {
@@ -529,6 +582,7 @@ test("documentation, Skill, prompt, and workspace guidance share the Core intent
       "aiwiki agent sync --yes",
       "result_quality",
       "recommended_next_action",
+      "aiwiki graph status --path <workspace> --json",
       "aiwiki prompt agent"
     ]) {
       assert.ok(guidance.includes(term), `expected workspace guidance to contain ${term}`);

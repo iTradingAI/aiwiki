@@ -69,3 +69,17 @@ aiwiki index rebuild --path <workspace> --json
 Its `aiwiki.index.v1` envelope records a Markdown-derived `source_snapshot_id`, vault-relative artifact records, category counts, source-URL duplication counts, and resolved local wiki links. It is not semantic or vector search and stores no Markdown body, body preview, absolute path, external URL target, or embedding.
 
 `index status` is read-only and reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. `index build` and `index rebuild` write atomically while holding `.aiwiki/locks/index.lock`; they do not modify Markdown or the four rebuild snapshots. Do not automatically build or rebuild the index from query, context, show, lint, status, ingest, or generic maintenance flows. Markdown-backed retrieval remains available when the index is missing, stale, or invalid.
+
+## Relationship Graph
+
+`.aiwiki/state/graph.json` is an independent, removable relationship-graph projection. It records only deterministic links from local Markdown/frontmatter, including explicit relationships, compatibility fields, local wikilinks, generated local references, and Source Capsule membership. It does not infer semantic links with an LLM, store Markdown bodies, absolute paths, external URL targets, or embeddings.
+
+```bash
+aiwiki graph status --path <workspace> --json
+aiwiki graph build --path <workspace> --json
+aiwiki graph rebuild --path <workspace> --json
+```
+
+Its `aiwiki.graph.v1` envelope records a Markdown-derived `source_snapshot_id`, stable artifact/capsule nodes, typed deterministic edges, and unresolved-target diagnostics. `graph status` is read-only and reports `fresh`, `missing`, `stale`, or `invalid`; only `fresh` exits 0. `graph build` and `graph rebuild` write only `graph.json` atomically while holding `.aiwiki/locks/graph.lock`.
+
+Do not automatically build or rebuild the graph from query, context, show, lint, status, ingest, or generic maintenance flows. Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph does not change `aiwiki.context.v1`; graph-aware Context v2 is a later opt-in capability.
