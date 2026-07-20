@@ -35,7 +35,9 @@ import type { CoreCommandHandlers } from "../command-registry.js";
 import { createPluginCommandHandler } from "./plugin.js";
 import { handleIndexCommand } from "./index.js";
 import { handleGraphCommand } from "./graph.js";
+import { handleHealthCommand } from "./health.js";
 import { handleRebuildCommand } from "./rebuild.js";
+import { handleRepairCommand } from "./repair.js";
 
 export function createCoreCommandHandlers(): CoreCommandHandlers {
 
@@ -386,6 +388,8 @@ const contentFile = flagString(args, "content-file");
     rebuild: handleRebuildCommand,
     index: handleIndexCommand,
     graph: handleGraphCommand,
+    health: handleHealthCommand,
+    repair: handleRepairCommand,
     context: handleContext,
     query: handleQuery,
     show: handleShow,
@@ -425,7 +429,10 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki lint");
   writeLine(stream, "  aiwiki lint --capsules --json");
   writeLine(stream, "  aiwiki lint --strict --json");
+  writeLine(stream, "  aiwiki lint --maintenance --json");
   writeLine(stream, "  aiwiki lint --fix-empty-dirs --json");
+  writeLine(stream, "  aiwiki health --json");
+  writeLine(stream, "  aiwiki repair --plan --json");
   writeLine(stream, "  aiwiki plugin list --json");
   writeLine(stream, "  aiwiki plugin add <directory>");
   writeLine(stream, "  aiwiki plugin enable <id>");
@@ -496,6 +503,7 @@ function lintOptions(args: ParsedArgs): CapsuleLintOptions {
     capsules: flagBool(args, "capsules"),
     lifecycle: flagBool(args, "lifecycle"),
     okf: flagBool(args, "okf"),
+    maintenance: flagBool(args, "maintenance"),
     strict: flagBool(args, "strict")
   };
 }

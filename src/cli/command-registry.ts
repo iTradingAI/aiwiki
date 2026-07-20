@@ -37,6 +37,8 @@ export type CoreCommandHandlers = Readonly<{
   rebuild: CommandHandler;
   index: CommandHandler;
   graph: CommandHandler;
+  health: CommandHandler;
+  repair: CommandHandler;
   context: CommandHandler;
   query: CommandHandler;
   show: CommandHandler;
@@ -120,6 +122,18 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
         { usage: "aiwiki graph status --path <workspace> --json", visibility: "public", scope: "base" },
         { usage: "aiwiki graph rebuild --path <workspace> --json", visibility: "public", scope: "base" }
       ]
+    },
+    {
+      id: "health",
+      matches: ({ command }) => command === "health",
+      handle: handlers.health,
+      help: [{ usage: "aiwiki health --json", visibility: "public", scope: "base" }]
+    },
+    {
+      id: "repair",
+      matches: ({ command }) => command === "repair",
+      handle: handlers.repair,
+      help: [{ usage: "aiwiki repair --plan --json", visibility: "public", scope: "base" }]
     },
     {
       id: "plugin-help",
@@ -238,6 +252,7 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
         { usage: "aiwiki lint", visibility: "public", scope: "base" },
         { usage: "aiwiki lint --capsules --json", visibility: "public", scope: "base" },
         { usage: "aiwiki lint --strict --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki lint --maintenance --json", visibility: "public", scope: "base" },
         { usage: "aiwiki lint --fix-empty-dirs --json", visibility: "public", scope: "base" }
       ]
     },

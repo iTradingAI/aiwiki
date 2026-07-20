@@ -148,3 +148,37 @@ test("graph-aware context documentation keeps v2 opt-in while Context v1 remains
   assert.match(readme, /relationship graph/i);
   assert.match(readmeZh, /关系图/);
 });
+
+test("maintenance documentation and Skill keep health and repair advisory-only", async () => {
+  const [readme, readmeZh, usage, usageZh, handoff, handoffZh, catalog, catalogZh, skill, lintProtocol] = await Promise.all([
+    readFile("README.md", "utf8"),
+    readFile("README.zh-CN.md", "utf8"),
+    readFile("docs/USAGE.md", "utf8"),
+    readFile("docs/USAGE.zh-CN.md", "utf8"),
+    readFile("docs/AGENT_HANDOFF.md", "utf8"),
+    readFile("docs/AGENT_HANDOFF.zh-CN.md", "utf8"),
+    readFile("docs/schema/README.md", "utf8"),
+    readFile("docs/schema/README.zh-CN.md", "utf8"),
+    readFile("skill/SKILL.md", "utf8"),
+    readFile("skill/LINT_PROTOCOL.md", "utf8")
+  ]);
+
+  for (const document of [readme, usage, handoff, catalog, skill, lintProtocol]) {
+    assert.match(document, /aiwiki health --json/);
+    assert.match(document, /aiwiki repair --plan --json/);
+    assert.match(document, /aiwiki\.health\.v1/);
+    assert.match(document, /aiwiki\.repair_plan\.v1/);
+    assert.match(document, /read-only/i);
+    assert.match(document, /CORE-0506/);
+    assert.doesNotMatch(document, /repair --apply/);
+  }
+  for (const document of [readmeZh, usageZh, handoffZh, catalogZh]) {
+    assert.match(document, /aiwiki health --json/);
+    assert.match(document, /aiwiki repair --plan --json/);
+    assert.match(document, /aiwiki\.health\.v1/);
+    assert.match(document, /aiwiki\.repair_plan\.v1/);
+    assert.match(document, /只读/);
+    assert.match(document, /CORE-0506/);
+    assert.doesNotMatch(document, /repair --apply/);
+  }
+});

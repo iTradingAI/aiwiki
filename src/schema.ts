@@ -130,6 +130,20 @@ export const AIWIKI_SCHEMAS = {
     storage: "json_output",
     compatibility: "additive_fields_only"
   },
+  health: {
+    id: "aiwiki.health.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  repairPlan: {
+    id: "aiwiki.repair_plan.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
   extension: {
     id: "aiwiki.extension.v1",
     status: "active",

@@ -47,6 +47,8 @@ aiwiki agent check --path <workspace> --json
 aiwiki doctor --path <workspace>
 aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>
+aiwiki health --json --path <workspace>
+aiwiki repair --plan --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
 aiwiki ingest-agent --stdin --path <workspace>
 aiwiki status --path <workspace>
@@ -68,6 +70,7 @@ Use this matrix as the command contract for matching natural-language requests. 
 | Ingest a local file or material already read by the host Agent | `aiwiki ingest-file --file <file>` or `aiwiki ingest-agent --stdin` | Report ingest status, Wiki Entry quality, Source Card, Processing Summary, and warnings | Record unreadable sources as failed-fetch payloads; never require the user to write or save a payload |
 | Query, cite, or reuse local knowledge | `aiwiki query <topic>` for human output or `aiwiki context <topic>` for Agent JSON; use `aiwiki show <topic>` or capsule view for one source package | Read `result_quality`, `recommended_next_action`, provenance, and known gaps before answering | Try the relevant AIWiki command first; only then use file search and state why the command was insufficient |
 | Check, organize, or safely repair a workspace | `aiwiki lint --json`; when allowed and only safe fixes exist, `aiwiki lint --fix-empty-dirs --json` followed by `aiwiki lint --json` | Explain errors, warnings, safe-fix scope, and the lint report path | Leave non-safe issues traceable for review; do not make ad hoc Markdown edits as a default repair path |
+| Only when the user explicitly asks for a health review, maintenance risk, or advisory repair plan | Run `aiwiki health --json` for `aiwiki.health.v1`, then `aiwiki repair --plan --json` for `aiwiki.repair_plan.v1` when a plan is requested | Read all eight maintenance domains, derived-state status, issue evidence, risk, affected files, and suggested commands | Both commands are read-only; never infer Markdown edits, rebuild/index/graph writes, or dashboard creation from a generic maintenance request. `CORE-0506` owns the persistent Health Report dashboard |
 | Only when the user explicitly asks to inspect or rebuild derived state | Preview with `aiwiki rebuild --dry-run --json`; use `--check` to classify state and default rebuild only when the user asks to write it | Explain `would_rebuild`, `current`, `missing`, `stale`, or `invalid`; normal retrieval remains Markdown-backed | Do not infer this from generic maintenance; report a lock conflict and do not delete another process's lock |
 | Only when the user explicitly asks whether the structured index is current, to build it, or to rebuild it | Inspect with `aiwiki index status --path <workspace> --json`; use `aiwiki index build --path <workspace> --json` or `aiwiki index rebuild --path <workspace> --json` only when the user asks to write it | Report `fresh`, `missing`, `stale`, or `invalid`, category counts, and duplicate-source URL count | Do not automatically build or rebuild the index; Markdown-backed retrieval remains available when the index is missing, stale, or invalid |
 | Only when the user explicitly asks whether the relationship graph is current, to build it, or to rebuild it | Inspect with `aiwiki graph status --path <workspace> --json`; use `aiwiki graph build --path <workspace> --json` or `aiwiki graph rebuild --path <workspace> --json` only when the user asks to write it | Report `fresh`, `missing`, `stale`, or `invalid`, typed-edge counts, unresolved-target diagnostics, and lock conflicts | Do not automatically build or rebuild the graph; Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid; default Context v1 remains independent |
@@ -79,6 +82,8 @@ Use this matrix as the command contract for matching natural-language requests. 
 Keep the current command-first intent mapping unchanged. `aiwiki.context.v1` and `aiwiki.context.capsule.v1` remain the supported Agent JSON outputs; legacy workspace `schema_version: 1` remains readable as `aiwiki.workspace.v1` without a rewrite. Unknown future schema majors require manual review and have no CLI migration path. See [Schema Compatibility](schema/README.md).
 
 CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 provides only explicit extension administration: `aiwiki plugin list`, `aiwiki plugin add <directory>`, and `aiwiki plugin enable <id>`. CORE-0407 locks this matching boundary: do not infer these commands from ordinary natural language, discover extensions, enable extensions, execute extensions, or describe the Host as a sandbox. See the packaged `skill/EXTENSION_PROTOCOL.md` for the exact intent mapping.
+
+`aiwiki health --json` emits the additive, read-only `aiwiki.health.v1` snapshot. `aiwiki repair --plan --json` emits the additive, read-only `aiwiki.repair_plan.v1` advisory plan. Neither command writes Markdown, builds derived state, or creates a dashboard; `CORE-0506` separately owns the persistent Health Report and release gate.
 
 ## Derived State Rebuild Intent
 

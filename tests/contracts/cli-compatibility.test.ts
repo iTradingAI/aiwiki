@@ -93,6 +93,31 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
       "Graph contract entry"
     ].join("\n"), "utf8");
 
+    const health = JSON.parse(runInstalledCli(consumerRoot, ["health", "--json", "--path", vaultPath])) as {
+      schema_version: string;
+      summary: { by_domain: Record<string, number> };
+      derived_state: { index: string; graph: string };
+    };
+    const repair = JSON.parse(runInstalledCli(consumerRoot, ["repair", "--plan", "--json", "--path", vaultPath])) as {
+      schema_version: string;
+      dry_run: boolean;
+      would_write: boolean;
+      items: Array<{ evidence: string[]; suggested_changes: string[]; risk: string; affected_files: string[]; suggested_command: string }>;
+    };
+    const repairApply = runInstalledCliResult(consumerRoot, ["repair", "--apply", "--path", vaultPath]);
+    assert.equal(health.schema_version, "aiwiki.health.v1");
+    assert.ok(Object.keys(health.summary.by_domain).includes("relationship"));
+    assert.equal(health.derived_state.index, "missing");
+    assert.equal(health.derived_state.graph, "missing");
+    assert.equal(repair.schema_version, "aiwiki.repair_plan.v1");
+    assert.equal(repair.dry_run, true);
+    assert.equal(repair.would_write, false);
+    assert.ok(repair.items.every((item) => item.evidence.length > 0 && item.suggested_changes.length > 0 && item.risk && item.affected_files.length > 0 && item.suggested_command.startsWith("aiwiki ")));
+    assert.equal(repairApply.status, 1);
+    assert.match(repairApply.stderr, /repair --plan is the only Core repair mode/);
+    assert.equal(existsSync(path.join(vaultRoot, ".aiwiki", "state")), false);
+    assert.equal(existsSync(path.join(vaultRoot, "dashboards", "Knowledge Health.md")), false);
+
     const graphMissing = JSON.parse(runInstalledCli(consumerRoot, ["context", "Graph Contract", "--view", "graph", "--path", vaultPath])) as { schema_version: string; graph: { state: string }; relationships: unknown[]; recommended_next_action: string };
     assert.equal(graphMissing.schema_version, "aiwiki.context.v2");
     assert.equal(graphMissing.graph.state, "missing");
@@ -157,6 +182,9 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
       "aiwiki setup",
       "aiwiki context <query>",
       "aiwiki context <query> --view graph --graph-depth 1",
+      "aiwiki lint --maintenance --json",
+      "aiwiki health --json",
+      "aiwiki repair --plan --json",
       "aiwiki index build --path <workspace> --json",
       "aiwiki index status --path <workspace> --json",
       "aiwiki index rebuild --path <workspace> --json",

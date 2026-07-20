@@ -168,6 +168,17 @@ aiwiki lint --okf --json
 aiwiki lint --strict --json
 ```
 
+### Review workspace health
+
+When you explicitly ask for a health review or maintenance plan, the assistant can run:
+
+```bash
+aiwiki health --json
+aiwiki repair --plan --json
+```
+
+`aiwiki.health.v1` is a read-only eight-domain snapshot. `aiwiki.repair_plan.v1` is a read-only list of evidence, affected files, risk, and suggested commands; it does not change Markdown, create derived state, or run commands on your behalf. `CORE-0506` owns the later Health Report dashboard and release gate.
+
 ### Inspect your structured index
 
 Tell your assistant:
@@ -249,6 +260,8 @@ CORE-0403 does not change existing Skill matching. CORE-0407 owns the future mat
 The structured index uses the additive `aiwiki.index.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. See [Derived State v1](docs/schema/STATE.md).
 
 The relationship graph uses the additive `aiwiki.graph.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. Its separately requested graph-aware view is `aiwiki.context.v2`, with `--graph-depth` limited to `1`, `2`, or `3`. See [Derived State v1](docs/schema/STATE.md).
+
+The additive `aiwiki.health.v1` and `aiwiki.repair_plan.v1` JSON contracts remain read-only in Core: health reports risks and repair only proposes reviewed next steps. `CORE-0506` is the only Core 0.5 task that may create the persistent Health Report dashboard.
 
 See:
 
