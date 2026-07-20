@@ -174,10 +174,11 @@ When you explicitly ask for a health review or maintenance plan, the assistant c
 
 ```bash
 aiwiki health --json
+aiwiki health --write --json
 aiwiki repair --plan --json
 ```
 
-`aiwiki.health.v1` is a read-only eight-domain snapshot. `aiwiki.repair_plan.v1` is a read-only list of evidence, affected files, risk, and suggested commands; it does not change Markdown, create derived state, or run commands on your behalf. `CORE-0506` owns the later Health Report dashboard and release gate.
+`aiwiki.health.v1` is a read-only eight-domain snapshot. When you explicitly ask your Agent to generate or save a health report, `aiwiki health --write --json` returns `aiwiki.health_report.v1`, refreshes only the managed section of `dashboards/Knowledge Health.md`, and writes one JSON report under `09-runs/`. It does not change knowledge Markdown or derived state. `aiwiki.repair_plan.v1` remains a read-only list of evidence, affected files, risk, and suggested commands; it never runs repairs on your behalf.
 
 ### Inspect your structured index
 
@@ -261,7 +262,7 @@ The structured index uses the additive `aiwiki.index.v1` metadata contract. It i
 
 The relationship graph uses the additive `aiwiki.graph.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. Its separately requested graph-aware view is `aiwiki.context.v2`, with `--graph-depth` limited to `1`, `2`, or `3`. See [Derived State v1](docs/schema/STATE.md).
 
-The additive `aiwiki.health.v1` and `aiwiki.repair_plan.v1` JSON contracts remain read-only in Core: health reports risks and repair only proposes reviewed next steps. `CORE-0506` is the only Core 0.5 task that may create the persistent Health Report dashboard.
+The additive `aiwiki.health.v1` and `aiwiki.repair_plan.v1` JSON contracts remain read-only in Core: health reports risks and repair only proposes reviewed next steps. `aiwiki.health_report.v1` is available only through the explicit `aiwiki health --write --json` report-generation path; it refreshes the managed dashboard section and stores an immutable JSON run record without changing knowledge Markdown or derived state.
 
 See:
 

@@ -70,7 +70,8 @@ aiwiki show <topic> --path <workspace>
 | 入库本地文件或宿主 Agent 已读取的资料 | `aiwiki ingest-file --file <file>` 或 `aiwiki ingest-agent --stdin` | 汇报入库状态、Wiki Entry 质量、Source Card、Processing Summary 和 warning | 无法读取的来源使用 failed-fetch payload 留痕；不能要求用户写入或保存 payload |
 | 查询、引用或复用本地知识 | 人类可读结果用 `aiwiki query <topic>`，Agent JSON 用 `aiwiki context <topic>`；单个来源包用 `aiwiki show <topic>` 或 capsule view | 回答前读取 `result_quality`、`recommended_next_action`、来源和已知缺口 | 先尝试对应 AIWiki 命令；仅在命令不足时使用文件搜索，并说明原因 |
 | 检查、整理或安全修复工作区 | `aiwiki lint --json`；仅在允许且只有安全修复时执行 `aiwiki lint --fix-empty-dirs --json`，再运行 `aiwiki lint --json` | 解释 error、warning、安全修复范围和 lint 报告路径 | 非安全问题保留为可追踪复核项；不要默认手工修改 Markdown |
-| 只有用户明确要求健康检查、维护风险或维修建议清单时 | 先运行 `aiwiki health --json` 获得 `aiwiki.health.v1`；要求计划时再运行 `aiwiki repair --plan --json` 获得 `aiwiki.repair_plan.v1` | 读取八个维护域、派生 state、问题证据、风险、受影响文件和建议命令 | 两个命令均为只读；不能从泛化维护请求推断 Markdown 修改、rebuild/index/graph 写入或 dashboard 创建。持久 Health Report dashboard 由 `CORE-0506` 负责 |
+| 只有用户明确要求健康检查、维护风险或修复建议清单时 | 先运行 `aiwiki health --json` 获得 `aiwiki.health.v1`；要求计划时再运行 `aiwiki repair --plan --json` 获得 `aiwiki.repair_plan.v1` | 读取八个维护域、派生 state、问题证据、风险、受影响文件和建议命令 | 两个命令均为只读；不能从泛化维护请求推断 Markdown 修改、rebuild/index/graph 写入或 dashboard 创建 |
+| 只有用户明确要求生成或保存健康报告时 | 运行 `aiwiki health --write --json` 获得 `aiwiki.health_report.v1` | 汇报指标、dashboard 路径和不可变 JSON 运行记录路径 | 它只刷新 `dashboards/Knowledge Health.md` 中 marker 限定的受控区块，并在 `09-runs/` 写入一份 JSON 报告；不会修改知识 Markdown 或派生 state |
 | 只有用户明确要求检查或重建派生状态时 | 先用 `aiwiki rebuild --dry-run --json` 预览；用 `--check` 分类 state；只有用户要求写入时才执行默认 rebuild | 解释 `would_rebuild`、`current`、`missing`、`stale` 或 `invalid`；日常读取仍以 Markdown 为准 | 不要从泛化维护请求推断 rebuild；报告锁冲突，不要删除其他进程的 lock |
 | 只有用户明确要求确认结构化索引是否最新、构建索引或重建索引时 | 先用 `aiwiki index status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、分类计数和重复来源 URL 数 | 不要自动构建或重建索引；索引缺失、过期或损坏时仍可直接从 Markdown 检索 |
 | 只有用户明确要求确认关系图是否最新、构建关系图或重建关系图时 | 先用 `aiwiki graph status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki graph build --path <workspace> --json` 或 `aiwiki graph rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、有类型边计数、未解析 target 诊断和锁冲突 | 不要自动构建或重建关系图；关系图缺失、过期或损坏时仍可直接从 Markdown 检索；默认 Context v1 保持独立 |
@@ -83,7 +84,7 @@ aiwiki show <topic> --path <workspace>
 
 CORE-0404 提供仅声明的 Extension API v0.1。CORE-0405 只提供显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`。CORE-0407 锁定该匹配边界：不要从普通自然语言推断这些命令、自动发现 extension、自动启用 extension、自动执行 extension，也不要把 Host 描述成 sandbox。精确映射见随包交付的 `skill/EXTENSION_PROTOCOL.md`。
 
-`aiwiki health --json` 输出附加的只读 `aiwiki.health.v1` 快照。`aiwiki repair --plan --json` 输出附加的只读 `aiwiki.repair_plan.v1` 建议计划。两者均不写入 Markdown、不构建派生 state、不创建 dashboard；持久 Health Report 与发布门禁由 `CORE-0506` 单独负责。
+`aiwiki health --json` 输出附加的只读 `aiwiki.health.v1` 快照。`aiwiki repair --plan --json` 输出附加的只读 `aiwiki.repair_plan.v1` 建议计划。用户明确要求生成或保存报告时，`aiwiki health --write --json` 输出 `aiwiki.health_report.v1`，只更新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录；不会修改知识 Markdown 或构建派生 state。
 
 ## 派生状态 Rebuild 意图
 

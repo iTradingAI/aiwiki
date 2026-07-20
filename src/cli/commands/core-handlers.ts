@@ -422,6 +422,9 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki graph build --path <workspace> --json");
   writeLine(stream, "  aiwiki graph status --path <workspace> --json");
   writeLine(stream, "  aiwiki graph rebuild --path <workspace> --json");
+  writeLine(stream, "  aiwiki health --json");
+  writeLine(stream, "  aiwiki health --write --json");
+  writeLine(stream, "  aiwiki repair --plan --json");
   writeLine(stream, "  aiwiki show <query>");
   writeLine(stream, "  aiwiki context <query>");
   writeLine(stream, "  aiwiki context <query> --view graph --graph-depth 1");

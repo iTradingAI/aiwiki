@@ -127,7 +127,10 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
       id: "health",
       matches: ({ command }) => command === "health",
       handle: handlers.health,
-      help: [{ usage: "aiwiki health --json", visibility: "public", scope: "base" }]
+      help: [
+        { usage: "aiwiki health --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki health --write --json", visibility: "public", scope: "base" }
+      ]
     },
     {
       id: "repair",
