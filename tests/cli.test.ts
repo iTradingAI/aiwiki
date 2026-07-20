@@ -183,7 +183,7 @@ test("CLI index exposes explicit build status and rebuild without changing Markd
   }
 });
 
-test("CLI health and repair expose advisory maintenance commands without workspace writes", async () => {
+test("CLI health keeps inspection read-only and writes reports only when explicitly requested", async () => {
   const root = await tempRoot("aiwiki-cli-health-repair");
   const stateDir = path.join(root, ".aiwiki", "state");
   try {
@@ -198,10 +198,21 @@ test("CLI health and repair expose advisory maintenance commands without workspa
     assert.equal(health.summary.by_domain.relationship > 0, true);
     assert.equal(health.derived_state.index, "missing");
     assert.equal(health.derived_state.graph, "missing");
+    await assert.rejects(access(path.join(root, "dashboards", "Knowledge Health.md")));
 
     const healthHelp = new MemoryWritable();
     assert.equal(await runCli(["health", "--help"], { stdout: healthHelp, stderr: new MemoryWritable() }), 0);
-    assert.match(healthHelp.text(), /health never creates dashboards, state files, or workspace content/);
+    assert.match(healthHelp.text(), /health --write --json/);
+    assert.match(healthHelp.text(), /Without --write/);
+
+    const healthWriteOut = new MemoryWritable();
+    assert.equal(await runCli(["health", "--write", "--json", "--path", root], { stdout: healthWriteOut, stderr: new MemoryWritable() }), 0);
+    const written = JSON.parse(healthWriteOut.text()) as { schema_version: string; dashboard_path: string; run_path: string; health: { schema_version: string } };
+    assert.equal(written.schema_version, "aiwiki.health_report.v1");
+    assert.equal(written.dashboard_path, "dashboards/Knowledge Health.md");
+    assert.equal(written.health.schema_version, "aiwiki.health.v1");
+    assert.equal((await readFile(path.join(root, written.run_path), "utf8")).includes("aiwiki.health_report.v1"), true);
+    assert.match(await readFile(path.join(root, written.dashboard_path), "utf8"), /AIWIKI:HEALTH:START/);
 
     const repairOut = new MemoryWritable();
     assert.equal(await runCli(["repair", "--plan", "--json", "--path", root], { stdout: repairOut, stderr: new MemoryWritable() }), 0);
@@ -231,7 +242,6 @@ test("CLI health and repair expose advisory maintenance commands without workspa
     assert.equal(await runCli(["repair", "--plan", "--yes=true", "--path", root], { stdout: new MemoryWritable(), stderr: rejectedYesValue }), 1);
     assert.match(rejectedYesValue.text(), /repair --plan is the only Core repair mode/);
     await assert.rejects(access(stateDir));
-    await assert.rejects(access(path.join(root, "dashboards", "Knowledge Health.md")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }

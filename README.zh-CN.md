@@ -168,10 +168,11 @@ aiwiki lint --strict --json
 
 ```bash
 aiwiki health --json
+aiwiki health --write --json
 aiwiki repair --plan --json
 ```
 
-`aiwiki.health.v1` 是覆盖八个维护域的只读快照。`aiwiki.repair_plan.v1` 是只读的证据、受影响文件、风险和建议命令清单；它不会修改 Markdown、创建派生 state，也不会代替用户执行命令。后续持久的 Health Report dashboard 与发布门禁由 `CORE-0506` 负责。
+`aiwiki.health.v1` 是覆盖八个维护域的只读快照。只有在你明确要求 Agent 生成或保存健康报告时，才运行 `aiwiki health --write --json`：它会返回 `aiwiki.health_report.v1`，只刷新 `dashboards/Knowledge Health.md` 中受控的报告区块，并在 `09-runs/` 写入一份 JSON 运行记录。它不会修改知识 Markdown 或派生 state。`aiwiki.repair_plan.v1` 仍是只读的证据、受影响文件、风险和建议命令清单；它不会代替用户执行修复。
 
 如果你想让助手进一步整理知识库，可以参考 [使用指南](docs/USAGE.zh-CN.md) 里的检查流程。
 
@@ -257,7 +258,7 @@ CORE-0403 不改变既有 Skill 匹配。CORE-0407 约束匹配优先级、fallb
 
 关系图使用附加的 `aiwiki.graph.v1` 元数据合同。它需显式构建、可删除，并且不改变默认 `aiwiki.context.v1` 检索输出。单独明确请求的关系图 view 是 `aiwiki.context.v2`，`--graph-depth` 只能是 `1`、`2` 或 `3`。详见[派生状态 v1](docs/schema/STATE.zh-CN.md)。
 
-附加的 `aiwiki.health.v1` 与 `aiwiki.repair_plan.v1` JSON 合同都保持只读：health 报告维护风险，repair 只给出需要人工复核的下一步。只有 `CORE-0506` 可以创建持久的 Health Report dashboard。
+附加的 `aiwiki.health.v1` 与 `aiwiki.repair_plan.v1` JSON 合同都保持只读：health 报告维护风险，repair 只给出需要人工复核的下一步。只有显式的 `aiwiki health --write --json` 报告生成路径会产生 `aiwiki.health_report.v1`：刷新 dashboard 的受控区块并保存不可变 JSON 运行记录，不会修改知识 Markdown 或派生 state。
 
 可直接查看：
 

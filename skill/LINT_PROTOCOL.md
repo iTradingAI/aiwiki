@@ -34,15 +34,23 @@ aiwiki health --json
 
 Read `aiwiki.health.v1` for all eight maintenance domains, derived-state status, issue evidence, and the recommended next action. It does not modify Markdown, create state, or create a dashboard.
 
-4. When the user explicitly asks for a proposed maintenance checklist, generate the read-only plan:
+4. When the user explicitly asks to generate or save a health report, run:
+
+```bash
+aiwiki health --write --json
+```
+
+Read `aiwiki.health_report.v1` for its metrics, dashboard path, and immutable JSON run path. It refreshes only the marker-bounded managed content in `dashboards/Knowledge Health.md` and writes one JSON report under `09-runs/`; it does not modify knowledge Markdown or derived state.
+
+5. When the user explicitly asks for a proposed maintenance checklist, generate the read-only plan:
 
 ```bash
 aiwiki repair --plan --json
 ```
 
-Read `aiwiki.repair_plan.v1` for each issue, evidence, suggested changes, risk, affected files, and suggested command. Do not execute suggested commands or infer a workspace write. `CORE-0506` owns the persistent Health Report dashboard and Core 0.5 release gate.
+Read `aiwiki.repair_plan.v1` for each issue, evidence, suggested changes, risk, affected files, and suggested command. Do not execute suggested commands or infer a workspace write.
 
-5. If `safe_fixes.only_safe_fixes` is true and the user allows cleanup, apply the built-in safe fix and rerun JSON lint:
+6. If `safe_fixes.only_safe_fixes` is true and the user allows cleanup, apply the built-in safe fix and rerun JSON lint:
 
 ```bash
 aiwiki lint --fix-empty-dirs --json

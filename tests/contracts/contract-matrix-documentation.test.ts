@@ -165,20 +165,22 @@ test("maintenance documentation and Skill keep health and repair advisory-only",
 
   for (const document of [readme, usage, handoff, catalog, skill, lintProtocol]) {
     assert.match(document, /aiwiki health --json/);
+    assert.match(document, /aiwiki health --write --json/);
     assert.match(document, /aiwiki repair --plan --json/);
     assert.match(document, /aiwiki\.health\.v1/);
+    assert.match(document, /aiwiki\.health_report\.v1/);
     assert.match(document, /aiwiki\.repair_plan\.v1/);
     assert.match(document, /read-only/i);
-    assert.match(document, /CORE-0506/);
     assert.doesNotMatch(document, /repair --apply/);
   }
   for (const document of [readmeZh, usageZh, handoffZh, catalogZh]) {
     assert.match(document, /aiwiki health --json/);
+    assert.match(document, /aiwiki health --write --json/);
     assert.match(document, /aiwiki repair --plan --json/);
     assert.match(document, /aiwiki\.health\.v1/);
+    assert.match(document, /aiwiki\.health_report\.v1/);
     assert.match(document, /aiwiki\.repair_plan\.v1/);
     assert.match(document, /只读/);
-    assert.match(document, /CORE-0506/);
     assert.doesNotMatch(document, /repair --apply/);
   }
 });

@@ -19,6 +19,7 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 | Structured index | `aiwiki.index.v1` | `.aiwiki/state/index.json` | Explicitly built removable metadata; not semantic or vector search. |
 | Relationship graph | `aiwiki.graph.v1` | `.aiwiki/state/graph.json` | Explicitly built deterministic local-relationship metadata; does not change Context v1. |
 | Health snapshot | `aiwiki.health.v1` | JSON output | Read-only eight-domain maintenance snapshot; it does not create a dashboard or derived state. |
+| Health report | `aiwiki.health_report.v1` | `dashboards/Knowledge Health.md` and `09-runs/health-*/health-report.json` | Explicit `health --write` output; refreshes only marker-bounded dashboard content and writes an immutable JSON run record. |
 | Repair plan | `aiwiki.repair_plan.v1` | JSON output | Read-only advisory findings with evidence, risk, affected files, and suggested commands. |
 | Extension author contract | `aiwiki.extension.v1` | Package public contract | Declaration API remains stable; explicit hosting is documented separately. |
 | Extension Host | `aiwiki.extension-host.v1` | Local host state | Explicit local/bundled loading, state, and failure isolation; see [Extension Host v0.1](EXTENSION_HOST.md). |
@@ -31,7 +32,7 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 - Missing frontmatter schema markers are read as the active v1 contract. Unknown frontmatter fields remain tolerated and are never removed by this feature.
 - A declared unknown or future major version is non-writable and requires manual review. The internal `planSchemaMigration()` report is always `dry_run: true` and `would_write: false`.
 - CORE-0403 intentionally exposes no migration CLI command and no `--apply` path. A future migration must be explicitly designed, reviewed, and separately released.
-- `aiwiki health --json` and `aiwiki repair --plan --json` emit the additive `aiwiki.health.v1` and `aiwiki.repair_plan.v1` contracts. Both are read-only: they do not modify Markdown, build state, or create a dashboard. `CORE-0506` separately owns persistent Health Report output and the Core 0.5 release gate.
+- `aiwiki health --json` and `aiwiki repair --plan --json` emit the additive, read-only `aiwiki.health.v1` and `aiwiki.repair_plan.v1` contracts. `aiwiki health --write --json` explicitly emits `aiwiki.health_report.v1`: it refreshes only marker-bounded dashboard content and writes an immutable JSON run record. No health path modifies knowledge Markdown or builds derived state.
 
 Optional frontmatter markers are available only when a producer needs to declare them:
 

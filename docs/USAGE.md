@@ -263,10 +263,11 @@ For an explicit health review, use the read-only maintenance surfaces:
 
 ```bash
 aiwiki health --json --path <workspace>
+aiwiki health --write --json --path <workspace>
 aiwiki repair --plan --json --path <workspace>
 ```
 
-`aiwiki.health.v1` reports eight maintenance domains and derived-state status without writing. `aiwiki.repair_plan.v1` turns those findings into a read-only advisory list with evidence, risk, affected files, and suggested commands. Neither command changes Markdown, builds rebuild/index/graph state, or creates a dashboard. `CORE-0506` owns the persistent Health Report dashboard and the Core 0.5 release gate.
+`aiwiki.health.v1` reports eight maintenance domains and derived-state status without writing. When the user explicitly asks to generate or save a health report, `aiwiki health --write --json` returns `aiwiki.health_report.v1`, refreshes only the managed section of `dashboards/Knowledge Health.md`, and writes an immutable JSON report under `09-runs/`. It does not change knowledge Markdown or build rebuild/index/graph state. `aiwiki.repair_plan.v1` remains a read-only advisory list with evidence, risk, affected files, and suggested commands.
 
 For 0.3.0 checks:
 

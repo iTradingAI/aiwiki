@@ -28,6 +28,10 @@ test("schema catalog keeps active v1 contracts and activates the extension contr
   assert.equal(AIWIKI_SCHEMAS.health.status, "active");
   assert.equal(AIWIKI_SCHEMAS.health.storage, "json_output");
   assert.equal(AIWIKI_SCHEMAS.health.compatibility, "additive_fields_only");
+  assert.equal(AIWIKI_SCHEMAS.healthReport.id, "aiwiki.health_report.v1");
+  assert.equal(AIWIKI_SCHEMAS.healthReport.status, "active");
+  assert.equal(AIWIKI_SCHEMAS.healthReport.storage, "json_output");
+  assert.equal(AIWIKI_SCHEMAS.healthReport.compatibility, "additive_fields_only");
   assert.equal(AIWIKI_SCHEMAS.repairPlan.id, "aiwiki.repair_plan.v1");
   assert.equal(AIWIKI_SCHEMAS.repairPlan.status, "active");
   assert.equal(AIWIKI_SCHEMAS.repairPlan.storage, "json_output");

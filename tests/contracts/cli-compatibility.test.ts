@@ -118,6 +118,17 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
     assert.equal(existsSync(path.join(vaultRoot, ".aiwiki", "state")), false);
     assert.equal(existsSync(path.join(vaultRoot, "dashboards", "Knowledge Health.md")), false);
 
+    const writtenHealth = JSON.parse(runInstalledCli(consumerRoot, ["health", "--write", "--json", "--path", vaultPath])) as {
+      schema_version: string;
+      dashboard_path: string;
+      run_path: string;
+      health: { schema_version: string };
+    };
+    assert.equal(writtenHealth.schema_version, "aiwiki.health_report.v1");
+    assert.equal(writtenHealth.health.schema_version, "aiwiki.health.v1");
+    assert.equal(existsSync(path.join(vaultRoot, writtenHealth.dashboard_path)), true);
+    assert.equal(existsSync(path.join(vaultRoot, writtenHealth.run_path)), true);
+
     const graphMissing = JSON.parse(runInstalledCli(consumerRoot, ["context", "Graph Contract", "--view", "graph", "--path", vaultPath])) as { schema_version: string; graph: { state: string }; relationships: unknown[]; recommended_next_action: string };
     assert.equal(graphMissing.schema_version, "aiwiki.context.v2");
     assert.equal(graphMissing.graph.state, "missing");
@@ -184,6 +195,7 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
       "aiwiki context <query> --view graph --graph-depth 1",
       "aiwiki lint --maintenance --json",
       "aiwiki health --json",
+      "aiwiki health --write --json",
       "aiwiki repair --plan --json",
       "aiwiki index build --path <workspace> --json",
       "aiwiki index status --path <workspace> --json",
