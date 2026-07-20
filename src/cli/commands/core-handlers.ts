@@ -434,8 +434,6 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki lint --strict --json");
   writeLine(stream, "  aiwiki lint --maintenance --json");
   writeLine(stream, "  aiwiki lint --fix-empty-dirs --json");
-  writeLine(stream, "  aiwiki health --json");
-  writeLine(stream, "  aiwiki repair --plan --json");
   writeLine(stream, "  aiwiki plugin list --json");
   writeLine(stream, "  aiwiki plugin add <directory>");
   writeLine(stream, "  aiwiki plugin enable <id>");

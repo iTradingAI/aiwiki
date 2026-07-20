@@ -321,14 +321,6 @@ AIWiki 不是简单拼接两套方法。
   -> 后续创作 / 研究 / 决策
 ```
 
-## Schema Compatibility
-
-工作区的历史 `schema_version: 1` 会作为 `aiwiki.workspace.v1` 读取且不会回写。默认 Agent JSON 保持 `aiwiki.context.v1`，capsule 视图保持 `aiwiki.context.capsule.v1`；声明了未知未来主版本时只能人工复核。详见[Schema Compatibility 目录](docs/schema/README.zh-CN.md)。
-
-CORE-0403 不改变现有 Skill 匹配；CORE-0407 负责后续匹配合同、优先级、fallback 和验收。
-
-结构化索引使用新增但兼容的 `aiwiki.index.v1` 元数据合同。它必须显式构建、可安全删除，并且不改变默认 `aiwiki.context.v1` 的检索输出。详见[派生状态 v1](docs/schema/STATE.zh-CN.md)。
-
 ## Agent 接入
 
 AIWiki 面向 AI 助手驱动的工作流。`aiwiki setup --path "<workspace>" --yes` 会创建或修复知识库，并刷新知识库根目录的 `AGENTS.md` 指导。`aiwiki agent sync --yes` 会把 AIWiki 的说明同步到支持的本地助手环境。只有想手动刷新根指导、但不需要重新 setup 时，才需要运行 `aiwiki agent sync --path "<workspace>" --yes`。

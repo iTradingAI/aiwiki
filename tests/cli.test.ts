@@ -44,6 +44,8 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.match(text, /aiwiki lint --fix-empty-dirs --json/);
   assert.match(text, /aiwiki health --json/);
   assert.match(text, /aiwiki repair --plan --json/);
+  assert.equal((text.match(/^  aiwiki health --json$/gm) ?? []).length, 1);
+  assert.equal((text.match(/^  aiwiki repair --plan --json$/gm) ?? []).length, 1);
   assert.match(text, /aiwiki plugin list --json/);
   assert.match(text, /aiwiki plugin add <directory>/);
   assert.match(text, /aiwiki plugin enable <id>/);
