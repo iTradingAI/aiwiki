@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { promises as fs } from "node:fs";
+import { access, mkdir, readFile, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 
 import { AIWIKI_SCHEMAS } from "../src/schema.js";
+import { withRebuildLock } from "../src/state/lock.js";
 import { buildRebuildProjection } from "../src/state/projection.js";
+import { compareStoredProjection, readStoredProjection, writeStoredProjection } from "../src/state/storage.js";
 import { tempRoot } from "./helpers.js";
 
 test("state projection registers four derived-state schemas", () => {
@@ -159,6 +162,7 @@ test("state projection ignores filesystem timestamp drift in snapshot ids", asyn
   try {
     const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
     const before = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    await writeStoredProjection(root, before);
     const beforeMtime = (await stat(artifactPath)).mtime;
     await utimes(artifactPath, beforeMtime, new Date(beforeMtime.getTime() + 60_000));
 
@@ -170,6 +174,7 @@ test("state projection ignores filesystem timestamp drift in snapshot ids", asyn
     assert.ok(afterArtifact);
     assert.notEqual(beforeArtifact.modified_at, afterArtifact.modified_at);
     assert.equal(before.snapshotId, after.snapshotId);
+    assert.equal(await compareStoredProjection(root, after), "current");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -268,6 +273,144 @@ test("state projection sorts capsule and relationship output deterministically",
 
     assert.deepEqual(capsuleIds, [...capsuleIds].sort());
     assert.deepEqual(relationshipKeys, [...relationshipKeys].sort());
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state storage writes and replaces only the four rebuild snapshots", async () => {
+  const root = await createProjectionFixture("aiwiki-state-storage-write");
+  try {
+    const first = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    const written = await writeStoredProjection(root, first);
+    assert.deepEqual(written, stateFilePaths());
+
+    const stateDir = path.join(root, ".aiwiki", "state");
+    assert.deepEqual((await readdir(stateDir)).sort(), stateFileNames());
+    const storedFirst = await readStoredProjection(root);
+    assert.ok(storedFirst);
+    assert.equal(storedFirst.snapshotId, first.snapshotId);
+
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const original = await readFile(artifactPath, "utf8");
+    await writeFile(artifactPath, original.replace("Primary wiki body", "Updated wiki body"), "utf8");
+    const second = await buildRebuildProjection(root, "2026-07-20T09:00:00.000Z");
+    await writeStoredProjection(root, second);
+
+    const storedSecond = await readStoredProjection(root);
+    assert.ok(storedSecond);
+    assert.equal(storedSecond.snapshotId, second.snapshotId);
+    assert.notEqual(storedFirst.snapshotId, storedSecond.snapshotId);
+    assert.deepEqual((await readdir(stateDir)).sort(), stateFileNames());
+    assert.equal((await readdir(stateDir)).some((name) => name.endsWith(".tmp")), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state storage classifies missing invalid and stale projections without writing", async () => {
+  const root = await createProjectionFixture("aiwiki-state-storage-compare");
+  try {
+    const expected = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    assert.equal(await compareStoredProjection(root, expected), "missing");
+    assert.equal(await readStoredProjection(root), undefined);
+
+    await writeStoredProjection(root, expected);
+    assert.equal(await compareStoredProjection(root, expected), "current");
+
+    const artifactsPath = path.join(root, ".aiwiki", "state", "artifacts.json");
+    const artifacts = JSON.parse(await readFile(artifactsPath, "utf8")) as { snapshot_id: string };
+    artifacts.snapshot_id = "tampered";
+    await writeFile(artifactsPath, JSON.stringify(artifacts), "utf8");
+    assert.equal(await compareStoredProjection(root, expected), "invalid");
+
+    await writeFile(artifactsPath, "{", "utf8");
+    assert.equal(await compareStoredProjection(root, expected), "invalid");
+
+    await writeStoredProjection(root, expected);
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const original = await readFile(artifactPath, "utf8");
+    await writeFile(artifactPath, original.replace("Primary wiki body", "Stale wiki body"), "utf8");
+    const changed = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    assert.equal(await compareStoredProjection(root, changed), "stale");
+
+    await rm(path.join(root, ".aiwiki", "state", "lifecycle.json"));
+    assert.equal(await compareStoredProjection(root, changed), "missing");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state storage cleans temporary files and leaves mixed snapshots invalid when rename fails", async () => {
+  const root = await createProjectionFixture("aiwiki-state-storage-rename-failure");
+  const originalRename = fs.rename;
+  try {
+    const first = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    await writeStoredProjection(root, first);
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const original = await readFile(artifactPath, "utf8");
+    await writeFile(artifactPath, original.replace("Primary wiki body", "Failure mutation"), "utf8");
+    const second = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+
+    fs.rename = async (source, target) => {
+      if (String(target).endsWith("capsules.json")) {
+        throw new Error("simulated rename failure");
+      }
+      await originalRename(source, target);
+    };
+    await assert.rejects(writeStoredProjection(root, second), /simulated rename failure/);
+
+    const stateDir = path.join(root, ".aiwiki", "state");
+    assert.equal((await readdir(stateDir)).some((name) => name.endsWith(".tmp")), false);
+    for (const name of stateFileNames()) {
+      JSON.parse(await readFile(path.join(stateDir, name), "utf8"));
+    }
+    assert.equal(await compareStoredProjection(root, second), "invalid");
+  } finally {
+    fs.rename = originalRename;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild lock rejects a concurrent caller and releases only its own lock", async () => {
+  const root = await tempRoot("aiwiki-state-lock");
+  let releaseFirst: (() => void) | undefined;
+  let enteredFirst: (() => void) | undefined;
+  const firstEntered = new Promise<void>((resolve) => { enteredFirst = resolve; });
+  const firstReleased = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+
+  try {
+    const first = withRebuildLock(root, async () => {
+      enteredFirst?.();
+      await firstReleased;
+      return "first";
+    });
+    await firstEntered;
+    await assert.rejects(withRebuildLock(root, async () => "second"), /rebuild.*lock|lock.*rebuild/i);
+    await access(lockPath);
+    const lock = JSON.parse(await readFile(lockPath, "utf8")) as Record<string, unknown>;
+    assert.deepEqual(Object.keys(lock).sort(), ["command", "pid", "started_at"]);
+
+    releaseFirst?.();
+    assert.equal(await first, "first");
+    await assert.rejects(access(lockPath));
+  } finally {
+    releaseFirst?.();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild lock does not remove a replacement lock it did not create", async () => {
+  const root = await tempRoot("aiwiki-state-lock-replacement");
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+  const replacement = JSON.stringify({ pid: 1, started_at: "2000-01-01T00:00:00.000Z", command: "external" }, null, 2) + "\n";
+
+  try {
+    await withRebuildLock(root, async () => {
+      await writeFile(lockPath, replacement, "utf8");
+    });
+    assert.equal(await readFile(lockPath, "utf8"), replacement);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -399,4 +542,12 @@ async function writeMarkdown(root: string, vaultPath: string, content: string): 
   const target = path.join(root, vaultPath);
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, `${content}\n`, "utf8");
+}
+
+function stateFileNames(): string[] {
+  return ["artifacts.json", "capsules.json", "lifecycle.json", "relationships.json"];
+}
+
+function stateFilePaths(): string[] {
+  return stateFileNames().map((name) => `.aiwiki/state/${name}`);
 }
