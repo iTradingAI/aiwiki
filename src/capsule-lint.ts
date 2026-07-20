@@ -6,6 +6,7 @@ export type CapsuleLintOptions = {
   lifecycle?: boolean;
   okf?: boolean;
   strict?: boolean;
+  maintenance?: boolean;
 };
 
 export async function capsuleLintIssues(rootPath: string, options: CapsuleLintOptions): Promise<LintIssue[]> {

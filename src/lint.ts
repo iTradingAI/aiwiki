@@ -1,13 +1,19 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { discoverArtifacts, type AiwikiArtifact } from "./artifact.js";
 import { capsuleLintIssues, type CapsuleLintOptions } from "./capsule-lint.js";
 import { frontmatterArray, frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmatter.js";
+import { inspectRelationshipGraph } from "./graph.js";
+import { inspectStructuredIndex } from "./indexing.js";
+import { lifecycleFromFrontmatter } from "./lifecycle.js";
 import { relativePath, safeJoin } from "./paths.js";
+import { relationshipsFromFrontmatter } from "./relationships.js";
 import { exists, OPTIONAL_DIRS, OPTIONAL_PARENT_DIRS } from "./workspace.js";
 
 export type LintSeverity = "error" | "warning" | "info";
 export type LintAction = "enrich" | "fix_link" | "archive" | "reingest" | "mark_reviewed" | "repair_structure" | "remove_empty_optional_dir";
+export type MaintenanceDomain = "structure" | "capsule" | "evidence" | "lifecycle" | "relationship" | "index" | "user_view" | "quality";
 
 export type LintSafeFix = {
   action: "remove_empty_optional_dir";
@@ -21,6 +27,7 @@ export type LintIssue = {
   message: string;
   suggestion?: string;
   category?: string;
+  domain?: MaintenanceDomain;
   action?: LintAction;
   safe_fix?: LintSafeFix;
 };
@@ -51,6 +58,9 @@ type Note = {
 
 export async function lintWorkspace(rootPath: string, now = new Date().toISOString(), options: CapsuleLintOptions = {}): Promise<LintReport> {
   const root = path.resolve(rootPath);
+  const capsuleOptions: CapsuleLintOptions = options.maintenance
+    ? { ...options, capsules: true, lifecycle: true, okf: true }
+    : options;
   const wikiEntries = await readNotes(root, "05-wiki/source-knowledge");
   const sourceCards = await readNotes(root, "03-sources/article-cards");
   const rawFiles = await readNotes(root, "02-raw/articles");
@@ -175,10 +185,19 @@ export async function lintWorkspace(rootPath: string, now = new Date().toISOStri
     }
   }
 
+  if (options.maintenance) {
+    const artifacts = await discoverArtifacts(root);
+    issues.push(...duplicateFingerprintIssues(artifacts));
+    issues.push(...relationshipTargetIssues(artifacts));
+    issues.push(...await derivedStateIssues(root));
+    issues.push(...weakEvidenceStrongClaimIssues(wikiEntries));
+  }
+
   issues.push(...duplicateIssues(sourceCards, "source_url", "Duplicate URL"));
   issues.push(...duplicateTitles(allNotes));
   issues.push(...brokenLinkIssues(root, allNotes));
-  issues.push(...await capsuleLintIssues(root, options));
+  issues.push(...await capsuleLintIssues(root, capsuleOptions));
+  const normalizedIssues = issues.map(withMaintenanceDomain).sort(compareLintIssue);
 
   return {
     generated_at: now,
@@ -188,8 +207,8 @@ export async function lintWorkspace(rootPath: string, now = new Date().toISOStri
       raw_files: rawFiles.length,
       runs: runs.length
     },
-    safe_fixes: safeFixSummary(issues),
-    issues
+    safe_fixes: safeFixSummary(normalizedIssues),
+    issues: normalizedIssues
   };
 }
 
@@ -466,6 +485,160 @@ function brokenLinkIssues(root: string, notes: Note[]): LintIssue[] {
     }
   }
   return issues;
+}
+
+function duplicateFingerprintIssues(artifacts: readonly AiwikiArtifact[]): LintIssue[] {
+  const sourcesByFingerprint = new Map<string, Map<string, string[]>>();
+  for (const artifact of artifacts) {
+    const fingerprint = artifact.contentFingerprint;
+    if (!fingerprint) {
+      continue;
+    }
+    const sourceId = artifact.capsuleId ? `capsule:${artifact.capsuleId}` : `artifact:${artifact.vaultPath}`;
+    const sources = sourcesByFingerprint.get(fingerprint) ?? new Map<string, string[]>();
+    sources.set(sourceId, [...(sources.get(sourceId) ?? []), artifact.vaultPath]);
+    sourcesByFingerprint.set(fingerprint, sources);
+  }
+  return Array.from(sourcesByFingerprint.entries()).flatMap(([fingerprint, sources]) => {
+    const sortedPaths = Array.from(sources.values()).flat().sort();
+    return sources.size > 1 ? [{
+      severity: "warning" as const,
+      path: sortedPaths[0],
+      category: "duplicate_content_fingerprint",
+      action: "mark_reviewed" as const,
+      message: `Content fingerprint is shared by ${sources.size} source capsules: ${fingerprint}`,
+      suggestion: sortedPaths.join(", ")
+    }] : [];
+  });
+}
+
+function relationshipTargetIssues(artifacts: readonly AiwikiArtifact[]): LintIssue[] {
+  const knownPaths = new Set(artifacts.map((artifact) => artifact.vaultPath));
+  const issues: LintIssue[] = [];
+  for (const artifact of artifacts) {
+    for (const relationship of relationshipsFromFrontmatter(artifact.frontmatter)) {
+      const target = normalizeLocalReference(relationship.target);
+      if (!target || !isRelativeArtifactPath(target)) {
+        issues.push({
+          severity: "warning",
+          path: artifact.vaultPath,
+          category: "relationship_invalid_target",
+          action: "mark_reviewed",
+          message: `Relationship target is not a local artifact path: ${relationship.target}`,
+          suggestion: "Use a vault-relative Markdown artifact path, or remove the relationship after review."
+        });
+        continue;
+      }
+      const candidates = target.toLowerCase().endsWith(".md") ? [target] : [target, `${target}.md`];
+      if (candidates.some((candidate) => knownPaths.has(candidate))) {
+        continue;
+      }
+      issues.push({
+        severity: "warning",
+        path: artifact.vaultPath,
+        category: "relationship_missing_target",
+        action: "fix_link",
+        message: `Relationship target does not exist: ${target}`,
+        suggestion: "Create the referenced artifact only after review, or update the relationship target."
+      });
+    }
+  }
+  return issues;
+}
+
+async function derivedStateIssues(root: string): Promise<LintIssue[]> {
+  const [index, graph] = await Promise.all([
+    inspectStructuredIndex(root),
+    inspectRelationshipGraph(root)
+  ]);
+  return [
+    derivedStateIssue("index", index.state, index.file, index.state === "missing"
+      ? "Run aiwiki index build --path <workspace> --json only when you explicitly want index metadata."
+      : "Run aiwiki index rebuild --path <workspace> --json only after reviewing the stale or invalid metadata."),
+    derivedStateIssue("relationship_graph", graph.state, graph.file, graph.state === "missing"
+      ? "Run aiwiki graph build --path <workspace> --json only when you explicitly want relationship metadata."
+      : "Run aiwiki graph rebuild --path <workspace> --json only after reviewing the stale or invalid metadata.")
+  ].filter((issue): issue is LintIssue => issue !== undefined);
+}
+
+function derivedStateIssue(
+  resource: "index" | "relationship_graph",
+  state: "fresh" | "missing" | "stale" | "invalid",
+  file: string,
+  suggestion: string
+): LintIssue | undefined {
+  if (state === "fresh") {
+    return undefined;
+  }
+  return {
+    severity: state === "missing" ? "info" : "warning",
+    path: file,
+    category: resource === "index" ? "index_state" : "relationship_graph_state",
+    action: "mark_reviewed",
+    message: `${resource} derived state is ${state}.`,
+    suggestion
+  };
+}
+
+function weakEvidenceStrongClaimIssues(notes: Note[]): LintIssue[] {
+  const issues: LintIssue[] = [];
+  for (const note of notes) {
+    const lifecycle = lifecycleFromFrontmatter(note.frontmatter);
+    const missingEvidence = lifecycle.evidenceCount === 0 && lifecycle.evidenceRefs.length === 0;
+    const groundingReview = frontmatterBoolean(note.frontmatter, "grounding_needs_review") === true;
+    if (lifecycle.confidenceLevel !== "high" || (!missingEvidence && !groundingReview)) {
+      continue;
+    }
+    issues.push({
+      severity: "warning",
+      path: note.path,
+      category: "weak_evidence_strong_claim",
+      action: "mark_reviewed",
+      message: "High-confidence Wiki Entry has missing or unreviewed evidence.",
+      suggestion: "Review source evidence before treating the claim as confirmed."
+    });
+  }
+  return issues;
+}
+
+function normalizeLocalReference(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const wikilink = trimmed.match(/^\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]$/);
+  return (wikilink?.[1] ?? trimmed).trim().replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function isRelativeArtifactPath(value: string): boolean {
+  return !path.posix.isAbsolute(value)
+    && !/^[a-zA-Z]:/.test(value)
+    && !value.split("/").some((segment) => segment === ".." || segment === "");
+}
+
+function withMaintenanceDomain(issue: LintIssue): LintIssue {
+  return issue.domain ? issue : { ...issue, domain: maintenanceDomainFor(issue) };
+}
+
+function maintenanceDomainFor(issue: LintIssue): MaintenanceDomain {
+  const category = issue.category ?? "";
+  if (category === "workspace_structure" || category === "empty_optional_directory") return "structure";
+  if (category.startsWith("capsule_")) return "capsule";
+  if (category === "lifecycle") return "lifecycle";
+  if (category === "broken_link" || category.startsWith("relationship_")) return "relationship";
+  if (category === "index_state") return "index";
+  if (category === "metadata_boundary") return "user_view";
+  if (category === "isolated_source_card" || category === "missing_source" || category === "duplicate" || category === "duplicate_content_fingerprint" || category === "grounding_review") return "evidence";
+  return "quality";
+}
+
+function compareLintIssue(left: LintIssue, right: LintIssue): number {
+  const severityOrder: Record<LintSeverity, number> = { error: 0, warning: 1, info: 2 };
+  return severityOrder[left.severity] - severityOrder[right.severity]
+    || (left.domain ?? "").localeCompare(right.domain ?? "")
+    || (left.category ?? "").localeCompare(right.category ?? "")
+    || (left.path ?? "").localeCompare(right.path ?? "")
+    || left.message.localeCompare(right.message);
 }
 
 function renderIssueGroup(title: string, issues: LintIssue[]): string[] {

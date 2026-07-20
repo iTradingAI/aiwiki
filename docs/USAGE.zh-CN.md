@@ -195,6 +195,15 @@ aiwiki lint --json
 
 默认 lint 仍然只做文件和结构检查，不会因为旧知识库没有 capsule 元数据就制造噪音。
 
+只有明确要求健康检查时，才使用只读维护命令：
+
+```bash
+aiwiki health --json --path <workspace>
+aiwiki repair --plan --json --path <workspace>
+```
+
+`aiwiki.health.v1` 在不写入的前提下报告八个维护域和派生 state。`aiwiki.repair_plan.v1` 将发现转换为只读建议清单，包含证据、风险、受影响文件和建议命令。这两个命令都不会修改 Markdown、构建 rebuild/index/graph state 或创建 dashboard。持久 Health Report dashboard 与 Core 0.5 发布门禁由 `CORE-0506` 负责。
+
 0.3.0 的深层检查需要显式开启：
 
 ```bash

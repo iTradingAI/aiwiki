@@ -40,7 +40,10 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.match(text, /aiwiki index rebuild --path <workspace> --json/);
   assert.match(text, /aiwiki lint --capsules --json/);
   assert.match(text, /aiwiki lint --strict --json/);
+  assert.match(text, /aiwiki lint --maintenance --json/);
   assert.match(text, /aiwiki lint --fix-empty-dirs --json/);
+  assert.match(text, /aiwiki health --json/);
+  assert.match(text, /aiwiki repair --plan --json/);
   assert.match(text, /aiwiki plugin list --json/);
   assert.match(text, /aiwiki plugin add <directory>/);
   assert.match(text, /aiwiki plugin enable <id>/);
@@ -175,6 +178,60 @@ test("CLI index exposes explicit build status and rebuild without changing Markd
     const invalidError = new MemoryWritable();
     assert.equal(await runCli(["index", "unknown", "--path", root], { stdout: new MemoryWritable(), stderr: invalidError }), 1);
     assert.match(invalidError.text(), /index expects build, status, or rebuild/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI health and repair expose advisory maintenance commands without workspace writes", async () => {
+  const root = await tempRoot("aiwiki-cli-health-repair");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await mkdir(path.join(root, "05-wiki", "source-knowledge"), { recursive: true });
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "broken.md"), "[[05-wiki/source-knowledge/missing]]\n", "utf8");
+
+    const healthOut = new MemoryWritable();
+    assert.equal(await runCli(["health", "--json", "--path", root], { stdout: healthOut, stderr: new MemoryWritable() }), 0);
+    const health = JSON.parse(healthOut.text()) as { schema_version: string; summary: { by_domain: Record<string, number> }; derived_state: { index: string; graph: string } };
+    assert.equal(health.schema_version, "aiwiki.health.v1");
+    assert.equal(health.summary.by_domain.relationship > 0, true);
+    assert.equal(health.derived_state.index, "missing");
+    assert.equal(health.derived_state.graph, "missing");
+
+    const healthHelp = new MemoryWritable();
+    assert.equal(await runCli(["health", "--help"], { stdout: healthHelp, stderr: new MemoryWritable() }), 0);
+    assert.match(healthHelp.text(), /health never creates dashboards, state files, or workspace content/);
+
+    const repairOut = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--plan", "--json", "--path", root], { stdout: repairOut, stderr: new MemoryWritable() }), 0);
+    const repair = JSON.parse(repairOut.text()) as { schema_version: string; dry_run: boolean; would_write: boolean; items: Array<{ evidence: string[]; suggested_changes: string[]; affected_files: string[]; suggested_command: string }> };
+    assert.equal(repair.schema_version, "aiwiki.repair_plan.v1");
+    assert.equal(repair.dry_run, true);
+    assert.equal(repair.would_write, false);
+    assert.ok(repair.items.every((item) => item.evidence.length > 0 && item.suggested_changes.length > 0 && item.affected_files.length > 0 && item.suggested_command.startsWith("aiwiki ")));
+
+    const repairHelp = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--help"], { stdout: repairHelp, stderr: new MemoryWritable() }), 0);
+    assert.match(repairHelp.text(), /Core does not apply repairs automatically/);
+
+    const rejected = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--apply", "--path", root], { stdout: new MemoryWritable(), stderr: rejected }), 1);
+    assert.match(rejected.text(), /repair --plan is the only Core repair mode/);
+    const missingPlan = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--path", root], { stdout: new MemoryWritable(), stderr: missingPlan }), 1);
+    assert.match(missingPlan.text(), /repair --plan is the only Core repair mode/);
+    const rejectedYes = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--plan", "--yes", "--path", root], { stdout: new MemoryWritable(), stderr: rejectedYes }), 1);
+    assert.match(rejectedYes.text(), /repair --plan is the only Core repair mode/);
+    const rejectedApplyValue = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--plan", "--apply=true", "--path", root], { stdout: new MemoryWritable(), stderr: rejectedApplyValue }), 1);
+    assert.match(rejectedApplyValue.text(), /repair --plan is the only Core repair mode/);
+    const rejectedYesValue = new MemoryWritable();
+    assert.equal(await runCli(["repair", "--plan", "--yes=true", "--path", root], { stdout: new MemoryWritable(), stderr: rejectedYesValue }), 1);
+    assert.match(rejectedYesValue.text(), /repair --plan is the only Core repair mode/);
+    await assert.rejects(access(stateDir));
+    await assert.rejects(access(path.join(root, "dashboards", "Knowledge Health.md")));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -778,6 +835,10 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     "doctor",
     "status",
     "rebuild",
+    "index",
+    "graph",
+    "health",
+    "repair",
     "context",
     "query",
     "show",
@@ -810,6 +871,10 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     [["status"], "status"],
     [["rebuild"], "rebuild"],
     [["rebuild", "--help"], "rebuild"],
+    [["index", "status"], "index"],
+    [["graph", "status"], "graph"],
+    [["health"], "health"],
+    [["repair", "--plan"], "repair"],
     [["context", "topic"], "context"],
     [["query", "topic"], "query"],
     [["show", "topic"], "show"],

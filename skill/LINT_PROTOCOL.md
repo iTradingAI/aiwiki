@@ -26,7 +26,23 @@ aiwiki lint --strict --json
 
 Default lint must stay quiet for legacy workspaces that do not have capsule metadata. Use `--strict` for release or CI-style validation, not as the ordinary user cleanup path.
 
-3. If `safe_fixes.only_safe_fixes` is true and the user allows cleanup, apply the built-in safe fix and rerun JSON lint:
+3. When the user explicitly asks for a broad health review, run the read-only snapshot:
+
+```bash
+aiwiki health --json
+```
+
+Read `aiwiki.health.v1` for all eight maintenance domains, derived-state status, issue evidence, and the recommended next action. It does not modify Markdown, create state, or create a dashboard.
+
+4. When the user explicitly asks for a proposed maintenance checklist, generate the read-only plan:
+
+```bash
+aiwiki repair --plan --json
+```
+
+Read `aiwiki.repair_plan.v1` for each issue, evidence, suggested changes, risk, affected files, and suggested command. Do not execute suggested commands or infer a workspace write. `CORE-0506` owns the persistent Health Report dashboard and Core 0.5 release gate.
+
+5. If `safe_fixes.only_safe_fixes` is true and the user allows cleanup, apply the built-in safe fix and rerun JSON lint:
 
 ```bash
 aiwiki lint --fix-empty-dirs --json
