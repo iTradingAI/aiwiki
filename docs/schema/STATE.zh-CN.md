@@ -69,3 +69,17 @@ aiwiki index rebuild --path <workspace> --json
 其 `aiwiki.index.v1` envelope 记录基于 Markdown 的 `source_snapshot_id`、vault 相对路径的 Artifact 记录、分类计数、来源 URL 重复计数和已解析的本地 wiki 链接。它不是语义或向量索引，也不保存 Markdown 正文、正文预览、绝对路径、外部 URL 目标或 embedding。
 
 `index status` 为只读操作，报告 `fresh`、`missing`、`stale` 或 `invalid`；只有 `fresh` 的退出码为 0。`index build` 和 `index rebuild` 在持有 `.aiwiki/locks/index.lock` 时原子写入，不会修改 Markdown 或四个 rebuild snapshot。不要自动构建或重建索引，也不要从 query、context、show、lint、status、ingest 或泛化维护流程推断索引操作。索引缺失、过期或损坏时，仍可直接从 Markdown 检索。
+
+## 关系图
+
+`.aiwiki/state/graph.json` 是独立、可删除的关系图投影。它只记录本地 Markdown/frontmatter 中可确定的连接，包括显式关系、兼容字段、局部 wikilink、生成的本地引用和 Source Capsule 成员关系；不使用 LLM 推断语义关系，也不保存 Markdown 正文、绝对路径、外部 URL 目标或 embedding。
+
+```bash
+aiwiki graph status --path <workspace> --json
+aiwiki graph build --path <workspace> --json
+aiwiki graph rebuild --path <workspace> --json
+```
+
+其 `aiwiki.graph.v1` envelope 记录由 Markdown 派生的 `source_snapshot_id`、稳定的 artifact/capsule 节点、有类型的确定性边和无法解析 target 的诊断。`graph status` 为只读操作，报告 `fresh`、`missing`、`stale` 或 `invalid`；只有 `fresh` 的退出码为 0。`graph build` 和 `graph rebuild` 在持有 `.aiwiki/locks/graph.lock` 时原子写入，且只写入 `graph.json`。
+
+不要自动构建或重建关系图，也不要从 query、context、show、lint、status、ingest 或泛化维护流程推断关系图操作。关系图缺失、过期或损坏时，仍可直接从 Markdown 检索。关系图不改变 `aiwiki.context.v1`；graph-aware Context v2 是后续显式 opt-in 能力。

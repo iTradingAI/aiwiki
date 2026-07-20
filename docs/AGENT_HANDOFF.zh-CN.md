@@ -70,6 +70,7 @@ aiwiki show <topic> --path <workspace>
 | 检查、整理或安全修复工作区 | `aiwiki lint --json`；仅在允许且只有安全修复时执行 `aiwiki lint --fix-empty-dirs --json`，再运行 `aiwiki lint --json` | 解释 error、warning、安全修复范围和 lint 报告路径 | 非安全问题保留为可追踪复核项；不要默认手工修改 Markdown |
 | 只有用户明确要求检查或重建派生状态时 | 先用 `aiwiki rebuild --dry-run --json` 预览；用 `--check` 分类 state；只有用户要求写入时才执行默认 rebuild | 解释 `would_rebuild`、`current`、`missing`、`stale` 或 `invalid`；日常读取仍以 Markdown 为准 | 不要从泛化维护请求推断 rebuild；报告锁冲突，不要删除其他进程的 lock |
 | 只有用户明确要求确认结构化索引是否最新、构建索引或重建索引时 | 先用 `aiwiki index status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、分类计数和重复来源 URL 数 | 不要自动构建或重建索引；索引缺失、过期或损坏时仍可直接从 Markdown 检索 |
+| 只有用户明确要求确认关系图是否最新、构建关系图或重建关系图时 | 先用 `aiwiki graph status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki graph build --path <workspace> --json` 或 `aiwiki graph rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、有类型边计数、未解析 target 诊断和锁冲突 | 不要自动构建或重建关系图；关系图缺失、过期或损坏时仍可直接从 Markdown 检索；不要宣称已支持 graph-aware Context v2 或 `--graph-depth` |
 | 显式 extension 管理 | 列表使用 `aiwiki plugin list --json --path <workspace>`；仅添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；仅启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>` | 汇报命令结果和精确 extension 状态 | 对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，要求明确动作、目录或 ID；不要自动发现、启用或执行 |
 
 ## Schema Compatibility Boundary
@@ -85,6 +86,10 @@ CORE-0404 提供仅声明的 Extension API v0.1。CORE-0405 只提供显式 exte
 ## 结构化索引意图
 
 只有用户明确要求确认索引是否最新、构建索引或重建索引时才匹配结构化索引。先执行 `aiwiki index status --path <workspace> --json`；`fresh` 的退出码为 0，`missing`、`stale` 和 `invalid` 的退出码为 1 是预期行为。只有用户要求写入可删除的索引元数据时，才执行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json`。不要从 query、context、show、lint、status、ingest 或泛化维护请求自动构建或重建索引。索引缺失、过期或损坏时，仍可直接从 Markdown 检索。索引仅保存 vault 相对路径元数据、计数、来源 URL 重复信号和已解析的本地链接；它不是语义或向量索引。详见[派生状态 v1](schema/STATE.zh-CN.md)。
+
+## 关系图意图
+
+只有用户明确要求确认关系图是否最新、构建关系图或重建关系图时才匹配关系图。先执行 `aiwiki graph status --path <workspace> --json`；`fresh` 的退出码为 0，`missing`、`stale` 和 `invalid` 的退出码为 1 是预期行为。只有用户要求写入可删除的关系图元数据时，才执行 `aiwiki graph build --path <workspace> --json` 或 `aiwiki graph rebuild --path <workspace> --json`。不要自动构建或重建关系图，也不要从 query、context、show、lint、status、ingest 或泛化维护请求推断关系图操作。关系图缺失、过期或损坏时，仍可直接从 Markdown 检索。关系图只记录确定性的本地关系，不改变 `aiwiki.context.v1`，不使用 LLM 推断事实，也不启用 `--graph-depth`。详见[派生状态 v1](schema/STATE.zh-CN.md)。
 
 ## 显式 Extension 意图
 

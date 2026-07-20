@@ -105,3 +105,38 @@ test("structured index documentation keeps metadata explicit and Markdown retrie
   assert.match(readme, /not a vector database/i);
   assert.match(readmeZh, /不是向量数据库/);
 });
+
+test("relationship graph documentation keeps graph writes explicit and Context v1 independent", async () => {
+  const [state, stateZh, usage, usageZh, handoff, handoffZh, skill, readme, readmeZh] = await Promise.all([
+    readFile("docs/schema/STATE.md", "utf8"),
+    readFile("docs/schema/STATE.zh-CN.md", "utf8"),
+    readFile("docs/USAGE.md", "utf8"),
+    readFile("docs/USAGE.zh-CN.md", "utf8"),
+    readFile("docs/AGENT_HANDOFF.md", "utf8"),
+    readFile("docs/AGENT_HANDOFF.zh-CN.md", "utf8"),
+    readFile("skill/SKILL.md", "utf8"),
+    readFile("README.md", "utf8"),
+    readFile("README.zh-CN.md", "utf8")
+  ]);
+
+  for (const document of [state, usage, handoff, skill]) {
+    assert.match(document, /aiwiki graph status --path <workspace> --json/);
+    assert.match(document, /aiwiki graph build --path <workspace> --json/);
+    assert.match(document, /aiwiki graph rebuild --path <workspace> --json/);
+    assert.match(document, /Do not automatically build or rebuild the graph/i);
+    assert.match(document, /Markdown-backed retrieval remains available/i);
+  }
+  for (const document of [stateZh, usageZh, handoffZh]) {
+    assert.match(document, /aiwiki graph status --path <workspace> --json/);
+    assert.match(document, /aiwiki graph build --path <workspace> --json/);
+    assert.match(document, /aiwiki graph rebuild --path <workspace> --json/);
+    assert.match(document, /不要自动构建或重建关系图/);
+    assert.match(document, /仍可直接从 Markdown 检索/);
+  }
+  assert.match(state, /aiwiki\.graph\.v1/);
+  assert.match(state, /does not change `aiwiki\.context\.v1`/i);
+  assert.match(stateZh, /aiwiki\.graph\.v1/);
+  assert.match(stateZh, /不改变 `aiwiki\.context\.v1`/);
+  assert.match(readme, /relationship graph/i);
+  assert.match(readmeZh, /关系图/);
+});
