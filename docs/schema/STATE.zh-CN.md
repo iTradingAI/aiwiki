@@ -55,3 +55,17 @@ aiwiki rebuild --dry-run --json
 - 可以安全删除 `.aiwiki/state/`，之后按需显式 rebuild。state 缺失时，Context、capsule context、show、lint 和 status 仍直接读取 Markdown。
 
 只有用户明确要求检查或重建派生状态时，Agent 才使用 rebuild。日常 query、context、show、lint 和 status 不需要先 rebuild。
+
+## 结构化索引
+
+`.aiwiki/state/index.json` 是独立、可删除的结构化索引文件。`aiwiki rebuild` 不会创建、更新或校验它；应使用显式 `aiwiki index` 命令。
+
+```bash
+aiwiki index status --path <workspace> --json
+aiwiki index build --path <workspace> --json
+aiwiki index rebuild --path <workspace> --json
+```
+
+其 `aiwiki.index.v1` envelope 记录基于 Markdown 的 `source_snapshot_id`、vault 相对路径的 Artifact 记录、分类计数、来源 URL 重复计数和已解析的本地 wiki 链接。它不是语义或向量索引，也不保存 Markdown 正文、正文预览、绝对路径、外部 URL 目标或 embedding。
+
+`index status` 为只读操作，报告 `fresh`、`missing`、`stale` 或 `invalid`；只有 `fresh` 的退出码为 0。`index build` 和 `index rebuild` 在持有 `.aiwiki/locks/index.lock` 时原子写入，不会修改 Markdown 或四个 rebuild snapshot。不要自动构建或重建索引，也不要从 query、context、show、lint、status、ingest 或泛化维护流程推断索引操作。索引缺失、过期或损坏时，仍可直接从 Markdown 检索。

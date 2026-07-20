@@ -168,6 +168,22 @@ aiwiki lint --okf --json
 aiwiki lint --strict --json
 ```
 
+### Inspect your structured index
+
+Tell your assistant:
+
+```text
+Check whether my AIWiki structured index is current.
+```
+
+The assistant should inspect it without writing first:
+
+```bash
+aiwiki index status --path <workspace> --json
+```
+
+The index is a small local map of content categories, duplicate source URLs, and local wiki links. It helps an Agent report the organization of a large knowledge base, but it is not a vector database or a replacement for your Markdown files. If it is missing or outdated, `query` and `context` still work from Markdown. The assistant builds it only when you explicitly ask it to build or rebuild the index.
+
 ## What AIWiki Creates
 
 A successful ingest creates a traceable knowledge package:
@@ -197,6 +213,8 @@ AIWiki 0.3.0 also treats those files as one logical Source Capsule. A capsule gr
 Legacy workspace `schema_version: 1` is read as `aiwiki.workspace.v1` without rewriting the file. Default Agent JSON remains `aiwiki.context.v1` and capsule view remains `aiwiki.context.capsule.v1`; declared unknown future majors require manual review. See the [Schema Compatibility catalog](docs/schema/README.md).
 
 CORE-0403 does not change existing Skill matching. CORE-0407 owns the future matching contract, including precedence, fallback, and acceptance tests.
+
+The structured index uses the additive `aiwiki.index.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. See [Derived State v1](docs/schema/STATE.md).
 
 See:
 

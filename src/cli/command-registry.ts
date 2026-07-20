@@ -35,6 +35,7 @@ export type CoreCommandHandlers = Readonly<{
   doctor: CommandHandler;
   status: CommandHandler;
   rebuild: CommandHandler;
+  index: CommandHandler;
   context: CommandHandler;
   query: CommandHandler;
   show: CommandHandler;
@@ -97,6 +98,16 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
         { usage: "aiwiki rebuild --path <workspace> --json", visibility: "public", scope: "base" },
         { usage: "aiwiki rebuild --check --json", visibility: "public", scope: "base" },
         { usage: "aiwiki rebuild --dry-run --json", visibility: "public", scope: "base" }
+      ]
+    },
+    {
+      id: "index",
+      matches: ({ command }) => command === "index",
+      handle: handlers.index,
+      help: [
+        { usage: "aiwiki index build --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki index status --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki index rebuild --path <workspace> --json", visibility: "public", scope: "base" }
       ]
     },
     {

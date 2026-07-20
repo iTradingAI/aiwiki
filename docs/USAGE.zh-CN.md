@@ -227,6 +227,18 @@ aiwiki rebuild --path <workspace> --json
 
 `--dry-run` 只预览当前 Markdown 派生 snapshot，不写文件。`--check` 在 state 缺失、过期或损坏时退出 1。默认命令只写入 `.aiwiki/state/` 下四个可删除文件，不会修改 Markdown。已有 rebuild 正在运行时，应报告锁冲突并等待，不能删除 lock。删除 state 是安全的，之后可以显式 rebuild。详见[派生状态 v1](schema/STATE.zh-CN.md)。
 
+### 检查或重建结构化索引
+
+结构化索引是一个可删除的本地元数据文件，记录 Artifact 分类、来源 URL 重复信号和已解析的本地 wiki 链接。它不是语义搜索或向量索引，也不会取代 `query` 和 `context` 使用的 Markdown 记录。
+
+```bash
+aiwiki index status --path <workspace> --json
+aiwiki index build --path <workspace> --json
+aiwiki index rebuild --path <workspace> --json
+```
+
+只有用户明确要求确认索引是否最新时才使用 `index status`。它会报告 `fresh`、`missing`、`stale` 或 `invalid`；只有 `fresh` 的退出码为 0。只有用户明确要求写入元数据时，才运行 `index build` 或 `index rebuild`。不要自动构建或重建索引，也不要从 query、context、show、lint、status、ingest 或泛化维护请求推断索引操作。索引缺失、过期或损坏时，仍可直接从 Markdown 检索。
+
 ## 6. 生成的文件
 
 核心产物：

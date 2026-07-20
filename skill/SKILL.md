@@ -73,6 +73,7 @@ aiwiki status --path <workspace>
 aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
 aiwiki show <topic> --path <workspace>
+aiwiki index status --path <workspace> --json
 aiwiki plugin list --json --path <workspace>
 ```
 
@@ -90,6 +91,7 @@ Match user requests to this command contract before using generic file tools:
 | query or reuse knowledge | `aiwiki query <topic>` or `aiwiki context <topic>`; use `aiwiki show <topic>` for a source package | read result quality, recommended next action, provenance, and gaps | try the relevant AIWiki command before file search and explain any fallback |
 | check or organize a workspace | `aiwiki lint --json`, then `aiwiki lint --fix-empty-dirs --json` only when allowed and safe | explain errors, warnings, safe fixes, and report path | leave non-safe issues for review; do not default to ad hoc Markdown edits |
 | explicitly inspect or rebuild derived state | preview with `aiwiki rebuild --dry-run --json`; use `--check` to classify state and default rebuild only when the user asks to write it | explain `would_rebuild`, `current`, `missing`, `stale`, or `invalid`; retrieval remains Markdown-backed | do not infer rebuild from generic maintenance; report a lock conflict and do not delete another process's lock |
+| explicitly inspect, build, or rebuild the structured index | inspect with `aiwiki index status --path <workspace> --json`; build or rebuild only when the user asks to write metadata | explain `fresh`, `missing`, `stale`, or `invalid`, category counts, duplicate-source URLs, and resolved local links | Do not automatically build or rebuild the index; Markdown-backed retrieval remains available when the index is missing, stale, or invalid |
 | explicit extension administration | `aiwiki plugin list --json --path <workspace>`; add only a user-supplied directory with `aiwiki plugin add <directory> --path <workspace>`; enable only a user-supplied ID with `aiwiki plugin enable <id> --path <workspace>` | report the command result and the exact extension state | for “find a plugin”, “auto choose a skill”, or “enable a suitable extension”, ask for an explicit action, directory, or ID; do not discover, enable, or execute automatically |
 
 ## Schema Compatibility Boundary
@@ -101,6 +103,10 @@ CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 adds only e
 ## Derived State Rebuild Intent
 
 Only match rebuild when the user explicitly asks to inspect or rebuild derived state. Start with `aiwiki rebuild --dry-run --json` for a no-write preview. Use `aiwiki rebuild --check --json` to report `current`, `missing`, `stale`, or `invalid`; non-current exits 1 by design. Run `aiwiki rebuild --path <workspace> --json` only when the user asks to write the removable snapshots. Do not add rebuild to normal query, context, show, lint, or status flows. Rebuild never modifies Markdown. On a lock conflict, report it and wait; do not remove the lock or invent `--force`. See `docs/schema/STATE.md` in the package.
+
+## Structured Index Intent
+
+Only match structured-index work when the user explicitly asks to check whether the index is current, build it, or rebuild it. Start with `aiwiki index status --path <workspace> --json`; `fresh` exits 0, while `missing`, `stale`, and `invalid` exit 1 by design. Run `aiwiki index build --path <workspace> --json` or `aiwiki index rebuild --path <workspace> --json` only when the user asks to write the removable index metadata. Do not automatically build or rebuild the index from query, context, show, lint, status, ingest, or generic maintenance requests. Markdown-backed retrieval remains available when the index is missing, stale, or invalid. The index stores vault-relative metadata, counts, source-URL duplication signals, and resolved local links; it is not a semantic or vector index. See `docs/schema/STATE.md` in the package.
 
 ## Skill Protocol Files
 
