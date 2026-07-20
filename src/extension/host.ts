@@ -31,6 +31,7 @@ const CORE_COMMAND_ROOTS = new Set([
   "config",
   "doctor",
   "status",
+  "rebuild",
   "context",
   "query",
   "show",

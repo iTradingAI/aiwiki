@@ -34,6 +34,7 @@ export type CoreCommandHandlers = Readonly<{
   configShow: CommandHandler;
   doctor: CommandHandler;
   status: CommandHandler;
+  rebuild: CommandHandler;
   context: CommandHandler;
   query: CommandHandler;
   show: CommandHandler;
@@ -87,6 +88,16 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
       id: "retrieval-help",
       matches: ({ args, command }) => (command === "context" || command === "query" || command === "show") && args.flags.has("help"),
       handle: handlers.retrievalHelp
+    },
+    {
+      id: "rebuild",
+      matches: ({ command }) => command === "rebuild",
+      handle: handlers.rebuild,
+      help: [
+        { usage: "aiwiki rebuild --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki rebuild --check --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki rebuild --dry-run --json", visibility: "public", scope: "base" }
+      ]
     },
     {
       id: "plugin-help",

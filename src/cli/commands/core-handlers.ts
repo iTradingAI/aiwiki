@@ -32,6 +32,7 @@ import {
 import type { CommandContext } from "../command-context.js";
 import type { CoreCommandHandlers } from "../command-registry.js";
 import { createPluginCommandHandler } from "./plugin.js";
+import { handleRebuildCommand } from "./rebuild.js";
 
 export function createCoreCommandHandlers(): CoreCommandHandlers {
 
@@ -372,6 +373,7 @@ const contentFile = flagString(args, "content-file");
     configShow: handleConfigShow,
     doctor: handleDoctor,
     status: handleStatus,
+    rebuild: handleRebuildCommand,
     context: handleContext,
     query: handleQuery,
     show: handleShow,
@@ -395,6 +397,9 @@ function printHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "  aiwiki ingest-file --file <file>");
   writeLine(stream, "  aiwiki doctor");
   writeLine(stream, "  aiwiki status");
+  writeLine(stream, "  aiwiki rebuild --path <workspace> --json");
+  writeLine(stream, "  aiwiki rebuild --check --json");
+  writeLine(stream, "  aiwiki rebuild --dry-run --json");
   writeLine(stream, "  aiwiki show <query>");
   writeLine(stream, "  aiwiki context <query>");
   writeLine(stream, "  aiwiki query <query>");

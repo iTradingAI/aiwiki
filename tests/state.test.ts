@@ -1,0 +1,700 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { promises as fs } from "node:fs";
+import { access, mkdir, readFile, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { test } from "node:test";
+
+import { AIWIKI_SCHEMAS } from "../src/schema.js";
+import { buildCapsuleContext } from "../src/capsule-context.js";
+import { buildContext } from "../src/context.js";
+import { withRebuildLock } from "../src/state/lock.js";
+import { buildRebuildProjection } from "../src/state/projection.js";
+import { rebuildWorkspaceState } from "../src/state/rebuild.js";
+import { compareStoredProjection, readStoredProjection, writeStoredProjection } from "../src/state/storage.js";
+import { showCapsule } from "../src/show.js";
+import { lintWorkspace } from "../src/lint.js";
+import { statusSummary } from "../src/workspace.js";
+import { tempRoot } from "./helpers.js";
+
+test("state projection registers four derived-state schemas", () => {
+  assert.equal(AIWIKI_SCHEMAS.stateArtifacts.id, "aiwiki.state.artifacts.v1");
+  assert.equal(AIWIKI_SCHEMAS.stateArtifacts.status, "active");
+  assert.equal(AIWIKI_SCHEMAS.stateCapsules.id, "aiwiki.state.capsules.v1");
+  assert.equal(AIWIKI_SCHEMAS.stateRelationships.id, "aiwiki.state.relationships.v1");
+  assert.equal(AIWIKI_SCHEMAS.stateLifecycle.id, "aiwiki.state.lifecycle.v1");
+});
+
+test("state projection derives four sanitized state snapshots from markdown", async () => {
+  const root = await createProjectionFixture("aiwiki-state-projection");
+  try {
+    const projection = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+
+    assert.equal(projection.snapshotId, projection.artifacts.snapshot_id);
+    assert.equal(projection.snapshotId, projection.capsules.snapshot_id);
+    assert.equal(projection.snapshotId, projection.relationships.snapshot_id);
+    assert.equal(projection.snapshotId, projection.lifecycle.snapshot_id);
+
+    assert.equal(projection.artifacts.schema_version, "aiwiki.state.artifacts.v1");
+    assert.equal(projection.capsules.schema_version, "aiwiki.state.capsules.v1");
+    assert.equal(projection.relationships.schema_version, "aiwiki.state.relationships.v1");
+    assert.equal(projection.lifecycle.schema_version, "aiwiki.state.lifecycle.v1");
+
+    assert.equal(projection.artifacts.root, ".");
+    assert.equal(projection.capsules.root, ".");
+    assert.equal(projection.relationships.root, ".");
+    assert.equal(projection.lifecycle.root, ".");
+
+    const artifactPaths = projection.artifacts.data.map((item: any) => item.path);
+    assert.deepEqual(artifactPaths, [...artifactPaths].sort());
+    assert.equal(projection.artifacts.summary.total, projection.artifacts.data.length);
+    assert.equal(projection.capsules.summary.total, projection.capsules.data.length);
+    assert.equal(projection.relationships.summary.total, projection.relationships.data.length);
+    assert.equal(projection.lifecycle.summary.total, projection.lifecycle.data.length);
+
+    const wikiPath = "05-wiki/source-knowledge/alpha-entry.md";
+    const wikiArtifact = projection.artifacts.data.find((item: any) => item.path === wikiPath);
+    assert.ok(wikiArtifact);
+    assert.equal(wikiArtifact.kind, "wiki_entry");
+    assert.equal(wikiArtifact.role, "primary");
+    assert.equal(wikiArtifact.visibility, "primary");
+    assert.equal(wikiArtifact.capsule_id, "src_projection_demo");
+    assert.equal(wikiArtifact.run_id, "run-demo-001");
+    assert.equal(
+      wikiArtifact.content_hash,
+      createHash("sha256").update(await readFile(path.join(root, wikiPath), "utf8")).digest("hex")
+    );
+
+    const capsule = projection.capsules.data.find((item: any) => item.id === "src_projection_demo");
+    assert.ok(capsule);
+    assert.equal(capsule.primary_path, wikiPath);
+    assert.deepEqual(capsule.artifact_paths, [...capsule.artifact_paths].sort());
+    assert.equal(capsule.grouping_reason, "explicit_capsule_id");
+    assert.equal(capsule.okf.ready, true);
+    assert.equal(capsule.lifecycle.knowledge_status, "active");
+
+    assert.deepEqual(
+      projection.relationships.data.map((item: any) => `${item.source_path}:${item.type}:${item.target}`),
+      [
+        "05-wiki/source-knowledge/alpha-entry.md:related_to:07-topics/ready/topic-alpha.md",
+        "05-wiki/source-knowledge/alpha-entry.md:supersedes:05-wiki/source-knowledge/legacy-entry.md",
+        "05-wiki/source-knowledge/alpha-entry.md:superseded_by:05-wiki/source-knowledge/future-entry.md",
+        "05-wiki/source-knowledge/alpha-entry.md:contradicts:05-wiki/source-knowledge/counter-entry.md"
+      ]
+    );
+
+    const lifecycle = projection.lifecycle.data.find((item: any) => item.path === wikiPath);
+    assert.ok(lifecycle);
+    assert.equal(lifecycle.knowledge_status, "active");
+    assert.equal(lifecycle.confidence_level, "high");
+    assert.equal(lifecycle.staleness, "fresh");
+    assert.deepEqual(lifecycle.evidence_refs, ["03-sources/article-cards/zeta-source-card.md"]);
+
+    const serialized = JSON.stringify(projection);
+    assert.equal(serialized.includes("absolutePath"), false);
+    assert.equal(serialized.includes("bodyPreview"), false);
+    assert.equal(serialized.includes("body"), false);
+    assert.equal(serialized.includes("SECRET_BODY_ALPHA"), false);
+    assert.equal(serialized.includes("SECRET_BODY_RAW"), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state projection keeps snapshot ids stable across repeated runs and generated_at changes only", async () => {
+  const root = await createProjectionFixture("aiwiki-state-stable");
+  try {
+    const first = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    const second = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    const later = await buildRebuildProjection(root, "2026-07-20T09:00:00.000Z");
+
+    assert.equal(first.snapshotId, second.snapshotId);
+    assert.equal(first.snapshotId, later.snapshotId);
+    assert.equal(first.artifacts.generated_at, "2026-07-20T08:00:00.000Z");
+    assert.equal(later.artifacts.generated_at, "2026-07-20T09:00:00.000Z");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state projection changes snapshot ids when markdown content changes", async () => {
+  const root = await createProjectionFixture("aiwiki-state-mutation");
+  try {
+    const before = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    await writeMarkdown(root, "05-wiki/source-knowledge/alpha-entry.md", [
+      "---",
+      'type: "wiki_entry"',
+      'title: "Projection Alpha Updated"',
+      'summary: "Updated summary for projection"',
+      'description: "Primary entry for rebuildable state"',
+      'capsule_id: "src_projection_demo"',
+      'slug: "projection-alpha"',
+      'source_url: "https://example.com/projection-alpha"',
+      'content_fingerprint: "sha256:projection-alpha"',
+      'run_id: "run-demo-001"',
+      'knowledge_status: "active"',
+      'confidence_level: "high"',
+      'confidence_score: 0.93',
+      'staleness: "fresh"',
+      'evidence_refs: ["03-sources/article-cards/zeta-source-card.md"]',
+      'evidence_count: 1',
+      'timestamp: "2026-07-18T00:00:00.000Z"',
+      "relationships:",
+      '  - type: "related_to"',
+      '    target: "07-topics/ready/topic-alpha.md"',
+      '    evidence: "topic linkage"',
+      '    confidence_level: "medium"',
+      'supersedes: ["05-wiki/source-knowledge/legacy-entry.md"]',
+      'superseded_by: ["05-wiki/source-knowledge/future-entry.md"]',
+      'contradicted_by: ["05-wiki/source-knowledge/counter-entry.md"]',
+      "---",
+      "",
+      "SECRET_BODY_ALPHA",
+      "",
+      "Updated body text changes the projection fingerprint.",
+      "",
+      "- Source Card: 03-sources/article-cards/zeta-source-card.md"
+    ].join("\n"));
+
+    const after = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    assert.notEqual(before.snapshotId, after.snapshotId);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state projection ignores filesystem timestamp drift in snapshot ids", async () => {
+  const root = await createProjectionFixture("aiwiki-state-mtime");
+  try {
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const before = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    await writeStoredProjection(root, before);
+    const beforeMtime = (await stat(artifactPath)).mtime;
+    await utimes(artifactPath, beforeMtime, new Date(beforeMtime.getTime() + 60_000));
+
+    const after = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    const beforeArtifact = before.artifacts.data.find((item) => item.path === "05-wiki/source-knowledge/alpha-entry.md");
+    const afterArtifact = after.artifacts.data.find((item) => item.path === "05-wiki/source-knowledge/alpha-entry.md");
+
+    assert.ok(beforeArtifact);
+    assert.ok(afterArtifact);
+    assert.notEqual(beforeArtifact.modified_at, afterArtifact.modified_at);
+    assert.equal(before.snapshotId, after.snapshotId);
+    assert.equal(await compareStoredProjection(root, after), "current");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state projection snapshot ids cover relationship and lifecycle frontmatter changes", async () => {
+  const root = await createProjectionFixture("aiwiki-state-semantic-change");
+  try {
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const before = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    const original = await readFile(artifactPath, "utf8");
+    await writeFile(
+      artifactPath,
+      original
+        .replace('knowledge_status: "active"', 'knowledge_status: "archived"')
+        .replace('type: "related_to"', 'type: "supports"'),
+      "utf8"
+    );
+
+    const after = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    assert.notEqual(before.snapshotId, after.snapshotId);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state projection tolerates missing optional discovery directories", async () => {
+  const root = await tempRoot("aiwiki-state-minimal");
+  try {
+    await writeMarkdown(root, "03-sources/article-cards/source.md", [
+      "---",
+      'type: "source_card"',
+      'title: "Minimal Source"',
+      'capsule_id: "src_minimal"',
+      'source_url: "https://example.com/minimal"',
+      "---",
+      "",
+      "Minimal source body"
+    ].join("\n"));
+    await writeMarkdown(root, "05-wiki/source-knowledge/entry.md", [
+      "---",
+      'type: "wiki_entry"',
+      'title: "Minimal Entry"',
+      'capsule_id: "src_minimal"',
+      'knowledge_status: "active"',
+      'confidence_level: "medium"',
+      'staleness: "fresh"',
+      'evidence_refs: ["03-sources/article-cards/source.md"]',
+      'evidence_count: 1',
+      "---",
+      "",
+      "Minimal entry body"
+    ].join("\n"));
+
+    const projection = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    assert.equal(projection.artifacts.data.length, 2);
+    assert.equal(projection.capsules.data.length, 1);
+    assert.equal(projection.relationships.data.length, 0);
+    assert.equal(projection.lifecycle.data.length, 2);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state projection sorts capsule and relationship output deterministically", async () => {
+  const root = await tempRoot("aiwiki-state-sort");
+  try {
+    await writeMarkdown(root, "05-wiki/source-knowledge/zeta-entry.md", [
+      "---",
+      'type: "wiki_entry"',
+      'title: "Zeta Entry"',
+      'capsule_id: "zeta"',
+      "relationships:",
+      '  - type: "related_to"',
+      '    target: "05-wiki/source-knowledge/target-zeta.md"',
+      "---",
+      "",
+      "Zeta body"
+    ].join("\n"));
+    await writeMarkdown(root, "03-sources/article-cards/alpha-source.md", [
+      "---",
+      'type: "source_card"',
+      'title: "Alpha Source"',
+      'capsule_id: "alpha"',
+      "relationships:",
+      '  - type: "related_to"',
+      '    target: "03-sources/article-cards/target-alpha.md"',
+      "---",
+      "",
+      "Alpha body"
+    ].join("\n"));
+
+    const projection = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    const capsuleIds = projection.capsules.data.map((item) => item.id);
+    const relationshipKeys = projection.relationships.data.map((item) => `${item.source_path}:${item.type}:${item.target}`);
+
+    assert.deepEqual(capsuleIds, [...capsuleIds].sort());
+    assert.deepEqual(relationshipKeys, [...relationshipKeys].sort());
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state storage writes and replaces only the four rebuild snapshots", async () => {
+  const root = await createProjectionFixture("aiwiki-state-storage-write");
+  try {
+    const first = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    const written = await writeStoredProjection(root, first);
+    assert.deepEqual(written, stateFilePaths());
+
+    const stateDir = path.join(root, ".aiwiki", "state");
+    assert.deepEqual((await readdir(stateDir)).sort(), stateFileNames());
+    const storedFirst = await readStoredProjection(root);
+    assert.ok(storedFirst);
+    assert.equal(storedFirst.snapshotId, first.snapshotId);
+
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const original = await readFile(artifactPath, "utf8");
+    await writeFile(artifactPath, original.replace("Primary wiki body", "Updated wiki body"), "utf8");
+    const second = await buildRebuildProjection(root, "2026-07-20T09:00:00.000Z");
+    await writeStoredProjection(root, second);
+
+    const storedSecond = await readStoredProjection(root);
+    assert.ok(storedSecond);
+    assert.equal(storedSecond.snapshotId, second.snapshotId);
+    assert.notEqual(storedFirst.snapshotId, storedSecond.snapshotId);
+    assert.deepEqual((await readdir(stateDir)).sort(), stateFileNames());
+    assert.equal((await readdir(stateDir)).some((name) => name.endsWith(".tmp")), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state storage classifies missing invalid and stale projections without writing", async () => {
+  const root = await createProjectionFixture("aiwiki-state-storage-compare");
+  try {
+    const expected = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    assert.equal(await compareStoredProjection(root, expected), "missing");
+    assert.equal(await readStoredProjection(root), undefined);
+
+    await writeStoredProjection(root, expected);
+    assert.equal(await compareStoredProjection(root, expected), "current");
+
+    const capsulesPath = path.join(root, ".aiwiki", "state", "capsules.json");
+    const capsules = JSON.parse(await readFile(capsulesPath, "utf8")) as { summary: { total: number } };
+    capsules.summary.total += 1;
+    await writeFile(capsulesPath, JSON.stringify(capsules), "utf8");
+    assert.equal(await compareStoredProjection(root, expected), "invalid");
+
+    await writeStoredProjection(root, expected);
+
+    const artifactsPath = path.join(root, ".aiwiki", "state", "artifacts.json");
+    const artifacts = JSON.parse(await readFile(artifactsPath, "utf8")) as { snapshot_id: string };
+    artifacts.snapshot_id = "tampered";
+    await writeFile(artifactsPath, JSON.stringify(artifacts), "utf8");
+    assert.equal(await compareStoredProjection(root, expected), "invalid");
+
+    await writeFile(artifactsPath, "{", "utf8");
+    assert.equal(await compareStoredProjection(root, expected), "invalid");
+
+    await writeStoredProjection(root, expected);
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const original = await readFile(artifactPath, "utf8");
+    await writeFile(artifactPath, original.replace("Primary wiki body", "Stale wiki body"), "utf8");
+    const changed = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    assert.equal(await compareStoredProjection(root, changed), "stale");
+
+    await rm(path.join(root, ".aiwiki", "state", "lifecycle.json"));
+    assert.equal(await compareStoredProjection(root, changed), "missing");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state storage cleans temporary files and leaves mixed snapshots invalid when rename fails", async () => {
+  const root = await createProjectionFixture("aiwiki-state-storage-rename-failure");
+  const originalRename = fs.rename;
+  try {
+    const first = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+    await writeStoredProjection(root, first);
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const original = await readFile(artifactPath, "utf8");
+    await writeFile(artifactPath, original.replace("Primary wiki body", "Failure mutation"), "utf8");
+    const second = await buildRebuildProjection(root, "2026-07-20T08:00:00.000Z");
+
+    fs.rename = async (source, target) => {
+      if (String(target).endsWith("capsules.json")) {
+        throw new Error("simulated rename failure");
+      }
+      await originalRename(source, target);
+    };
+    await assert.rejects(writeStoredProjection(root, second), /simulated rename failure/);
+
+    const stateDir = path.join(root, ".aiwiki", "state");
+    assert.equal((await readdir(stateDir)).some((name) => name.endsWith(".tmp")), false);
+    for (const name of stateFileNames()) {
+      JSON.parse(await readFile(path.join(stateDir, name), "utf8"));
+    }
+    assert.equal(await compareStoredProjection(root, second), "invalid");
+  } finally {
+    fs.rename = originalRename;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild lock rejects a concurrent caller and releases only its own lock", async () => {
+  const root = await tempRoot("aiwiki-state-lock");
+  let releaseFirst: (() => void) | undefined;
+  let enteredFirst: (() => void) | undefined;
+  const firstEntered = new Promise<void>((resolve) => { enteredFirst = resolve; });
+  const firstReleased = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+
+  try {
+    const first = withRebuildLock(root, async () => {
+      enteredFirst?.();
+      await firstReleased;
+      return "first";
+    });
+    await firstEntered;
+    await assert.rejects(withRebuildLock(root, async () => "second"), /rebuild.*lock|lock.*rebuild/i);
+    await access(lockPath);
+    const lock = JSON.parse(await readFile(lockPath, "utf8")) as Record<string, unknown>;
+    assert.deepEqual(Object.keys(lock).sort(), ["command", "pid", "started_at"]);
+
+    releaseFirst?.();
+    assert.equal(await first, "first");
+    await assert.rejects(access(lockPath));
+  } finally {
+    releaseFirst?.();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild lock does not remove a replacement lock it did not create", async () => {
+  const root = await tempRoot("aiwiki-state-lock-replacement");
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+  const replacement = JSON.stringify({ pid: 1, started_at: "2000-01-01T00:00:00.000Z", command: "external" }, null, 2) + "\n";
+
+  try {
+    await withRebuildLock(root, async () => {
+      await writeFile(lockPath, replacement, "utf8");
+    });
+    assert.equal(await readFile(lockPath, "utf8"), replacement);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild lock fails closed when metadata writing no longer owns the lock path", async () => {
+  const root = await tempRoot("aiwiki-state-lock-write-failure");
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+  const replacement = JSON.stringify({ pid: 1, started_at: "2000-01-01T00:00:00.000Z", command: "external" }, null, 2) + "\n";
+  const originalOpen = fs.open;
+  let injected = false;
+
+  try {
+    fs.open = async (...args) => {
+      const handle = await originalOpen(...args);
+      if (!injected && args[0] === lockPath && args[1] === "wx") {
+        injected = true;
+        (handle as unknown as { writeFile: (data: string, encoding: BufferEncoding) => Promise<void> }).writeFile = async () => {
+          await writeFile(lockPath, replacement, "utf8");
+          throw new Error("simulated lock metadata failure");
+        };
+      }
+      return handle;
+    };
+
+    await assert.rejects(withRebuildLock(root, async () => "unreachable"), /simulated lock metadata failure/);
+    assert.equal(await readFile(lockPath, "utf8"), replacement);
+  } finally {
+    fs.open = originalOpen;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild check and dry-run report derived-state gaps without creating state or a lock", async () => {
+  const root = await createProjectionFixture("aiwiki-state-rebuild-readonly");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  const lockPath = path.join(root, ".aiwiki", "locks", "rebuild.lock");
+  try {
+    const check = await rebuildWorkspaceState(root, "check");
+    assert.deepEqual(check, {
+      schema_version: "aiwiki.rebuild.v1",
+      mode: "check",
+      state: "missing",
+      snapshot_id: check.snapshot_id,
+      counts: check.counts,
+      written_files: []
+    });
+    assert.deepEqual(check.counts, { artifacts: 7, capsules: 1, relationships: 4, lifecycle: 7 });
+    await assert.rejects(access(stateDir));
+    await assert.rejects(access(lockPath));
+
+    const dryRun = await rebuildWorkspaceState(root, "dry_run");
+    assert.equal(dryRun.schema_version, "aiwiki.rebuild.v1");
+    assert.equal(dryRun.mode, "dry_run");
+    assert.equal(dryRun.state, "would_rebuild");
+    assert.equal(dryRun.snapshot_id, check.snapshot_id);
+    assert.deepEqual(dryRun.counts, check.counts);
+    assert.deepEqual(dryRun.written_files, []);
+    await assert.rejects(access(stateDir));
+    await assert.rejects(access(lockPath));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild writes, detects stale Markdown, and restores a complete current state", async () => {
+  const root = await createProjectionFixture("aiwiki-state-rebuild-write");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  try {
+    const first = await rebuildWorkspaceState(root, "write");
+    assert.equal(first.schema_version, "aiwiki.rebuild.v1");
+    assert.equal(first.mode, "write");
+    assert.equal(first.state, "rebuilt");
+    assert.deepEqual(first.written_files, stateFilePaths());
+    assert.deepEqual((await readdir(stateDir)).sort(), stateFileNames());
+
+    const current = await rebuildWorkspaceState(root, "check");
+    assert.equal(current.state, "current");
+    assert.equal(current.snapshot_id, first.snapshot_id);
+    assert.deepEqual(current.counts, first.counts);
+    assert.deepEqual(current.written_files, []);
+
+    const artifactPath = path.join(root, "05-wiki/source-knowledge/alpha-entry.md");
+    const original = await readFile(artifactPath, "utf8");
+    await writeFile(artifactPath, original.replace("Primary wiki body", "Rebuild detects this markdown update"), "utf8");
+    const stale = await rebuildWorkspaceState(root, "check");
+    assert.equal(stale.state, "stale");
+    assert.notEqual(stale.snapshot_id, first.snapshot_id);
+
+    await rm(stateDir, { recursive: true, force: true });
+    const recovered = await rebuildWorkspaceState(root, "write");
+    assert.equal(recovered.state, "rebuilt");
+    assert.equal(recovered.snapshot_id, stale.snapshot_id);
+    assert.deepEqual(recovered.written_files, stateFilePaths());
+    assert.deepEqual((await readdir(stateDir)).sort(), stateFileNames());
+    assert.equal((await rebuildWorkspaceState(root, "check")).state, "current");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rebuild write rejects a held workspace lock before it can write state", async () => {
+  const root = await createProjectionFixture("aiwiki-state-rebuild-conflict");
+  const stateDir = path.join(root, ".aiwiki", "state");
+  try {
+    await withRebuildLock(root, async () => {
+      await assert.rejects(rebuildWorkspaceState(root, "write"), /rebuild.*lock|lock.*rebuild/i);
+      await assert.rejects(access(stateDir));
+    });
+    await assert.rejects(access(stateDir));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("state rebuild remains optional because markdown readers work after state removal", async () => {
+  const root = await createProjectionFixture("aiwiki-state-rebuild-fallback");
+  try {
+    await rebuildWorkspaceState(root, "write");
+    await rm(path.join(root, ".aiwiki", "state"), { recursive: true, force: true });
+
+    const context = await buildContext(root, "Projection Alpha");
+    const capsules = await buildCapsuleContext(root, "Projection Alpha");
+    const shown = await showCapsule(root, { id: "src_projection_demo", json: true });
+    const lint = await lintWorkspace(root);
+    const status = await statusSummary(root);
+
+    assert.ok(context.matches.wiki_entries.some((item) => item.path === "05-wiki/source-knowledge/alpha-entry.md"));
+    assert.ok(capsules.capsules.some((item) => item.id === "src_projection_demo"));
+    assert.match(shown, /src_projection_demo/);
+    assert.ok(Array.isArray(lint.issues));
+    assert.equal(status.runCount, 1);
+    await assert.rejects(access(path.join(root, ".aiwiki", "state")));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+async function createProjectionFixture(name: string): Promise<string> {
+  const root = await tempRoot(name);
+
+  await writeMarkdown(root, "02-raw/articles/zeta-raw.md", [
+    "---",
+    'type: "raw_article"',
+    'title: "Projection Alpha Raw"',
+    'summary: "Raw import summary"',
+    'capsule_id: "src_projection_demo"',
+    'source_url: "https://example.com/projection-alpha"',
+    'content_fingerprint: "sha256:projection-alpha"',
+    'run_id: "run-demo-001"',
+    "---",
+    "",
+    "SECRET_BODY_RAW",
+    "",
+    "Raw source body"
+  ].join("\n"));
+
+  await writeMarkdown(root, "03-sources/article-cards/zeta-source-card.md", [
+    "---",
+    'type: "source_card"',
+    'title: "Projection Alpha Source Card"',
+    'summary: "Source card summary"',
+    'capsule_id: "src_projection_demo"',
+    'source_url: "https://example.com/projection-alpha"',
+    'content_fingerprint: "sha256:projection-alpha"',
+    'run_id: "run-demo-001"',
+    'knowledge_status: "active"',
+    'confidence_level: "high"',
+    'staleness: "fresh"',
+    'evidence_refs: ["02-raw/articles/zeta-raw.md"]',
+    'evidence_count: 1',
+    "---",
+    "",
+    "Source card body"
+  ].join("\n"));
+
+  await writeMarkdown(root, "04-claims/_suggestions/claims-alpha.md", [
+    "---",
+    'type: "claim_suggestions"',
+    'title: "Projection Alpha Claims"',
+    'capsule_id: "src_projection_demo"',
+    'run_id: "run-demo-001"',
+    "---",
+    "",
+    "Claim suggestion body"
+  ].join("\n"));
+
+  await writeMarkdown(root, "05-wiki/source-knowledge/alpha-entry.md", [
+    "---",
+    'type: "wiki_entry"',
+    'title: "Projection Alpha"',
+    'summary: "Stable summary for projection"',
+    'description: "Primary entry for rebuildable state"',
+    'capsule_id: "src_projection_demo"',
+    'slug: "projection-alpha"',
+    'source_url: "https://example.com/projection-alpha"',
+    'content_fingerprint: "sha256:projection-alpha"',
+    'run_id: "run-demo-001"',
+    'knowledge_status: "active"',
+    'confidence_level: "high"',
+    'confidence_score: 0.91',
+    'staleness: "fresh"',
+    'evidence_refs: ["03-sources/article-cards/zeta-source-card.md"]',
+    'evidence_count: 1',
+    'timestamp: "2026-07-18T00:00:00.000Z"',
+    "relationships:",
+    '  - type: "related_to"',
+    '    target: "07-topics/ready/topic-alpha.md"',
+    '    evidence: "topic linkage"',
+    '    confidence_level: "medium"',
+    'supersedes: ["05-wiki/source-knowledge/legacy-entry.md"]',
+    'superseded_by: ["05-wiki/source-knowledge/future-entry.md"]',
+    'contradicted_by: ["05-wiki/source-knowledge/counter-entry.md"]',
+    "---",
+    "",
+    "SECRET_BODY_ALPHA",
+    "",
+    "Primary wiki body",
+    "",
+    "## Citations",
+    "",
+    "- Source Card: 03-sources/article-cards/zeta-source-card.md"
+  ].join("\n"));
+
+  await writeMarkdown(root, "07-topics/ready/topic-alpha.md", [
+    "---",
+    'type: "topic_candidates"',
+    'title: "Projection Alpha Topic"',
+    'capsule_id: "src_projection_demo"',
+    'run_id: "run-demo-001"',
+    "---",
+    "",
+    "Topic suggestion body"
+  ].join("\n"));
+
+  await writeMarkdown(root, "08-outputs/outlines/outline-alpha.md", [
+    "---",
+    'type: "draft_outline"',
+    'title: "Projection Alpha Outline"',
+    'capsule_id: "src_projection_demo"',
+    'run_id: "run-demo-001"',
+    "---",
+    "",
+    "Outline body"
+  ].join("\n"));
+
+  await writeMarkdown(root, "09-runs/run-demo-001/processing-summary.md", [
+    "---",
+    'type: "processing_summary"',
+    'title: "Projection Alpha Run"',
+    'capsule_id: "src_projection_demo"',
+    'run_id: "run-demo-001"',
+    "---",
+    "",
+    "Run summary body"
+  ].join("\n"));
+
+  return root;
+}
+
+async function writeMarkdown(root: string, vaultPath: string, content: string): Promise<void> {
+  const target = path.join(root, vaultPath);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, `${content}\n`, "utf8");
+}
+
+function stateFileNames(): string[] {
+  return ["artifacts.json", "capsules.json", "lifecycle.json", "relationships.json"];
+}
+
+function stateFilePaths(): string[] {
+  return stateFileNames().map((name) => `.aiwiki/state/${name}`);
+}
