@@ -46,6 +46,34 @@ export const AIWIKI_SCHEMAS = {
     storage: "markdown_frontmatter",
     compatibility: "additive_fields_only"
   },
+  stateArtifacts: {
+    id: "aiwiki.state.artifacts.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  stateCapsules: {
+    id: "aiwiki.state.capsules.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  stateRelationships: {
+    id: "aiwiki.state.relationships.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  stateLifecycle: {
+    id: "aiwiki.state.lifecycle.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
   context: {
     id: "aiwiki.context.v1",
     status: "active",
