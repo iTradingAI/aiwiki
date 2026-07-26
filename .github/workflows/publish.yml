@@ -214,7 +214,7 @@ jobs:
       - name: Publish exact artifact bytes
         shell: bash
         run: |
-          artifact="$ARTIFACT_DIRECTORY/$(node -p "require('./$ARTIFACT_DIRECTORY/release-evidence.json').filename")"
+          artifact="$(realpath "$ARTIFACT_DIRECTORY/$(node -p "require('./$ARTIFACT_DIRECTORY/release-evidence.json').filename")")"
           npm publish "$artifact" --access public --provenance
 
   registry-verify:
