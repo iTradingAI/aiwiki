@@ -19,9 +19,12 @@ concurrency:
   group: aiwiki-npm-publish
   cancel-in-progress: false
 
+env:
+  ARTIFACT_DIRECTORY: release-artifact
+
 jobs:
-  verify:
-    name: Publish / verify
+  verify-source:
+    name: Verify release source
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,7 +34,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
       - name: Install dependencies
@@ -42,7 +44,7 @@ jobs:
 
   guard-publish-ref:
     name: Guard publish ref
-    needs: verify
+    needs: verify-source
     runs-on: ubuntu-latest
     if: ${{ inputs.mode == 'publish' && github.ref != 'refs/heads/main' }}
     steps:
@@ -51,44 +53,10 @@ jobs:
           echo "Publishing is allowed only from refs/heads/main."
           exit 1
 
-  release-gate:
-    name: Verify release tag
-    needs: verify
-    if: ${{ inputs.mode == 'publish' && github.ref == 'refs/heads/main' }}
+  build-artifact:
+    name: Build exact npm artifact
+    needs: verify-source
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout main with tags
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - name: Verify version tag points at main
-        shell: bash
-        run: |
-          version="$(node -p "require('./package.json').version")"
-          expected_tag="v${version}"
-
-          if ! git tag --points-at "$GITHUB_SHA" | grep --fixed-strings --line-regexp "$expected_tag"; then
-            echo "Expected $expected_tag to point at $GITHUB_SHA before publishing."
-            exit 1
-          fi
-
-  publish:
-    name: Publish @itradingai/aiwiki
-    needs:
-      - verify
-      - release-gate
-    if: ${{ inputs.mode == 'publish' && github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -97,14 +65,232 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify release
-        run: npm run release:check
+      - name: Build package once
+        run: npm run build
 
-      - name: Publish to npm
-        run: npm publish --access public
+      - name: Pack one artifact and record evidence
+        run: node scripts/release-artifact.mjs build "$ARTIFACT_DIRECTORY"
+
+      - name: Upload exact artifact and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: aiwiki-release-artifact
+          path: |
+            ${{ env.ARTIFACT_DIRECTORY }}/*.tgz
+            ${{ env.ARTIFACT_DIRECTORY }}/release-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+  artifact-smoke:
+    name: Smoke exact npm artifact
+    needs: build-artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout verifier
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            scripts/package-stage.mjs
+            scripts/release-artifact.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Download exact artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aiwiki-release-artifact
+          path: ${{ env.ARTIFACT_DIRECTORY }}
+
+      - name: Verify exact artifact bytes
+        run: node scripts/release-artifact.mjs verify "$ARTIFACT_DIRECTORY"
+
+      - name: Install and smoke exact artifact
+        shell: bash
+        run: |
+          artifact="$(realpath "$ARTIFACT_DIRECTORY/$(node -p "require('./$ARTIFACT_DIRECTORY/release-evidence.json').filename")")"
+          version="$(node -p "require('./$ARTIFACT_DIRECTORY/release-evidence.json').version")"
+          consumer="$(mktemp -d)"
+          cd "$consumer"
+          npm init --yes >/dev/null
+          npm install --ignore-scripts "$artifact"
+          test "$(./node_modules/.bin/aiwiki --version)" = "aiwiki $version"
+          node --input-type=module <<'NODE'
+          await import("@itradingai/aiwiki");
+          await import("@itradingai/aiwiki/contracts");
+          await import("@itradingai/aiwiki/extension-api");
+          try {
+            await import("@itradingai/aiwiki/dist/src/public/index.js");
+            throw new Error("deep import unexpectedly succeeded");
+          } catch (error) {
+            if (error?.code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
+          }
+          NODE
+          package_root="node_modules/@itradingai/aiwiki"
+          test ! -e "$package_root/README.zh-CN.md"
+          test -f "$package_root/docs/README.zh-CN.md"
+          test "$(grep -Foc '<a href="./docs/README.zh-CN.md">中文</a>' "$package_root/README.md")" -eq 1
+          ! grep -F '<a href="./README.zh-CN.md">中文</a>' "$package_root/README.md"
+          test -f "$package_root/skill/SKILL.md"
+          test -f "$package_root/CHANGELOG.md"
+          test -f "$package_root/CHANGELOG.zh-CN.md"
+          test -f "$package_root/SECURITY.md"
+          test -f "$package_root/SECURITY.zh-CN.md"
+
+  release-gate:
+    name: Verify annotated release tag
+    needs: artifact-smoke
+    if: ${{ inputs.mode == 'publish' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main with tags
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Verify version tag points at main SHA
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          expected_tag="v${version}"
+
+          if ! git show-ref --tags --verify --quiet "refs/tags/$expected_tag"; then
+            echo "Expected $expected_tag before publishing."
+            exit 1
+          fi
+          if test "$(git cat-file -t "refs/tags/$expected_tag")" != "tag"; then
+            echo "Expected $expected_tag to be an annotated tag."
+            exit 1
+          fi
+          if test "$(git rev-list -n 1 "$expected_tag")" != "$GITHUB_SHA"; then
+            echo "Expected $expected_tag to point at $GITHUB_SHA before publishing."
+            exit 1
+          fi
+
+  publish:
+    name: Publish exact @itradingai/aiwiki artifact
+    needs:
+      - artifact-smoke
+      - release-gate
+    if: ${{ inputs.mode == 'publish' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout verifier
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            scripts/package-stage.mjs
+            scripts/release-artifact.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Download smoked artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aiwiki-release-artifact
+          path: ${{ env.ARTIFACT_DIRECTORY }}
+
+      - name: Verify publish input bytes
+        run: node scripts/release-artifact.mjs verify "$ARTIFACT_DIRECTORY"
+
+      - name: Publish exact artifact bytes
+        shell: bash
+        run: |
+          artifact="$ARTIFACT_DIRECTORY/$(node -p "require('./$ARTIFACT_DIRECTORY/release-evidence.json').filename")"
+          npm publish "$artifact" --access public --provenance
+
+  registry-verify:
+    name: Verify npm registry publication
+    needs: publish
+    if: ${{ inputs.mode == 'publish' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout verifier
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            scripts/package-stage.mjs
+            scripts/release-artifact.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Download published artifact evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: aiwiki-release-artifact
+          path: ${{ env.ARTIFACT_DIRECTORY }}
+
+      - name: Verify registry integrity, provenance, version, dist-tag, and homepage
+        run: node scripts/release-artifact.mjs verify-registry "$ARTIFACT_DIRECTORY"
+
+      - name: Smoke clean registry install
+        shell: bash
+        run: |
+          name="$(node -p "require('./$ARTIFACT_DIRECTORY/release-evidence.json').name")"
+          version="$(node -p "require('./$ARTIFACT_DIRECTORY/release-evidence.json').version")"
+          consumer="$(mktemp -d)"
+          cd "$consumer"
+          npm init --yes >/dev/null
+          npm install --ignore-scripts "${name}@${version}"
+          test "$(./node_modules/.bin/aiwiki --version)" = "aiwiki $version"
+
+  github-release:
+    name: Create GitHub Release after registry verification
+    needs: registry-verify
+    if: ${{ inputs.mode == 'publish' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout verifier
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            scripts/package-stage.mjs
+            scripts/release-artifact.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Download verified artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aiwiki-release-artifact
+          path: ${{ env.ARTIFACT_DIRECTORY }}
+
+      - name: Verify GitHub Release assets
+        run: node scripts/release-artifact.mjs verify "$ARTIFACT_DIRECTORY"
+
+      - name: Create immutable GitHub Release mapping
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          tag="$(node -p "require('./$ARTIFACT_DIRECTORY/release-evidence.json').tag")"
+          artifact="$ARTIFACT_DIRECTORY/$(node -p "require('./$ARTIFACT_DIRECTORY/release-evidence.json').filename")"
+          gh release create "$tag" "$artifact" "$ARTIFACT_DIRECTORY/release-evidence.json" \
+            --verify-tag \
+            --title "$tag" \
+            --generate-notes

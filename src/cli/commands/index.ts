@@ -4,13 +4,14 @@ import { buildStructuredIndex, inspectStructuredIndex, type StructuredIndex, typ
 import { resolveWorkspace } from "../../workspace.js";
 
 import type { CommandContext } from "../command-context.js";
+import { writeHelp } from "../localization.js";
 
 type IndexAction = "built" | "rebuilt";
 
 export async function handleIndexCommand(context: CommandContext): Promise<number> {
   const { args, streams, subcommand } = context;
   if (flagBool(args, "help")) {
-    printIndexHelp(streams.stdout);
+    writeHelp(streams.stdout, context.locale, "index");
     return 0;
   }
 
@@ -58,13 +59,3 @@ function writeIndexStatus(stream: NodeJS.WritableStream, result: StructuredIndex
   writeLine(stream, "file: " + result.file);
 }
 
-function printIndexHelp(stream: NodeJS.WritableStream): void {
-  writeLine(stream, "AIWiki index");
-  writeLine(stream, "");
-  writeLine(stream, "Inspect or rebuild removable Markdown-derived index metadata.");
-  writeLine(stream, "  aiwiki index build --path <workspace> --json");
-  writeLine(stream, "  aiwiki index status --path <workspace> --json");
-  writeLine(stream, "  aiwiki index rebuild --path <workspace> --json");
-  writeLine(stream, "");
-  writeLine(stream, "status exits 1 for stale, missing, or invalid index. Context and query remain Markdown-backed when index is unavailable.");
-}

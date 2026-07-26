@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="./README.zh-CN.md">Chinese</a> |
+  <a href="./README.zh-CN.md">中文</a> |
   <a href="./docs/README.md">Docs</a> |
   <a href="./docs/USAGE.md">Usage</a> |
   <a href="./docs/FAQ.md">FAQ</a> |
@@ -17,6 +17,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Save what your AI reads. Ask it later. Keep everything local.**
+
+Current release: **0.5.1**
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 
@@ -159,7 +161,7 @@ The assistant should call:
 aiwiki lint --json
 ```
 
-For the 0.3.0 Source Capsule layer, deeper checks are opt-in:
+For the deeper checks introduced with the Source Capsule layer in 0.3.0, opt in explicitly:
 
 ```bash
 aiwiki lint --capsules --json
@@ -250,13 +252,13 @@ Optional files may also be created when the assistant provides enough structured
 
 The Wiki Entry is the main reusable knowledge surface. The raw record and source card preserve traceability, so you can always go back from a summary to the source.
 
-AIWiki 0.3.0 also treats those files as one logical Source Capsule. A capsule groups the Wiki Entry, Source Card, Raw file, optional suggestions, and run record around the same source. New artifacts include additive metadata such as `capsule_id`, `artifact_role`, `visibility`, lifecycle status, relationship fields, and OKF-ready fields. Old workspaces do not need a bulk migration; AIWiki can infer capsules from the existing Markdown layout.
+Source Capsules were introduced in 0.3.0. AIWiki treats these files as one logical capsule that groups the Wiki Entry, Source Card, Raw file, optional suggestions, and run record around the same source. New artifacts include additive metadata such as `capsule_id`, `artifact_role`, `visibility`, lifecycle status, relationship fields, and OKF-ready fields. Old workspaces do not need a bulk migration; AIWiki can infer capsules from the existing Markdown layout.
 
 ## Schema Compatibility
 
 Legacy workspace `schema_version: 1` is read as `aiwiki.workspace.v1` without rewriting the file. Default Agent JSON remains `aiwiki.context.v1` and capsule view remains `aiwiki.context.capsule.v1`; declared unknown future majors require manual review. See the [Schema Compatibility catalog](docs/schema/README.md).
 
-CORE-0403 does not change existing Skill matching. CORE-0407 owns the future matching contract, including precedence, fallback, and acceptance tests.
+Schema compatibility does not change existing Skill matching. Extension commands remain explicit: do not infer them from ordinary natural-language requests, and preserve the documented precedence, fallback, and acceptance boundaries.
 
 The structured index uses the additive `aiwiki.index.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. See [Derived State v1](docs/schema/STATE.md).
 
@@ -356,6 +358,7 @@ Review Queue is not the main workflow. AIWiki creates Wiki entries first, then u
 - AIWiki does not crawl the web by itself.
 - `npm install` does not modify assistant configuration.
 - Agent integration is explicit through `aiwiki agent sync`.
+- See the private-reporting policy in [Security Policy](SECURITY.md) or [安全政策](SECURITY.zh-CN.md). Do not disclose vulnerability details in a public issue.
 
 ## Current Status
 
@@ -407,7 +410,11 @@ For Chinese users, scan the QR codes below to join the WeChat group or follow th
 - [Public Trial Scenarios](examples/public-trial-scenarios/)
 - [Trial Feedback Template](docs/TRIAL_FEEDBACK_TEMPLATE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Release Notes](docs/RELEASE.md)
+- [Maintainer Release Runbook](docs/RELEASE.md)
+- [Changelog](CHANGELOG.md)
+- [中文更新日志](CHANGELOG.zh-CN.md)
+- [Security Policy](SECURITY.md)
+- [安全政策](SECURITY.zh-CN.md)
 
 ## Development
 

@@ -1,5 +1,7 @@
 # AIWiki 0.3.0 Release Smoke Runbook
 
+> **Historical archive:** Preserved as 0.3.0 release evidence, not the current maintainer runbook. See `RELEASE.md` and the root CHANGELOG for current guidance; the factual body below is unchanged. Original Git blob: `ea0e18d9b49cd40f7009adcc2d58d58eca88a1d8`.
+
 This runbook is the release and remote-verification gate for AIWiki 0.3.0.
 
 It is intentionally separate from the implementation plan because GitHub update and npm release readiness depend on the exact package artifact, not only source-tree tests.

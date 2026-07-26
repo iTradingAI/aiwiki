@@ -151,9 +151,12 @@ test("schema compatibility guidance is packaged across docs, Skill, and workspac
   assert.match(catalog, /manual review/i);
   assert.match(catalogChinese, /aiwiki\.workspace\.v1/);
   assert.match(catalogChinese, /人工复核/);
-  for (const text of [readme, readmeChinese, usage, usageChinese, handoff, handoffChinese, release, releaseChinese, skill, exampleSchema]) {
+  for (const text of [readme, readmeChinese, usage, usageChinese, handoff, handoffChinese, skill]) {
     assert.match(text, /aiwiki\.context\.v1/);
-    assert.match(text, /CORE-0407/);
+    assert.doesNotMatch(text, /CORE-[0-9]+/);
+  }
+  for (const maintainerText of [release, releaseChinese, exampleSchema]) {
+    assert.match(maintainerText, /aiwiki\.context\.v1/);
   }
 
   const root = await tempRoot("aiwiki-schema-seed");
@@ -161,7 +164,7 @@ test("schema compatibility guidance is packaged across docs, Skill, and workspac
     await initWorkspace(root);
     const seededSchema = await readFile(path.join(root, "_system", "schemas", "aiwiki-frontmatter.md"), "utf8");
     assert.match(seededSchema, /aiwiki\.artifact\.v1/);
-    assert.match(seededSchema, /CORE-0407/);
+    assert.match(seededSchema, /future Skill matching behavior is specified separately/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

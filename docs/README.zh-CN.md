@@ -1,5 +1,7 @@
 # AIWiki 中文文档
 
+当前版本：**0.5.1**
+
 ## Core Intent Matrix
 
 自然语言请求先匹配到 AIWiki 命令，再解释输出；只有命令无法回答时才允许 fallback。完整合同见 [Agent 接入说明](AGENT_HANDOFF.zh-CN.md#core-intent-matrix)。
@@ -18,7 +20,9 @@ AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 - [案例展示](SHOWCASE.zh-CN.md)
 - [运营反馈闭环](OPERATING_FEEDBACK_LOOP.zh-CN.md)
 - [路线图](ROADMAP.zh-CN.md)
-- [发布说明](RELEASE.zh-CN.md)
+- [维护者发布手册](RELEASE.zh-CN.md)
+- [更新日志](../CHANGELOG.zh-CN.md)
+- [安全政策](../SECURITY.zh-CN.md)
 
 ## 示例
 
@@ -35,11 +39,11 @@ AI 助手读取资料
   -> aiwiki lint 检查结构和一致性
 ```
 
-在 0.3.0 中，`aiwiki query` 默认显示 Source Capsule。Agent 集成可以继续使用稳定的 `aiwiki.context.v1`，需要 capsule JSON 时显式调用 `aiwiki context "<主题>" --view capsule`。
+`aiwiki query` 的 Source Capsule 默认视图于 0.3.0 引入。Agent 集成可以继续使用稳定的 `aiwiki.context.v1`，需要 capsule JSON 时显式调用 `aiwiki context "<主题>" --view capsule`。
 
 ## Schema Compatibility
 
-[Schema Compatibility 目录](schema/README.zh-CN.md)记录 v1 数据合同、`schema_version: 1` 的工作区兼容别名，以及未来主版本只能人工复核的规则。CORE-0403 不改变 Skill 匹配；CORE-0407 负责后续匹配合同。
+[Schema Compatibility 目录](schema/README.zh-CN.md)记录 v1 数据合同、`schema_version: 1` 的工作区兼容别名，以及未来主版本只能人工复核的规则。Schema 兼容性不会改变 Skill 匹配；extension 命令保持显式触发，并保留文档定义的优先级和 fallback 边界。
 
 ## 公开集成 API
 

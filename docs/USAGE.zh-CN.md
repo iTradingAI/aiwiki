@@ -150,7 +150,7 @@ aiwiki context "<主题>"
 
 默认 `context` 返回稳定的 `aiwiki.context.v1` JSON，包含查询范围、结果质量、匹配原因、质量信号和相关引用。
 
-如果需要 0.3.0 的 Source Capsule 对象视图，调用：
+如需使用 0.3.0 引入的 Source Capsule 对象视图，请调用：
 
 ```bash
 aiwiki context "<主题>" --view capsule
@@ -205,7 +205,7 @@ aiwiki repair --plan --json --path <workspace>
 
 `aiwiki.health.v1` 在不写入的前提下报告八个维护域和派生 state。只有用户明确要求生成或保存健康报告时，才运行 `aiwiki health --write --json`：它会返回 `aiwiki.health_report.v1`，只刷新 `dashboards/Knowledge Health.md` 的受控报告区块，并在 `09-runs/` 写入不可变 JSON 报告。它不会修改知识 Markdown，也不会构建 rebuild/index/graph state。`aiwiki.repair_plan.v1` 仍是包含证据、风险、受影响文件和建议命令的只读建议清单。
 
-0.3.0 的深层检查需要显式开启：
+0.3.0 引入的深层检查需要显式开启：
 
 ```bash
 aiwiki lint --capsules --json
@@ -319,9 +319,9 @@ Obsidian 可选，Dataview 也可选。AIWiki 不修改 `.obsidian`，不安装�
 
 ## Schema Compatibility
 
-AIWiki 会把历史工作区 `schema_version: 1` 按 `aiwiki.workspace.v1` 读取，不会回写 `aiwiki.yaml`。Agent JSON 默认保持 `aiwiki.context.v1`，capsule 视图保持 `aiwiki.context.capsule.v1`。未知的新增 frontmatter 字段可继续读取；已声明的未知未来主版本必须人工复核，CORE-0403 没有迁移 CLI 或自动写入路径。
+AIWiki 会把历史工作区 `schema_version: 1` 按 `aiwiki.workspace.v1` 读取，不会回写 `aiwiki.yaml`。Agent JSON 默认保持 `aiwiki.context.v1`，capsule 视图保持 `aiwiki.context.capsule.v1`。未知的新增 frontmatter 字段可继续读取；已声明的未知未来主版本必须人工复核，不存在迁移 CLI 或自动写入路径。
 
-可选 schema 标记、迁移边界和可删除 state 行为见 [Schema Compatibility 目录](schema/README.zh-CN.md) 与[派生状态 v1](schema/STATE.zh-CN.md)。CORE-0404 提供仅声明的 [Extension API v0.1](schema/EXTENSION_SCHEMA.zh-CN.md)。CORE-0405 提供显式的 [Extension Host v0.1](schema/EXTENSION_HOST.zh-CN.md)：
+可选 schema 标记、迁移边界和可删除 state 行为见 [Schema Compatibility 目录](schema/README.zh-CN.md) 与[派生状态 v1](schema/STATE.zh-CN.md)。仅声明的 [Extension API v0.1](schema/EXTENSION_SCHEMA.zh-CN.md) 与显式的 [Extension Host v0.1](schema/EXTENSION_HOST.zh-CN.md) 提供：
 
 ```text
 aiwiki plugin list --json
@@ -329,7 +329,7 @@ aiwiki plugin add <directory> --path <workspace>
 aiwiki plugin enable <id> --path <workspace>
 ```
 
-这些命令不会自动发现包，也不会自动 Skill 匹配。Host 不是 sandbox；它只约束 Host 管理的状态，并在 extension 失败后禁用该 extension，同时保持 Core 继续运行。自然语言 extension 匹配、优先级和 fallback 仍由 CORE-0407 负责。
+这些命令不会自动发现包，也不会自动 Skill 匹配。Host 不是 sandbox；它只约束 Host 管理的状态，并在 extension 失败后禁用该 extension，同时保持 Core 继续运行。自然语言 extension 匹配保持显式触发，并遵循文档定义的优先级与 fallback 规则。
 
 ## 8. 常见排障
 

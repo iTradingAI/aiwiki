@@ -1,5 +1,7 @@
 # Obsidian + Dataview Integration
 
+> **Historical archive:** Preserved as the original Obsidian/Dataview decision record, not current release guidance. See the public README and roadmap for current behavior; the factual body below is unchanged. Original Git blob: `0ca1ff8d3b79310cf2ab886b05d05b173570857c`.
+
 ## Decision
 
 AIWiki should treat Obsidian compatibility as a first-class product surface:
