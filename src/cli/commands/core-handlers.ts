@@ -32,6 +32,7 @@ import {
 
 import type { CommandContext } from "../command-context.js";
 import type { CoreCommandHandlers } from "../command-registry.js";
+import { queryRequiredMessage, writeHelp } from "../localization.js";
 import { createPluginCommandHandler } from "./plugin.js";
 import { handleIndexCommand } from "./index.js";
 import { handleGraphCommand } from "./graph.js";
@@ -42,27 +43,23 @@ import { handleRepairCommand } from "./repair.js";
 export function createCoreCommandHandlers(): CoreCommandHandlers {
 
   async function handleVersion(context: CommandContext): Promise<number> {
-    const { args, streams } = context;
-writeLine(streams.stdout, `aiwiki ${await packageVersion()}`);
-      return 0;
+    writeLine(context.streams.stdout, `aiwiki ${await packageVersion()}`);
+    return 0;
   }
 
   async function handleAgentHelp(context: CommandContext): Promise<number> {
-    const { args, streams } = context;
-printAgentHelp(streams.stdout);
-      return 0;
+    printAgentHelp(context.streams.stdout);
+    return 0;
   }
 
   async function handleRetrievalHelp(context: CommandContext): Promise<number> {
-    const { args, streams } = context;
-printContextHelp(streams.stdout);
-      return 0;
+    printContextHelp(context.streams.stdout);
+    return 0;
   }
 
   async function handleHelp(context: CommandContext): Promise<number> {
-    const { args, streams } = context;
-printHelp(streams.stdout);
-      return 0;
+    writeHelp(context.streams.stdout, context.locale, "global");
+    return 0;
   }
 
   async function handleSetup(context: CommandContext): Promise<number> {
@@ -142,15 +139,13 @@ await printAgentCheckDetailed(streams.stdout, await discoverAgentTargets(flagStr
   }
 
   async function handleAgentList(context: CommandContext): Promise<number> {
-    const { args, streams } = context;
-printAgentList(streams.stdout, await discoverAgentTargets());
-      return 0;
+    printAgentList(context.streams.stdout, await discoverAgentTargets());
+    return 0;
   }
 
   async function handlePromptAgent(context: CommandContext): Promise<number> {
-    const { args, streams } = context;
-printAgentPrompt(streams.stdout);
-      return 0;
+    printAgentPrompt(context.streams.stdout);
+    return 0;
   }
 
   async function handleInit(context: CommandContext): Promise<number> {
@@ -231,7 +226,7 @@ const root = await resolveWorkspace(flagString(args, "path"));
 const root = await resolveWorkspace(flagString(args, "path"));
       const query = args.positional.slice(1).join(" ").trim();
       if (!query) {
-        throw new CliError("请提供查询主题。");
+        throw new CliError(queryRequiredMessage(context.locale));
       }
       if (graphViewRequested(args)) {
         writeLine(streams.stdout, JSON.stringify(await buildGraphContext(root, query, graphContextOptions(args)), null, 2));
@@ -253,7 +248,7 @@ const root = await resolveWorkspace(flagString(args, "path"));
 const root = await resolveWorkspace(flagString(args, "path"));
       const query = args.positional.slice(1).join(" ").trim();
       if (!query) {
-        throw new CliError("请提供查询主题。");
+        throw new CliError(queryRequiredMessage(context.locale));
       }
       const view = queryView(args);
       if (view === "capsule") {
@@ -401,43 +396,6 @@ const contentFile = flagString(args, "content-file");
   };
 }
 
-function printHelp(stream: NodeJS.WritableStream): void {
-  writeLine(stream, "AIWiki");
-  writeLine(stream, "");
-  writeLine(stream, "用法:");
-  writeLine(stream, "  aiwiki setup");
-  writeLine(stream, "  aiwiki setup --path <path> --yes");
-  writeLine(stream, "  aiwiki agent sync --yes");
-  writeLine(stream, "  aiwiki agent check --json");
-  writeLine(stream, "  aiwiki ingest-agent --stdin");
-  writeLine(stream, "  aiwiki ingest-file --file <file>");
-  writeLine(stream, "  aiwiki doctor");
-  writeLine(stream, "  aiwiki status");
-  writeLine(stream, "  aiwiki rebuild --path <workspace> --json");
-  writeLine(stream, "  aiwiki rebuild --check --json");
-  writeLine(stream, "  aiwiki rebuild --dry-run --json");
-  writeLine(stream, "  aiwiki index build --path <workspace> --json");
-  writeLine(stream, "  aiwiki index status --path <workspace> --json");
-  writeLine(stream, "  aiwiki index rebuild --path <workspace> --json");
-  writeLine(stream, "  aiwiki graph build --path <workspace> --json");
-  writeLine(stream, "  aiwiki graph status --path <workspace> --json");
-  writeLine(stream, "  aiwiki graph rebuild --path <workspace> --json");
-  writeLine(stream, "  aiwiki health --json");
-  writeLine(stream, "  aiwiki health --write --json");
-  writeLine(stream, "  aiwiki repair --plan --json");
-  writeLine(stream, "  aiwiki show <query>");
-  writeLine(stream, "  aiwiki context <query>");
-  writeLine(stream, "  aiwiki context <query> --view graph --graph-depth 1");
-  writeLine(stream, "  aiwiki query <query>");
-  writeLine(stream, "  aiwiki lint");
-  writeLine(stream, "  aiwiki lint --capsules --json");
-  writeLine(stream, "  aiwiki lint --strict --json");
-  writeLine(stream, "  aiwiki lint --maintenance --json");
-  writeLine(stream, "  aiwiki lint --fix-empty-dirs --json");
-  writeLine(stream, "  aiwiki plugin list --json");
-  writeLine(stream, "  aiwiki plugin add <directory>");
-  writeLine(stream, "  aiwiki plugin enable <id>");
-}
 
 function printAgentHelp(stream: NodeJS.WritableStream): void {
   writeLine(stream, "AIWiki Agent commands");

@@ -1,0 +1,31 @@
+{
+  "newCanonicalHost": "aiwiki.maxking.cc",
+  "oldCanonicalHost": "maxking.cc",
+  "oldCanonicalPath": "/aiwiki",
+  "expectedRelease": null,
+  "expectedInstallCommand": "npm install -g @itradingai/aiwiki",
+  "expectedRepository": "https://github.com/iTradingAI/aiwiki",
+  "expectedLocales": ["en", "zh-CN"],
+  "expectedLicense": "MIT",
+  "requireSecurityRoute": true,
+  "resolvers": ["1.1.1.1", "8.8.8.8"],
+  "dnsExpected": { "a": [], "aaaa": [], "cname": "aiwiki.maxking.cc" },
+  "dnsTtl": null,
+  "dnsRollbackRecord": null,
+  "paths": ["/", "/install", "/docs", "/security", "/zh-CN/", "/en/"],
+  "latencyLimitMs": 1500,
+  "stage": "prelaunch",
+  "monitoringCadenceMs": 300000,
+  "monitoringWindowProbes": 288,
+  "owners": {
+    "deployment": "",
+    "rollback": "",
+    "alerts": ""
+  },
+  "alertSink": {
+    "kind": "",
+    "ackMaxAgeMs": 604800000
+  },
+  "evidenceMaxAgeMs": 600000,
+  "alertAckFreshnessDefaultMs": 604800000
+}

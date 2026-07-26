@@ -2,7 +2,7 @@
 
 ## Scope
 
-CORE-0405 activates the minimal host for the public `aiwiki.extension.v1` author contract. It supports only an explicit bundled catalog and local extension directories. There is no package discovery, registry download, background process, scheduler, connector, or automatic Skill match.
+The minimal Host activates the public `aiwiki.extension.v1` author contract. It supports only an explicit bundled catalog and local extension directories. There is no package discovery, registry download, background process, scheduler, connector, or automatic Skill match.
 
 ## Explicit Commands
 
@@ -33,7 +33,7 @@ The schema and API markers must exactly equal `aiwiki.extension.v1`. IDs are low
 
 ## Runtime Boundary
 
-Only command and lint rule callbacks run in CORE-0405. Commands receive argv tokens only. Lint rules receive read-only vault-relative artifact snapshots without absolute paths or full bodies. Context providers and artifact generators are not invoked.
+Only command and lint rule callbacks run. Commands receive argv tokens only. Lint rules receive read-only vault-relative artifact snapshots without absolute paths or full bodies. Context providers and artifact generators are not invoked.
 
 Core command roots are reserved. An extension command cannot override a Core command or another enabled extension command.
 
@@ -50,8 +50,8 @@ Host data is stored under:
 
 Host writes use temporary-file rename. Loading, declaration validation, command execution, or lint callback failure records a disabled reason in `enabled.json`. Core commands and healthy extensions continue to run.
 
-This is not a sandbox. Locally loaded JavaScript can import Node.js capabilities on its own; the Host merely avoids injecting filesystem, process, network, scheduler, or Core-state capabilities. Permission policy belongs to CORE-0603.
+This is not a sandbox. Locally loaded JavaScript can import Node.js capabilities on its own; the Host merely avoids injecting filesystem, process, network, scheduler, or Core-state capabilities. A future permission policy requires separate design and review.
 
 ## Skill Boundary
 
-These commands are explicit administration commands. CORE-0405 does not add natural-language extension intent, automatic matching, precedence, or fallback. CORE-0407 owns those Skill matching rules and acceptance tests.
+These commands are explicit administration commands. They do not add natural-language extension intent or automatic matching. Keep the documented Skill matching precedence, fallback, and acceptance boundaries unchanged.

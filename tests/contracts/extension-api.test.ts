@@ -247,15 +247,14 @@ test("extension API documentation keeps host and Skill matching boundaries expli
 
   for (const text of [schema, schemaChinese]) {
     assert.match(text, /aiwiki\.extension\.v1/);
-    assert.match(text, /CORE-0405/);
-    assert.match(text, /CORE-0407/);
+    assert.doesNotMatch(text, /CORE-[0-9]+/);
   }
   for (const text of [host, hostChinese]) {
     assert.match(text, /aiwiki plugin list/);
     assert.match(text, /aiwiki plugin add/);
     assert.match(text, /aiwiki plugin enable/);
     assert.match(text, /aiwiki\.extension\.v1/);
-    assert.match(text, /CORE-0407/);
+    assert.doesNotMatch(text, /CORE-[0-9]+/);
   }
   assert.match(host, /not a sandbox/i);
   assert.match(hostChinese, /不是.*sandbox/);
@@ -263,7 +262,7 @@ test("extension API documentation keeps host and Skill matching boundaries expli
   assert.match(schemaChinese, /不是.*sandbox/);
   for (const text of [schemaIndex, schemaIndexChinese]) {
     assert.match(text, /aiwiki\.extension\.v1/);
-    assert.match(text, /CORE-0405/);
+    assert.doesNotMatch(text, /CORE-[0-9]+/);
   }
   assert.doesNotMatch(schemaIndex, /does not provide an Extension API/i);
   assert.doesNotMatch(schemaIndexChinese, /不提供 Extension API/);
@@ -272,8 +271,7 @@ test("extension API documentation keeps host and Skill matching boundaries expli
     assert.match(text, /ERR_PACKAGE_PATH_NOT_EXPORTED/);
   }
   for (const text of [usage, usageChinese, handoff, handoffChinese, skill]) {
-    assert.match(text, /CORE-0407/);
-    assert.match(text, /CORE-0405/);
+    assert.doesNotMatch(text, /CORE-[0-9]+/);
     assert.match(text, /aiwiki plugin list/);
     assert.match(text, /aiwiki plugin add/);
     assert.match(text, /aiwiki plugin enable/);

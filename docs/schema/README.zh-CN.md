@@ -24,14 +24,14 @@ AIWiki Core 通过统一目录记录当前数据合同。该目录是内部兼�
 | Extension 作者合同 | `aiwiki.extension.v1` | 公开包合同 | 声明 API 保持稳定；显式 Host 另有独立文档。 |
 | Extension Host | `aiwiki.extension-host.v1` | 本地 Host 状态 | 显式 local/bundled 加载、状态和失败隔离；见 [Extension Host v0.1](EXTENSION_HOST.zh-CN.md)。 |
 
-`aiwiki.context.v2` 已启用，作为显式的关系图 Context view；默认 Context 仍是 `aiwiki.context.v1`，且 Context v2 不会自动构建关系图 state。`aiwiki.extension.v1` 作为 [Extension API v0.1](EXTENSION_SCHEMA.zh-CN.md) 已启用。CORE-0405 只增加显式的 [Extension Host v0.1](EXTENSION_HOST.zh-CN.md)：通过 `plugin add` 与 `plugin enable` 启用 local 或 bundled extension；没有自动发现。
+`aiwiki.context.v2` 已启用，作为显式的关系图 Context view；默认 Context 仍是 `aiwiki.context.v1`，且 Context v2 不会自动构建关系图 state。`aiwiki.extension.v1` 作为 [Extension API v0.1](EXTENSION_SCHEMA.zh-CN.md) 已启用。[Extension Host v0.1](EXTENSION_HOST.zh-CN.md) 只增加显式的 `plugin add` 与 `plugin enable` 管理，用于启用 local 或 bundled extension；没有自动发现。
 
 ## 兼容与迁移
 
 - 已有 `schema_version: 1` 的工作区会按 `aiwiki.workspace.v1` 读取；AIWiki 不会回写该配置。
 - 未声明 frontmatter schema 的内容按当前 v1 合同读取。未知 frontmatter 字段会被容忍，本功能不会删除它们。
 - 已声明但未知或未来主版本会被标记为不可写，必须人工复核。内部 `planSchemaMigration()` 报告始终为 `dry_run: true` 且 `would_write: false`。
-- CORE-0403 不提供迁移 CLI 命令和 `--apply` 路径。后续迁移必须单独设计、审核和发布。
+- Schema 兼容性不提供迁移 CLI 命令和 `--apply` 路径。后续迁移必须单独设计、审核和发布。
 - `aiwiki health --json` 与 `aiwiki repair --plan --json` 分别输出附加的只读 `aiwiki.health.v1` 和 `aiwiki.repair_plan.v1` 合同。显式执行 `aiwiki health --write --json` 会输出 `aiwiki.health_report.v1`：只刷新 marker 限定的 dashboard 内容并写入不可变 JSON 运行记录。任一健康路径都不会修改知识 Markdown 或构建派生 state。
 
 仅在生产者需要显式声明时，才使用以下可选 frontmatter 标记：
@@ -45,7 +45,7 @@ aiwiki_relationships_schema: "aiwiki.relationships.v1"
 
 ## Skill 匹配边界
 
-Extension API v0.1 不新增自然语言意图、命令或自动 Skill 匹配。既有命令优先匹配保持不变；CORE-0405 负责加载，CORE-0407 负责后续 Skill 匹配合同，包括示例、优先级、fallback 和验收测试。
+Extension API v0.1 不新增自然语言意图、命令或自动 Skill 匹配。既有命令优先匹配保持不变；加载保持显式触发，后续匹配变更需要文档化示例、优先级、fallback 和验收测试。
 
 派生状态只增加一个显式维护意图：当用户要求时检查或重建 `.aiwiki/state/`。它不改变日常 query、context、show、lint 或 status 的匹配方式。见[派生状态 v1](STATE.zh-CN.md)。
 

@@ -19,17 +19,17 @@ Snapshots use vault-relative paths, constrained artifact kind, role, and visibil
 
 ## Capability Boundary
 
-The API injects no network client, process executor, scheduler, connector runtime, writable stream, filesystem writer, or Core state mutator. It is not a sandbox: locally loaded JavaScript can still import capabilities on its own. Permission policy, allowed module loading, input projection, path validation, draft handling, and failure isolation belong to CORE-0405.
+The API injects no network client, process executor, scheduler, connector runtime, writable stream, filesystem writer, or Core state mutator. It is not a sandbox: locally loaded JavaScript can still import capabilities on its own. Permission policy, allowed module loading, input projection, path validation, draft handling, and failure isolation belong to the explicit Host boundary.
 
-CORE-0404 itself did not add a manifest, loader, plugin command, automatic discovery, background process, or extension state directory. The current explicit Host behavior is documented separately in [Extension Host v0.1](EXTENSION_HOST.md).
+The declaration-only API itself adds no manifest, loader, plugin command, automatic discovery, background process, or extension state directory. The current explicit Host behavior is documented separately in [Extension Host v0.1](EXTENSION_HOST.md).
 
 ## Compatibility
 
 - The active contract marker is <code>aiwiki.extension.v1</code>.
 - Additive fields are the only compatible extension contract change in this major version.
 - Public extensions must import only package export-map paths. Deep imports under <code>src</code> or <code>dist/src</code> are unsupported and fail with <code>ERR_PACKAGE_PATH_NOT_EXPORTED</code>.
-- CORE-0404 does not create a persistent Workspace or Markdown extension schema and does not add a migration path.
+- Extension API v0.1 creates no persistent Workspace or Markdown extension schema and adds no migration path.
 
 ## Skill Matching Boundary
 
-Extension API v0.1 creates no user-facing command or automatic natural-language Skill match. Host assistants must continue to use the existing command-first intent matrix. CORE-0407 owns extension-related intent examples, precedence, fallback behavior, and matching acceptance tests.
+Extension API v0.1 creates no user-facing command or automatic natural-language Skill match. Host assistants must continue to use the existing command-first intent matrix and preserve the documented extension-intent precedence, fallback behavior, and matching acceptance boundaries.

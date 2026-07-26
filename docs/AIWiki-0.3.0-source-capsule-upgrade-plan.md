@@ -1,5 +1,7 @@
 # AIWiki 0.3.0 Source Capsule Upgrade Plan
 
+> **Historical archive:** Preserved as the 0.3.0 implementation plan, not current upgrade guidance. See the root README, CHANGELOG, and packaged Skill upgrade notes for the current release; the factual body below is unchanged. Original Git blob: `3cbf2da14851718821d93ca84854253f94f78011`.
+
 ## Summary
 
 This plan implements the 0.3.0 architecture described in

@@ -58,6 +58,20 @@ function fileContents(root: string, files: string[]): Map<string, string> {
   return new Map(files.map((file) => [file, readFileSync(path.join(root, ...file.split("/")), "utf8")]));
 }
 
+function assertPackagedReadmeLinks(packageRoot: string, readmePath: string): void {
+  const absoluteReadme = path.join(packageRoot, ...readmePath.split("/"));
+  const document = readFileSync(absoluteReadme, "utf8");
+  const targets = [...document.matchAll(/(?:href="([^"]+)"|\]\(([^)]+)\))/g)]
+    .map((match) => match[1] ?? match[2])
+    .filter((target): target is string => Boolean(target) && !/^(?:https?:|mailto:|#)/i.test(target));
+  for (const target of targets) {
+    const pathname = target.split("#", 1)[0].split("?", 1)[0];
+    const resolved = path.resolve(path.dirname(absoluteReadme), pathname);
+    assert.ok(resolved.startsWith(`${path.resolve(packageRoot)}${path.sep}`), `${readmePath} link escapes package: ${target}`);
+    assert.equal(existsSync(resolved), true, `${readmePath} link target is absent: ${target}`);
+  }
+}
+
 test("packed Skill bundle installs every protocol and locks explicit extension intent", () => {
   const repositoryRoot = process.cwd();
   const consumerRoot = mkdtempSync(path.join(os.tmpdir(), "aiwiki-skill-contract-"));
@@ -65,10 +79,12 @@ test("packed Skill bundle installs every protocol and locks explicit extension i
   const vaultRoot = path.join(consumerRoot, "vault");
   try {
     writeFileSync(path.join(consumerRoot, "package.json"), JSON.stringify({ private: true }, null, 2), "utf8");
-    const packed = JSON.parse(runNpm(["pack", repositoryRoot, "--json", "--ignore-scripts"], consumerRoot)) as Array<{ filename?: string }>;
-    const tarballName = packed[0]?.filename;
-    assert.ok(tarballName, "npm pack did not report a tarball filename");
-    runNpm(["install", "--ignore-scripts", "--no-package-lock", tarballName], consumerRoot);
+    const artifactDirectory = path.join(consumerRoot, "release-artifact");
+    run(process.execPath, [path.join(repositoryRoot, "scripts", "release-artifact.mjs"), "build", artifactDirectory], repositoryRoot);
+    const evidence = JSON.parse(readFileSync(path.join(artifactDirectory, "release-evidence.json"), "utf8")) as { filename: string };
+    const tarballPath = path.join(artifactDirectory, evidence.filename);
+    assert.equal(existsSync(tarballPath), true, "release artifact helper did not produce the recorded tarball");
+    runNpm(["install", "--ignore-scripts", "--no-package-lock", tarballPath], consumerRoot);
 
     const packageRoot = path.join(consumerRoot, "node_modules", "@itradingai", "aiwiki");
     const packagedSkillRoot = path.join(packageRoot, "skill");
@@ -78,6 +94,14 @@ test("packed Skill bundle installs every protocol and locks explicit extension i
     assert.ok(bundleFiles.includes("LINT_PROTOCOL.md"));
     assert.ok(bundleFiles.includes("UPGRADE_NOTES.md"));
     assert.ok(bundleFiles.includes("EXTENSION_PROTOCOL.md"));
+    assert.equal(existsSync(path.join(packageRoot, "README.zh-CN.md")), false);
+    const packagedReadme = readFileSync(path.join(packageRoot, "README.md"), "utf8");
+    assert.match(packagedReadme, /<a href="\.\/docs\/README\.zh-CN\.md">中文<\/a>/);
+    const packagedChineseReadme = readFileSync(path.join(packageRoot, "docs", "README.zh-CN.md"), "utf8");
+    assert.notEqual(packagedChineseReadme, readFileSync(path.join(repositoryRoot, "README.zh-CN.md"), "utf8"));
+    assert.match(packagedChineseReadme, /\]\(\.\.\/CHANGELOG\.zh-CN\.md\)/);
+    assertPackagedReadmeLinks(packageRoot, "README.md");
+    assertPackagedReadmeLinks(packageRoot, "docs/README.zh-CN.md");
 
     const env = { ...process.env, CODEX_HOME: codexHome };
     const sync = JSON.parse(runInstalledCli(consumerRoot, ["agent", "sync", "--agent", "codex", "--yes", "--json"], env)) as AgentSyncReport;
@@ -98,19 +122,19 @@ test("packed Skill bundle installs every protocol and locks explicit extension i
     assert.equal(workspaceSync.results[0]?.action, "current");
 
     const prompt = runInstalledCli(consumerRoot, ["prompt", "agent"], env);
-    const handoff = readFileSync(path.join(packageRoot, "docs", "AGENT_HANDOFF.md"), "utf8");
+    const usage = readFileSync(path.join(packageRoot, "docs", "USAGE.md"), "utf8");
     const skill = readFileSync(path.join(packagedSkillRoot, "SKILL.md"), "utf8");
     const extensionProtocol = readFileSync(path.join(packagedSkillRoot, "EXTENSION_PROTOCOL.md"), "utf8");
     for (const [text, requiredCommands] of [
       [prompt, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki index status", "aiwiki agent check", "aiwiki agent sync"]],
-      [handoff, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-file", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki index status", "aiwiki agent check", "aiwiki agent sync"]],
+      [usage, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-file", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki index status", "aiwiki agent check", "aiwiki agent sync"]],
       [skill, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-file", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki index status", "aiwiki agent check", "aiwiki agent sync"]]
     ] as const) {
       for (const command of requiredCommands) {
         assert.ok(text.includes(command), `missing ${command}`);
       }
     }
-    for (const text of [prompt, handoff, skill, extensionProtocol]) {
+    for (const text of [prompt, usage, skill, extensionProtocol]) {
       assert.match(text, /aiwiki plugin list/);
       assert.match(text, /aiwiki plugin add <directory>/);
       assert.match(text, /aiwiki plugin enable <id>/);
@@ -120,7 +144,7 @@ test("packed Skill bundle installs every protocol and locks explicit extension i
     assert.match(extensionProtocol, /does not add Pro behavior/i);
     assert.match(extensionProtocol, /entitlement checks, license checks, scheduling/i);
     assert.match(prompt, /不要自动构建或重建索引/);
-    for (const text of [handoff, skill]) {
+    for (const text of [usage, skill]) {
       assert.match(text, /Do not automatically build or rebuild the index/i);
       assert.match(text, /Markdown-backed retrieval remains available/i);
     }

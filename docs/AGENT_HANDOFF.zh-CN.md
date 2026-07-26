@@ -82,7 +82,7 @@ aiwiki show <topic> --path <workspace>
 
 保持现有命令优先的意图映射不变。`aiwiki.context.v1` 与 `aiwiki.context.capsule.v1` 仍是受支持的 Agent JSON 输出；历史工作区 `schema_version: 1` 仍按 `aiwiki.workspace.v1` 读取且不回写。未知未来 schema 主版本只能人工复核，不存在 CLI 迁移路径。详见 [Schema Compatibility](schema/README.zh-CN.md)。
 
-CORE-0404 提供仅声明的 Extension API v0.1。CORE-0405 只提供显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`。CORE-0407 锁定该匹配边界：不要从普通自然语言推断这些命令、自动发现 extension、自动启用 extension、自动执行 extension，也不要把 Host 描述成 sandbox。精确映射见随包交付的 `skill/EXTENSION_PROTOCOL.md`。
+仅声明的 Extension API v0.1 只支持显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`。保持该匹配边界：不要从普通自然语言推断这些命令、自动发现 extension、自动启用 extension、自动执行 extension，也不要把 Host 描述成 sandbox。精确映射见随包交付的 `skill/EXTENSION_PROTOCOL.md`。
 
 `aiwiki health --json` 输出附加的只读 `aiwiki.health.v1` 快照。`aiwiki repair --plan --json` 输出附加的只读 `aiwiki.repair_plan.v1` 建议计划。用户明确要求生成或保存报告时，`aiwiki health --write --json` 输出 `aiwiki.health_report.v1`，只更新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录；不会修改知识 Markdown 或构建派生 state。
 
@@ -112,7 +112,7 @@ aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
 
 ## 合同测试矩阵
 
-CORE-0406 建立该维护者验证入口：变更 Core 兼容边界时运行 `npm run test:contracts`。该套件覆盖 `public-api.test.ts`、`cli-compatibility.test.ts`、`skill-matching.test.ts`、`extension-api.test.ts`、`schema-compatibility.test.ts`、`extension-failure-isolation.test.ts` 和 `release-gate.test.ts`。`skill-matching.test.ts` 会在外部消费者环境安装打包后的包，验证完整 Skill bundle 同步、工作区指导与显式 extension 意图。`release-gate.test.ts` 锁定 Core 0.4 的包清单、双语发布路径和对外交付边界。该套件只验证已文档化的公开导入与显式 Core CLI 命令面；不会引入 Pro 行为、extension 自动发现、自动启用或自动执行。CORE-0501 已增加打包 rebuild help 与双语派生状态文档合同；完整本地和远端 consumer 矩阵仍是 Task 6 发布门禁。
+变更 Core 兼容边界时，运行维护者验证入口 `npm run test:contracts`。该套件覆盖 `public-api.test.ts`、`cli-compatibility.test.ts`、`skill-matching.test.ts`、`extension-api.test.ts`、`schema-compatibility.test.ts`、`extension-failure-isolation.test.ts` 和 `release-gate.test.ts`。`skill-matching.test.ts` 会在外部消费者环境安装打包后的包，验证完整 Skill bundle 同步、工作区指导与显式 extension 意图。
 
 ## 入库流程
 

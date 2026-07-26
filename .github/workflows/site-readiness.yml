@@ -1,0 +1,106 @@
+# AIWiki site-readiness synthetic probe.
+#
+# Read-only. NEVER mutates DNS, deploy, repository settings, package metadata,
+# or branches. It collects six-category evidence against the prelaunch site
+# and uploads a timestamped readiness JSON artifact. The probe step always
+# succeeds by design: the verdict (ready: true/false) is recorded inside
+# readiness.json and surfaced in the job summary, so a not-green probe does
+# NOT fail the scheduled job (otherwise the runner would report constant red
+# failures while the site is still prelaunch). The probe never cuts over,
+# publishes, or mutates any external state.
+#
+# Runs on a schedule (every five minutes, matching the plan cadence) and on
+# manual dispatch. Owners fill in scripts/site-readiness/site-readiness.config.json.
+#
+# This workflow owns no shared file with other lanes. It is intentionally
+# separate from ci.yml, publish.yml, and any branch-governance workflows.
+
+name: Site readiness
+
+on:
+  schedule:
+    # Every five minutes, UTC. Best-effort on GitHub's cron runner.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      expected-release:
+        description: "Override expected release marker (defaults to package.json version)"
+        required: false
+        type: string
+      stage:
+        description: "prelaunch (default) or launch"
+        required: false
+        type: choice
+        default: prelaunch
+        options:
+          - prelaunch
+          - launch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-readiness-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe / six-category readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Collect six-category readiness evidence (read-only)
+        id: probe
+        env:
+          EXPECTED_RELEASE: ${{ inputs.expected-release }}
+          SITE_STAGE: ${{ inputs.stage }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$EXPECTED_RELEASE" ]; then
+            args+=(--expected-release "$EXPECTED_RELEASE")
+          fi
+          if [ -n "$SITE_STAGE" ]; then
+            args+=(--stage "$SITE_STAGE")
+          fi
+          # The probe exits 1 when readiness is not green; capture either way.
+          set +e
+          node scripts/site-readiness/probe.mjs "${args[@]}" > readiness.json
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          echo "----- readiness.json -----"
+          cat readiness.json
+          echo "-------------------------"
+          exit 0  # never fail the job on a not-green probe; the artifact carries the verdict
+
+      - name: Upload readiness artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-readiness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: readiness.json
+          retention-days: 30
+
+      - name: Gate summary
+        if: always()
+        run: |
+          echo "## Site readiness" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f readiness.json ]; then
+            node -e "const v=require('./readiness.json');console.log('**Ready:** '+v.ready);console.log('**Summary:** '+v.summary);console.log('');console.log('| Category | Status | Reasons |');console.log('|---|---|---|');for(const c of (v.categories||[])){console.log('| '+c.category+' | '+c.status+' | '+(c.reasons||[]).join('; ')+' |');}" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "_Read-only probe. No DNS, deploy, settings, or package metadata were mutated._" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Probe produced no artifact." >> "$GITHUB_STEP_SUMMARY"
+          fi
