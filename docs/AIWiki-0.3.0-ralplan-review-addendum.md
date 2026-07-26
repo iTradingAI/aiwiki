@@ -1,5 +1,7 @@
 # AIWiki 0.3.0 RALPLAN Review Addendum
 
+> **Historical archive:** Preserved as a 0.3.0 decision record, not current implementation guidance. See the root README and CHANGELOG for the current release; the factual body below is unchanged. Original Git blob: `f66746bc2f518d05fa1723e1d97e11955f6cfa7c`.
+
 This addendum completes the planning gaps left by:
 
 - `docs/AIWiki-0.3.0-architecture-code-split-design.md`

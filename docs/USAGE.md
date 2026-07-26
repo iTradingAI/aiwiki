@@ -198,7 +198,7 @@ aiwiki context "<topic>"
 
 Default `context` returns the stable `aiwiki.context.v1` JSON for assistants. It includes query scope, result quality, match reasons, quality signals, and related references.
 
-For the 0.3.0 Source Capsule object view, call:
+For the Source Capsule object view introduced in 0.3.0, call:
 
 ```bash
 aiwiki context "<topic>" --view capsule
@@ -269,7 +269,7 @@ aiwiki repair --plan --json --path <workspace>
 
 `aiwiki.health.v1` reports eight maintenance domains and derived-state status without writing. When the user explicitly asks to generate or save a health report, `aiwiki health --write --json` returns `aiwiki.health_report.v1`, refreshes only the managed section of `dashboards/Knowledge Health.md`, and writes an immutable JSON report under `09-runs/`. It does not change knowledge Markdown or build rebuild/index/graph state. `aiwiki.repair_plan.v1` remains a read-only advisory list with evidence, risk, affected files, and suggested commands.
 
-For 0.3.0 checks:
+For the deeper checks introduced in 0.3.0:
 
 ```bash
 aiwiki lint --capsules --json
@@ -401,7 +401,7 @@ Obsidian is optional. Dataview is optional. AIWiki does not edit `.obsidian`, in
 
 AIWiki reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1` without rewriting `aiwiki.yaml`. Current Agent JSON remains `aiwiki.context.v1` by default and `aiwiki.context.capsule.v1` for the capsule view. Unknown additive frontmatter remains readable; a declared unknown future major requires manual review and has no automatic migration command.
 
-See the [Schema Compatibility catalog](schema/README.md) and [Derived State v1](schema/STATE.md) for optional marker fields, the migration boundary, and removable state behavior. CORE-0404 exposes the declaration-only [Extension API v0.1](schema/EXTENSION_SCHEMA.md). CORE-0405 adds the explicit [Extension Host v0.1](schema/EXTENSION_HOST.md):
+See the [Schema Compatibility catalog](schema/README.md) and [Derived State v1](schema/STATE.md) for optional marker fields, the migration boundary, and removable state behavior. The declaration-only [Extension API v0.1](schema/EXTENSION_SCHEMA.md) and explicit [Extension Host v0.1](schema/EXTENSION_HOST.md) provide:
 
 ```text
 aiwiki plugin list --json
@@ -409,7 +409,7 @@ aiwiki plugin add <directory> --path <workspace>
 aiwiki plugin enable <id> --path <workspace>
 ```
 
-These commands do not discover packages or create an automatic Skill match. The Host is not a sandbox; it only contains Host-managed state and disables failed extensions while Core continues. CORE-0407 owns natural-language extension matching, precedence, and fallback.
+These commands do not discover packages or create an automatic Skill match. The Host is not a sandbox; it only contains Host-managed state and disables failed extensions while Core continues. Natural-language extension matching remains explicit and follows the documented precedence and fallback rules.
 
 ## 8. Troubleshooting
 

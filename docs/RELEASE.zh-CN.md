@@ -1,4 +1,4 @@
-# AIWiki 发布指南
+# AIWiki 维护者发布手册
 
 本文定义 AIWiki 维护者的交付与发布门禁。
 
@@ -183,7 +183,7 @@ npm view @itradingai/aiwiki version
 npm view @itradingai/aiwiki versions --json
 ```
 
-随后在新的远端临时 consumer 中只从 registry 安装 `@itradingai/aiwiki@0.5.0`，重跑 CLI、公开 import、schema 文档、Skill bundle 和 Health Report 的最小 sanity。该检查未通过前不得对外宣布发布完成。
+随后在新的远端临时 consumer 中只从 registry 安装 `@itradingai/aiwiki@0.5.1`，重跑 CLI、公开 import、schema 文档、Skill bundle 和 Health Report 的最小 sanity。该检查未通过前不得对外宣布发布完成。
 
 Trusted Publishing 失败时，检查 npm Trusted Publisher 配置、仓库名、workflow 文件名和 `id-token: write` 权限。
 

@@ -1,5 +1,7 @@
 # AIWiki 0.3.0 架构代码拆分设计（直接可开发版）
 
+> **历史归档：** 本文保留用于追溯 0.3.0 的设计背景，不是当前版本说明或实施指南。当前版本请以根目录 README 和 CHANGELOG 为准；以下事实正文保持原样。原始 Git blob：`3b06e3bd38e0cc90bfca6476ab62fafd73d2b7e0`。
+
 > 版本目标：`0.3.0`
 > 方案类型：架构代码拆分 / 可直接交给 Codex、Claude Code、QClaw、OpenClaw 执行
 > 适用仓库：`iTradingAI/aiwiki`

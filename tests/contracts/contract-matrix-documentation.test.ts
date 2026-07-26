@@ -23,14 +23,13 @@ test("release and handoff documentation define the reusable contract test matrix
   for (const document of documents) {
     assert.match(document, /npm run test:contracts/);
     for (const contractTest of contractTests) assert.match(document, new RegExp(contractTest.replace(".", "\\.")));
-    assert.match(document, /CORE-0406/);
-    assert.match(document, /CORE-0407/);
-    assert.match(document, /CORE-0501/);
   }
   assert.match(documents[0], /Contract Test Matrix/);
   assert.match(documents[1], /合同测试矩阵/);
   assert.match(documents[2], /Contract Test Matrix/);
   assert.match(documents[3], /合同测试矩阵/);
+  assert.doesNotMatch(documents[2], /CORE-[0-9]+/);
+  assert.doesNotMatch(documents[3], /CORE-[0-9]+/);
 });
 
 test("rebuild documentation keeps derived state explicit, removable, and out of normal retrieval", async () => {

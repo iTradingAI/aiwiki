@@ -3,7 +3,7 @@ name: aiwiki
 description: Local Markdown knowledge base workflow for AI assistants.
 ---
 
-<!-- aiwiki-skill-version: 0.3.0 -->
+<!-- aiwiki-skill-version: 0.5.1 -->
 
 # AIWiki Skill
 
@@ -103,7 +103,7 @@ Match user requests to this command contract before using generic file tools:
 
 Keep the current command-first matching unchanged. Existing workspaces with `schema_version: 1` remain compatible as `aiwiki.workspace.v1`; Agent outputs remain `aiwiki.context.v1` and `aiwiki.context.capsule.v1`. Do not invent a schema migration command or rewrite user frontmatter for this feature. Declared future schema majors require manual review.
 
-CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 adds only explicit extension administration: `aiwiki plugin list --json`, `aiwiki plugin add <directory> --path <workspace>`, and `aiwiki plugin enable <id> --path <workspace>`. CORE-0407 locks the matching contract: do not infer these commands from ordinary natural-language requests, automatically discover extensions, or describe the Host as a sandbox. Read [Extension Protocol](EXTENSION_PROTOCOL.md) before handling an extension request.
+The declaration-only Extension API v0.1 supports explicit extension administration through `aiwiki plugin list --json`, `aiwiki plugin add <directory> --path <workspace>`, and `aiwiki plugin enable <id> --path <workspace>`. Keep the matching contract unchanged: do not infer these commands from ordinary natural-language requests, automatically discover extensions, or describe the Host as a sandbox. Read [Extension Protocol](EXTENSION_PROTOCOL.md) before handling an extension request.
 
 ## Health And Repair Intent
 

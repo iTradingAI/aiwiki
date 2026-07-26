@@ -1,5 +1,7 @@
 # AIWiki Development Log
 
+> **Historical archive:** This chronological maintainer log preserves past implementation evidence. It is not a current release declaration; see the root README and CHANGELOG for current guidance. Entries below are unchanged. Original Git blob: `3c0f767b511d3629e69ff6cfa678fe917a2510c5`.
+
 This log records queue-driven AIWiki development milestones that should remain visible to future maintainers, not only in automation chat history.
 
 ## 2026-07-06 - Workspace guidance auto-refresh for 0.3.0 upgrades

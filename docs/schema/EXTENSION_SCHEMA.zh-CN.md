@@ -19,17 +19,17 @@ snapshot 使用 vault 相对路径、受限的 artifact kind、role、visibility
 
 ## 能力边界
 
-API 不注入 network client、process executor、scheduler、connector runtime、可写 stream、filesystem writer 或 Core state mutator。它不是一个 sandbox：本地加载的 JavaScript 仍可自行导入能力。权限策略、允许的模块加载、输入投影、路径验证、draft 处理和失败隔离属于 CORE-0405。
+API 不注入 network client、process executor、scheduler、connector runtime、可写 stream、filesystem writer 或 Core state mutator。它不是一个 sandbox：本地加载的 JavaScript 仍可自行导入能力。权限策略、允许的模块加载、输入投影、路径验证、draft 处理和失败隔离属于显式 Host 边界。
 
-CORE-0404 本身不提供 extension manifest、loader、plugin command、自动发现、后台进程或 extension state directory。当前的显式 Host 行为另见 [Extension Host v0.1](EXTENSION_HOST.zh-CN.md)。
+仅声明的 API 本身不提供 extension manifest、loader、plugin command、自动发现、后台进程或 extension state directory。当前的显式 Host 行为另见 [Extension Host v0.1](EXTENSION_HOST.zh-CN.md)。
 
 ## 兼容性
 
 - 当前启用的合同标记是 <code>aiwiki.extension.v1</code>。
 - 在此 major 版本中，只有新增字段才是兼容的 extension contract 变更。
 - 公开扩展只能导入 package export-map 路径。<code>src</code> 或 <code>dist/src</code> 下的深层导入不受支持，并以 <code>ERR_PACKAGE_PATH_NOT_EXPORTED</code> 失败。
-- CORE-0404 不创建持久化的 Workspace 或 Markdown extension schema，也不新增 migration 路径。
+- Extension API v0.1 不创建持久化的 Workspace 或 Markdown extension schema，也不新增 migration 路径。
 
 ## Skill 匹配边界
 
-Extension API v0.1 不创建用户可见命令，也不创建自动自然语言 Skill 匹配。宿主 Agent 必须继续使用既有 command-first intent matrix。CORE-0407 负责 extension 相关意图示例、优先级、fallback 行为和匹配验收测试。
+Extension API v0.1 不创建用户可见命令，也不创建自动自然语言 Skill 匹配。宿主 Agent 必须继续使用既有 command-first intent matrix，并保留文档定义的 extension 意图优先级、fallback 行为和匹配验收边界。

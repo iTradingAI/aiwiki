@@ -1,5 +1,7 @@
 # AIWiki 0.3.0 Execution Readiness Checklist
 
+> **Historical archive:** Preserved as 0.3.0 planning and release evidence, not a current readiness checklist. See the root README and CHANGELOG for current guidance; the factual body below is unchanged. Original Git blob: `396479b5e35206bfb58577cb1183f7dfaa242ebb`.
+
 This checklist connects the architecture document, implementation plan, RALPLAN review, PRD, test spec, and release smoke runbook into one execution handoff.
 
 ## Planning Artifact Map

@@ -1,5 +1,7 @@
 # AIWiki 0.3.0 Documentation Completeness Review
 
+> **Historical archive:** Preserved as 0.3.0 planning and release evidence, not current release guidance. See the root README and CHANGELOG for the current release; the factual body below is unchanged. Original Git blob: `6c57b7d9a04140d1094cb5105b5a16778de3c477`.
+
 This document reviews whether the AIWiki 0.3.0 Source Capsule planning documents are complete enough for execution, verification, and release handoff.
 
 It is an internal planning document. It is not a packaged user guide unless a later release decision explicitly adds it to `package.json.files`.

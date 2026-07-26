@@ -82,7 +82,7 @@ Use this matrix as the command contract for matching natural-language requests. 
 
 Keep the current command-first intent mapping unchanged. `aiwiki.context.v1` and `aiwiki.context.capsule.v1` remain the supported Agent JSON outputs; legacy workspace `schema_version: 1` remains readable as `aiwiki.workspace.v1` without a rewrite. Unknown future schema majors require manual review and have no CLI migration path. See [Schema Compatibility](schema/README.md).
 
-CORE-0404 exposes the declaration-only Extension API v0.1. CORE-0405 provides only explicit extension administration: `aiwiki plugin list`, `aiwiki plugin add <directory>`, and `aiwiki plugin enable <id>`. CORE-0407 locks this matching boundary: do not infer these commands from ordinary natural language, discover extensions, enable extensions, execute extensions, or describe the Host as a sandbox. See the packaged `skill/EXTENSION_PROTOCOL.md` for the exact intent mapping.
+The declaration-only Extension API v0.1 supports explicit extension administration only: `aiwiki plugin list`, `aiwiki plugin add <directory>`, and `aiwiki plugin enable <id>`. Keep this matching boundary: do not infer these commands from ordinary natural language, discover extensions, enable extensions, execute extensions, or describe the Host as a sandbox. See the packaged `skill/EXTENSION_PROTOCOL.md` for the exact intent mapping.
 
 `aiwiki health --json` emits the additive, read-only `aiwiki.health.v1` snapshot. `aiwiki repair --plan --json` emits the additive, read-only `aiwiki.repair_plan.v1` advisory plan. When the user explicitly asks to generate or save a report, `aiwiki health --write --json` emits `aiwiki.health_report.v1`, updates only the marker-bounded section of `dashboards/Knowledge Health.md`, and writes an immutable JSON run record under `09-runs/`. It does not change knowledge Markdown or build derived state.
 
@@ -112,7 +112,7 @@ Use extension commands only for explicit user requests. List with `aiwiki plugin
 
 ## Contract Test Matrix
 
-CORE-0406 establishes this maintainer verification entrypoint: run `npm run test:contracts` when changing a Core compatibility boundary. The suite covers `public-api.test.ts`, `cli-compatibility.test.ts`, `skill-matching.test.ts`, `extension-api.test.ts`, `schema-compatibility.test.ts`, `extension-failure-isolation.test.ts`, and `release-gate.test.ts`. `skill-matching.test.ts` installs the packed package in an external consumer, checks full Skill-bundle sync and workspace guidance, and locks explicit extension intent. `release-gate.test.ts` locks the Core 0.4 package manifest, bilingual release path, and the public delivery boundary. The suite verifies only documented public imports and explicit Core CLI surfaces; it introduces no Pro behavior, extension discovery, automatic enablement, or automatic execution. CORE-0501 adds packed rebuild help and bilingual derived-state documentation contracts; the full local and remote consumer matrix remains the Task 6 release gate.
+When changing a Core compatibility boundary, run the maintainer verification entrypoint `npm run test:contracts`. The suite covers `public-api.test.ts`, `cli-compatibility.test.ts`, `skill-matching.test.ts`, `extension-api.test.ts`, `schema-compatibility.test.ts`, `extension-failure-isolation.test.ts`, and `release-gate.test.ts`. `skill-matching.test.ts` installs the packed package in an external consumer, checks full Skill-bundle sync and workspace guidance, and locks explicit extension intent.
 
 ## Ingest Flow
 

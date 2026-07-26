@@ -28,6 +28,8 @@ Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、`doctor`、`status` �
 
 **把 AI 助手读过的资料，变成以后可以查询、复用、整理的本地知识库。**
 
+当前版本：**0.5.1**
+
 AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 
 你把链接、文章、文件或笔记交给 AI 助手；AI 助手负责读取和理解；AIWiki 负责把结果写成结构化、可追踪、可复用的 Markdown 知识文件。
@@ -153,7 +155,7 @@ aiwiki show --artifact-path <artifact.md> --path <workspace>
 aiwiki lint --json
 ```
 
-0.3.0 的 Source Capsule 层检查是显式开启的：
+0.3.0 引入的 Source Capsule 深层检查需要显式开启：
 
 ```bash
 aiwiki lint --capsules --json
@@ -246,13 +248,13 @@ aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
 
 Wiki Entry 是主要复用层；Raw 和 Source Card 保留来源和追踪关系，方便以后回查。
 
-AIWiki 0.3.0 还会把这些文件视为一个逻辑 Source Capsule。一个 capsule 会把同一来源的 Wiki Entry、Source Card、Raw、可选建议文件和运行记录组织在一起。新生成文件会增加 `capsule_id`、`artifact_role`、`visibility`、生命周期状态、关系字段和 OKF-ready 字段。旧知识库不需要批量迁移；AIWiki 会从现有 Markdown 目录推断 capsule。
+Source Capsule 于 0.3.0 引入。AIWiki 会把这些文件视为一个逻辑 capsule，把同一来源的 Wiki Entry、Source Card、Raw、可选建议文件和运行记录组织在一起。新生成文件会增加 `capsule_id`、`artifact_role`、`visibility`、生命周期状态、关系字段和 OKF-ready 字段。旧知识库不需要批量迁移；AIWiki 会从现有 Markdown 目录推断 capsule。
 
 ## Schema 兼容性
 
 旧工作区的 `schema_version: 1` 会在不重写文件的前提下读取为 `aiwiki.workspace.v1`。默认 Agent JSON 仍是 `aiwiki.context.v1`，capsule view 仍是 `aiwiki.context.capsule.v1`；已启用的显式关系图 view 是 `aiwiki.context.v2`。未知的未来 major 需要人工审查。详见[Schema 兼容目录](docs/schema/README.zh-CN.md)。
 
-CORE-0403 不改变既有 Skill 匹配。CORE-0407 约束匹配优先级、fallback 和验收测试。
+Schema 兼容性不会改变既有 Skill 匹配。Extension 命令保持显式触发：不要从普通自然语言请求推断这些命令，并保留文档定义的优先级、fallback 和验收边界。
 
 结构化索引使用附加的 `aiwiki.index.v1` 元数据合同。它需显式构建、可删除，并且不改变默认 `aiwiki.context.v1` 检索输出。详见[派生状态 v1](docs/schema/STATE.zh-CN.md)。
 
@@ -343,6 +345,7 @@ AIWiki 不会自动安装 Dataview，也不会修改 `.obsidian`。
 - AIWiki 不会自行爬取网页。
 - `npm install` 不会修改 AI 助手配置。
 - Agent 接入需要显式运行 `aiwiki agent sync`。
+- 安全问题请按[安全政策](SECURITY.zh-CN.md)或 [Security Policy](SECURITY.md) 私下报告，不要在公开 issue 中披露漏洞细节。
 
 ## 当前状态
 
@@ -392,7 +395,11 @@ AIWiki 由 iTradingAI 开源维护。
 - [常见问题](docs/FAQ.zh-CN.md)
 - [案例展示](docs/SHOWCASE.zh-CN.md)
 - [路线图](docs/ROADMAP.zh-CN.md)
-- [发布说明](docs/RELEASE.zh-CN.md)
+- [维护者发布手册](docs/RELEASE.zh-CN.md)
+- [更新日志](CHANGELOG.zh-CN.md)
+- [English Changelog](CHANGELOG.md)
+- [安全政策](SECURITY.zh-CN.md)
+- [Security Policy](SECURITY.md)
 
 ## 本地开发
 
