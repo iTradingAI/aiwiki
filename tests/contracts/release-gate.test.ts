@@ -258,6 +258,10 @@ test("publish workflow preserves ref and tag guards and publishes only the smoke
   assert.equal((workflow.match(/release-artifact\.mjs build/g) ?? []).length, 1);
   assert.match(workflow, /artifact-smoke:[\s\S]*needs: build-artifact/);
   assert.match(workflow, /publish:[\s\S]*needs:[\s\S]*- artifact-smoke[\s\S]*- release-gate/);
+  assert.match(
+    workflow,
+    /\n  publish:\n[\s\S]*artifact="\$\(realpath "\$ARTIFACT_DIRECTORY\/\$\(node -p [^\n]+\)"\)"[\s\S]*npm publish "\$artifact"/,
+  );
   assert.match(workflow, /npm publish "\$artifact" --access public --provenance/);
   assert.match(workflow, /registry-verify:[\s\S]*needs: publish/);
   assert.match(workflow, /github-release:[\s\S]*needs: registry-verify/);
