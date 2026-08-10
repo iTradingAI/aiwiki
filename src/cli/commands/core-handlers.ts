@@ -553,8 +553,12 @@ const REQUIRED_AGENT_GUIDANCE_TERMS = [
   "--view files",
   "aiwiki lint --capsules",
   "aiwiki plugin list",
+  "aiwiki plugin inspect",
   "aiwiki plugin add",
-  "aiwiki plugin enable"
+  "aiwiki plugin enable",
+  "aiwiki plugin disable",
+  "aiwiki plugin remove",
+  "aiwiki plugin doctor"
 ];
 
 async function discoverAgentTargets(workspaceRoot?: string): Promise<AgentTarget[]> {
@@ -1039,7 +1043,7 @@ Required command-first loop:
 10. Only when the user explicitly asks whether the structured index is current, build it, or rebuild it, inspect it with \`aiwiki index status --path <workspace> --json\`. Run \`aiwiki index build --path <workspace> --json\` or \`aiwiki index rebuild --path <workspace> --json\` only when the user explicitly asks to write index metadata. Do not automatically build or rebuild the index; Markdown-backed retrieval remains available when the index is missing, stale, or invalid.
 11. Only when the user explicitly asks whether the relationship graph is current, build it, or rebuild it, inspect it with \`aiwiki graph status --path <workspace> --json\`. Run \`aiwiki graph build --path <workspace> --json\` or \`aiwiki graph rebuild --path <workspace> --json\` only when the user explicitly asks to write graph metadata. Do not automatically build or rebuild the graph; Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid. The graph does not change default \`aiwiki.context.v1\`.
 12. Only when the user explicitly asks to trace a relationship, upstream/downstream dependency, or conflict, and the graph is already fresh, run \`aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>\`. Read its \`aiwiki.context.v2\` graph state, relationship paths, evidence, lifecycle/risk warnings, and recommended next action before answering. Do not use this graph view for ordinary retrieval, and do not build or rebuild graph state automatically; \`--graph-depth\` accepts only \`1\`, \`2\`, or \`3\`.
-13. Only act on explicit extension requests: list with \`aiwiki plugin list --json --path <workspace>\`, add the directory the user supplied with \`aiwiki plugin add <directory> --path <workspace>\`, or enable the exact ID the user supplied with \`aiwiki plugin enable <id> --path <workspace>\`. Do not automatically discover, enable, or execute extensions. Ask for an explicit action, directory, or ID when the request is ambiguous.
+13. Only act on explicit extension requests: list with \`aiwiki plugin list --json --path <workspace>\`, inspect the exact ID the user supplied with \`aiwiki plugin inspect <id> --json --path <workspace>\`, add the directory the user supplied with \`aiwiki plugin add <directory> --path <workspace>\`, enable the exact ID the user supplied with \`aiwiki plugin enable <id> --path <workspace>\`, disable the exact ID the user supplied with \`aiwiki plugin disable <id> --path <workspace>\`, remove the exact ID the user supplied with \`aiwiki plugin remove <id> --path <workspace>\`, or run \`aiwiki plugin doctor --json --path <workspace>\` when the user explicitly asks. Do not automatically discover, select, enable, execute, disable, or remove extensions. Ask for an explicit action, directory, or ID when the request is ambiguous.
 
 Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, say which AIWiki command was insufficient and why. For unsupported host-Agent integration, use \`aiwiki prompt agent\` rather than writing unknown host configuration.
 ${AIWIKI_AGENT_GUIDANCE_END}`;
@@ -1103,7 +1107,7 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "关系图：只有用户明确要求检查关系图、构建关系图、重建关系图或确认关系图是否过期时，才先运行 `aiwiki graph status --path <workspace> --json`。只有用户明确要求写入时，才运行 `aiwiki graph build --path <workspace> --json` 或 `aiwiki graph rebuild --path <workspace> --json`。不要自动构建或重建关系图；关系图缺失、过期或损坏时，`context` 和 `query` 仍直接读取 Markdown。关系图不改变默认的 `aiwiki.context.v1`。");
   writeLine(stream, "关系追溯：只有用户明确要求追溯关系、上游/下游依赖或冲突，且关系图已经是 fresh 时，才运行 `aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>`。读取 `aiwiki.context.v2` 的图状态、关系路径、evidence、生命周期/风险提示和下一步后再回答。不要将它用于日常检索，也不要自动构建或重建关系图；`--graph-depth` 只能是 `1`、`2` 或 `3`。");
   writeLine(stream, "升级：当用户要求同步、升级或修复宿主 Agent 接入时，先调用 `aiwiki agent check --json`，再使用 `aiwiki agent sync --dry-run` 预览；确认后运行 `aiwiki agent sync --yes`。不支持的宿主使用 `aiwiki prompt agent`，不要写入未知配置。");
-  writeLine(stream, "插件：只有用户明确要求时才执行：列出用 `aiwiki plugin list --json --path <workspace>`；添加用户给出的目录用 `aiwiki plugin add <directory> --path <workspace>`；启用用户给出的精确 ID 用 `aiwiki plugin enable <id> --path <workspace>`。对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，说明需要明确动作、目录或 ID；不要自动发现、启用或执行 extension。");
+  writeLine(stream, "插件：只有用户明确要求时才执行：列出用 `aiwiki plugin list --json --path <workspace>`；检查用户给出的精确 ID 用 `aiwiki plugin inspect <id> --json --path <workspace>`；添加用户给出的目录用 `aiwiki plugin add <directory> --path <workspace>`；启用用户给出的精确 ID 用 `aiwiki plugin enable <id> --path <workspace>`；禁用用户给出的精确 ID 用 `aiwiki plugin disable <id> --path <workspace>`；移除用户给出的精确 ID 用 `aiwiki plugin remove <id> --path <workspace>`；仅在用户明确要求时运行 `aiwiki plugin doctor --json --path <workspace>`。对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，说明需要明确动作、目录或 ID；不要自动发现、选择、启用、执行、禁用或移除 extension。");
   writeLine(stream, "fallback：只有对应 AIWiki 命令无法回答请求时，才使用文件搜索或临时脚本；必须说明哪个命令不足以及原因。不要把网页抓取、手工 payload 或未知宿主配置当作默认回退路径。");
   writeLine(stream, "");
   writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取；声称 AIWiki CLI 会在没有 Agent 分析字段时自动高质量总结。");

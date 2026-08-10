@@ -1,6 +1,6 @@
 {
   "name": "@itradingai/aiwiki",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "type": "module",
   "types": "./dist/src/public/index.d.ts",
   "exports": {
@@ -69,7 +69,11 @@
     "docs/USAGE.md",
     "docs/USAGE.zh-CN.md",
     "docs/schema",
+    "docs/plugins",
+    "docs/workflows",
     "examples/extensions/local-quality-extension",
+    "examples/plugins/research-workflow",
+    "examples/public-trial-scenarios",
     "skill"
   ],
   "bin": {

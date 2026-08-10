@@ -28,7 +28,7 @@ Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、`doctor`、`status` �
 
 **把 AI 助手读过的资料，变成以后可以查询、复用、整理的本地知识库。**
 
-当前版本：**0.5.1**
+当前版本：**0.6.0**
 
 AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 
@@ -254,7 +254,7 @@ Source Capsule 于 0.3.0 引入。AIWiki 会把这些文件视为一个逻辑 ca
 
 旧工作区的 `schema_version: 1` 会在不重写文件的前提下读取为 `aiwiki.workspace.v1`。默认 Agent JSON 仍是 `aiwiki.context.v1`，capsule view 仍是 `aiwiki.context.capsule.v1`；已启用的显式关系图 view 是 `aiwiki.context.v2`。未知的未来 major 需要人工审查。详见[Schema 兼容目录](docs/schema/README.zh-CN.md)。
 
-Schema 兼容性不会改变既有 Skill 匹配。Extension 命令保持显式触发：不要从普通自然语言请求推断这些命令，并保留文档定义的优先级、fallback 和验收边界。
+Schema 兼容性不会改变既有 Skill 匹配。`aiwiki.extension.v1` 命令保持显式触发：`aiwiki plugin list`、`aiwiki plugin inspect <id>`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`、`aiwiki plugin disable <id>`、`aiwiki plugin remove <id>` 和 `aiwiki plugin doctor`。它们采用 declared-permission audit + no-injection default；NOT a runtime OS sandbox。不要从普通自然语言请求推断这些命令，并保留文档定义的优先级、fallback 和验收边界。
 
 结构化索引使用附加的 `aiwiki.index.v1` 元数据合同。它需显式构建、可删除，并且不改变默认 `aiwiki.context.v1` 检索输出。详见[派生状态 v1](docs/schema/STATE.zh-CN.md)。
 

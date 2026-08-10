@@ -1,173 +1,179 @@
-# Public Trial Scenario Pack
+# Public Trial Scenario Pack / 公开试用场景包
 
-This pack gives first-time AIWiki users three small, repeatable scenarios.
-Each one uses only the base CLI: `setup`, `ingest-file`, `query`, `context`,
-and `lint`.
+This pack gives first-time AIWiki users four small, repeatable workflows. Each
+scenario is runnable with the base CLI and labels its workflow type in English
+and Chinese. / 本场景包提供四个小型、可重复的工作流；每个场景都标注中英文工作流类型，并且只使用基础 CLI。
 
-Run any scenario in a temporary knowledge base:
+For a clean comparison, create a new temporary workspace for each scenario or
+remove only your own temporary `./aiwiki-trial` folder after inspection. / 为便于比较，每个场景使用新的临时工作区；检查完后只删除自己的 `./aiwiki-trial` 目录。
+
+## Shared Command Pattern / 通用命令模式
+
+Each scenario uses the same command sequence with its own input and retrieval
+question:
+
+```bash
+aiwiki setup --path ./aiwiki-trial --yes
+aiwiki ingest-file --file examples/public-trial-scenarios/input/<input>.md --path ./aiwiki-trial
+aiwiki context "<scenario question>" --path ./aiwiki-trial
+aiwiki query "<scenario question>" --path ./aiwiki-trial
+aiwiki show "<scenario topic>" --path ./aiwiki-trial
+aiwiki lint --json --path ./aiwiki-trial
+```
+
+`setup` creates the workspace. Successful local-file ingestion produces a Raw
+record, Source Card, Wiki Entry, and run artifacts. `context` returns
+`aiwiki.context.v1`; `query` gives readable retrieval output; `show` inspects a
+selected artifact or source package; `lint --json` reports structural findings.
+
+## 1. Article Research Memory / 文章研究记忆
+
+**Workflow type / 工作流类型:** Research / 研究
+
+**Input / 输入:** [`input/article-research.md`](input/article-research.md)
+
+Use this when one article should remain traceable for a later source-backed
+answer. / 适用于希望一篇文章在之后仍可追溯并支撑回答的场景。
 
 ```bash
 aiwiki setup --path ./aiwiki-trial --yes
 aiwiki ingest-file --file examples/public-trial-scenarios/input/article-research.md --path ./aiwiki-trial
-aiwiki query "source card" --path ./aiwiki-trial
-aiwiki context "source card" --path ./aiwiki-trial
+aiwiki context "source evidence" --path ./aiwiki-trial
+aiwiki query "source evidence" --path ./aiwiki-trial
+aiwiki show "article research" --path ./aiwiki-trial
 aiwiki lint --json --path ./aiwiki-trial
 ```
 
-For a clean comparison, create a new temporary workspace per scenario or remove
-only your own temporary `./aiwiki-trial` folder after inspecting it.
-
-## Scenario 1: Article Research Memory
-
-Input material:
-
-- [`input/article-research.md`](input/article-research.md)
-
-Use this when you read an article and want the assistant to preserve the core
-argument, evidence boundary, and later writing angles.
-
-Commands:
-
-```bash
-aiwiki ingest-file --file examples/public-trial-scenarios/input/article-research.md --path ./aiwiki-trial
-aiwiki query "source card" --path ./aiwiki-trial
-aiwiki context "article research" --path ./aiwiki-trial
-```
-
-Expected generated artifacts:
-
-- `02-raw/articles/article-research.md`
-- `03-sources/article-cards/article-research.md`
-- `05-wiki/source-knowledge/article-research.md`
-- `09-runs/<run-id>/processing-summary.md`
-
-Reuse example:
+**Expected artifacts / 预期产物:**
 
 ```text
-Ask: What does AIWiki remember about preserving source evidence?
-Expected: query/context should surface the article-research Wiki Entry and explain why it matched.
+02-raw/articles/article-research.md
+03-sources/article-cards/article-research.md
+05-wiki/source-knowledge/article-research.md
+09-runs/<run-id>/processing-summary.md
 ```
 
-Why maintain it over time:
+**Reuse request / 复用请求:** “What does AIWiki remember about preserving source evidence?” / “AIWiki 记住了哪些关于保留来源证据的信息？”
 
-Article notes become useful only when they are searchable and traceable months
-later. This scenario shows how a one-off reading note becomes reusable research
-memory.
+**Maintenance value / 长期维护价值:** The source, evidence boundary, and later
+writing angles remain inspectable rather than disappearing into a chat. / 来源、证据边界和后续写作角度可以持续检查，不会消失在聊天记录中。
 
-WeChat group copy:
+**Success evidence / 成功证据:** `context` or `query` returns the scenario topic;
+identify the matching Wiki Entry or Source Card, read its quality signals, and
+confirm the artifacts and lint JSON exist. / `context` 或 `query` 返回场景主题；指出匹配的 Wiki Entry 或 Source Card，读取质量信号，并确认产物和 lint JSON。
 
-```text
-AIWiki can turn an article note into a traceable Source Card and Wiki Entry. Try it with one article, then ask the knowledge base what evidence and writing angles it preserved.
-```
+## 2. Topic Planning Memory / 主题规划记忆
 
-## Scenario 2: Topic Planning Memory
+**Workflow type / 工作流类型:** Writing / 写作
 
-Input material:
+**Input / 输入:** [`input/topic-planning.md`](input/topic-planning.md)
 
-- [`input/topic-planning.md`](input/topic-planning.md)
-
-Use this when you collect rough topic ideas and want the assistant to turn them
-into reusable planning context instead of another forgotten note.
-
-Commands:
+Use this before drafting from prior content angles and audience notes. / 适用于从既有内容角度和受众说明开始写作前。
 
 ```bash
+aiwiki setup --path ./aiwiki-trial --yes
 aiwiki ingest-file --file examples/public-trial-scenarios/input/topic-planning.md --path ./aiwiki-trial
-aiwiki query "topic planning" --path ./aiwiki-trial
 aiwiki context "content calendar" --path ./aiwiki-trial
-```
-
-Expected generated artifacts:
-
-- `02-raw/articles/topic-planning.md`
-- `03-sources/article-cards/topic-planning.md`
-- `05-wiki/source-knowledge/topic-planning.md`
-- `09-runs/<run-id>/source-card.md`
-
-Reuse example:
-
-```text
-Ask: What topic directions are already captured for public trial content?
-Expected: query/context should return the topic-planning entry before the assistant drafts.
-```
-
-Why maintain it over time:
-
-A content queue is easier to improve when old reasons, audiences, and angles are
-still visible. This scenario shows how AIWiki keeps planning memory available
-for future writing.
-
-WeChat group copy:
-
-```text
-AIWiki can keep topic ideas from becoming scattered chat history. Save a planning note, then ask it which angles are already available before writing.
-```
-
-## Scenario 3: Project Decision Memory
-
-Input material:
-
-- [`input/project-decision.md`](input/project-decision.md)
-
-Use this when a project decision needs to be remembered with constraints,
-rejected alternatives, and a future check point.
-
-Commands:
-
-```bash
-aiwiki ingest-file --file examples/public-trial-scenarios/input/project-decision.md --path ./aiwiki-trial
-aiwiki query "decision memory" --path ./aiwiki-trial
-aiwiki context "constraints and rejected alternatives" --path ./aiwiki-trial
-```
-
-Expected generated artifacts:
-
-- `02-raw/articles/project-decision.md`
-- `03-sources/article-cards/project-decision.md`
-- `05-wiki/source-knowledge/project-decision.md`
-- `09-runs/<run-id>/wiki-entry.md`
-
-Reuse example:
-
-```text
-Ask: Why did the project choose a local Markdown knowledge base first?
-Expected: query/context should surface the decision note and preserve the stated constraints.
-```
-
-Why maintain it over time:
-
-Decision memory prevents the team from re-litigating the same tradeoffs. This
-scenario shows how AIWiki keeps the reason, boundary, and next review together.
-
-WeChat group copy:
-
-```text
-AIWiki is useful for more than articles: it can preserve project decisions with constraints and rejected alternatives so the next assistant starts from context.
-```
-
-## What Success Looks Like
-
-After each scenario, inspect:
-
-```text
-02-raw/articles/
-03-sources/article-cards/
-05-wiki/source-knowledge/
-09-runs/
-```
-
-Then run:
-
-```bash
+aiwiki query "topic planning" --path ./aiwiki-trial
+aiwiki show "topic planning" --path ./aiwiki-trial
 aiwiki lint --json --path ./aiwiki-trial
 ```
 
-The scenario is successful when AIWiki creates a raw record, Source Card, Wiki
-Entry, run summary, and query/context can find the scenario topic again.
+**Expected artifacts / 预期产物:**
 
-## Boundaries
+```text
+02-raw/articles/topic-planning.md
+03-sources/article-cards/topic-planning.md
+05-wiki/source-knowledge/topic-planning.md
+09-runs/<run-id>/processing-summary.md
+```
 
-These examples do not use crawling, WeChat reading, browser plugins, vector
-search, RAG-over-wiki, RBAC, RSS, scheduled collection, Pro commands, or new
-dependencies. If the source is a webpage, the host assistant reads it first and
-then passes understood content into AIWiki.
+**Reuse request / 复用请求:** “What topic directions are already captured for public trial content?” / “公开试用内容已经记录了哪些主题方向？”
+
+**Maintenance value / 长期维护价值:** Reasons, audiences, and angles remain
+available before the next draft. / 下次起草前仍能找到理由、受众和角度。
+
+**Success evidence / 成功证据:** `context` or `query` returns the planning topic;
+identify the selected artifact and its quality signals, then confirm the artifacts
+and lint JSON exist. / `context` 或 `query` 返回规划主题；指出选中的产物和质量信号，再确认产物和 lint JSON。
+
+## 3. Project Decision Memory / 项目决策记忆
+
+**Workflow type / 工作流类型:** Decision / 决策
+
+**Input / 输入:** [`input/project-decision.md`](input/project-decision.md)
+
+Use this when a project choice needs its constraints, rejected alternatives, and
+review trigger kept together. / 适用于需要把项目选择、约束、被否决方案和复核触发点放在一起保存的场景。
+
+```bash
+aiwiki setup --path ./aiwiki-trial --yes
+aiwiki ingest-file --file examples/public-trial-scenarios/input/project-decision.md --path ./aiwiki-trial
+aiwiki context "constraints and rejected alternatives" --path ./aiwiki-trial
+aiwiki query "decision memory" --path ./aiwiki-trial
+aiwiki show "project decision" --path ./aiwiki-trial
+aiwiki lint --json --path ./aiwiki-trial
+```
+
+**Expected artifacts / 预期产物:**
+
+```text
+02-raw/articles/project-decision.md
+03-sources/article-cards/project-decision.md
+05-wiki/source-knowledge/project-decision.md
+09-runs/<run-id>/processing-summary.md
+```
+
+**Reuse request / 复用请求:** “Why did the project choose a local Markdown knowledge base first?” / “项目为什么先选择本地 Markdown 知识库？”
+
+**Maintenance value / 长期维护价值:** The team can recover earlier tradeoffs
+instead of reopening the same choice without its constraints. / 团队可以找回此前取舍，而不是脱离约束重复讨论同一选择。
+
+**Success evidence / 成功证据:** `context` or `query` returns the decision topic;
+identify the retrieved artifact, its constraints, and its quality signals, then
+confirm the artifacts and lint JSON exist. / `context` 或 `query` 返回决策主题；指出检索产物、约束和质量信号，再确认产物和 lint JSON。
+
+## 4. Review / Retrospective Memory / 审查与复盘记忆
+
+**Workflow type / 工作流类型:** Review / retrospective（审查 / 复盘）
+
+**Input / 输入:** [`input/review-retrospective.md`](input/review-retrospective.md)
+
+Use this after an outcome to preserve observations, evidence limits, gaps, and a
+next review action. Retrospective is the review workflow alias. / 适用于在结果发生后保存观察、证据边界、缺口和下一次复核动作；复盘是 review 工作流的别名。
+
+```bash
+aiwiki setup --path ./aiwiki-trial --yes
+aiwiki ingest-file --file examples/public-trial-scenarios/input/review-retrospective.md --path ./aiwiki-trial
+aiwiki context "next review action" --path ./aiwiki-trial
+aiwiki query "public trial review" --path ./aiwiki-trial
+aiwiki show "review retrospective" --path ./aiwiki-trial
+aiwiki lint --json --path ./aiwiki-trial
+```
+
+**Expected artifacts / 预期产物:**
+
+```text
+02-raw/articles/review-retrospective.md
+03-sources/article-cards/review-retrospective.md
+05-wiki/source-knowledge/review-retrospective.md
+09-runs/<run-id>/processing-summary.md
+```
+
+**Reuse request / 复用请求:** “What did the first public trial verify, what gaps remain, and what should be reviewed next?” / “首次公开试用验证了什么、还缺什么、下一次该复核什么？”
+
+**Maintenance value / 长期维护价值:** A later reviewer can distinguish observed
+results from unverified assumptions and continue from an explicit next action. /
+之后的复核者可以区分已观察结果与未验证假设，并从明确的下一步继续。
+
+**Success evidence / 成功证据:** `context` or `query` returns the review topic;
+identify the retrieved artifact, quality signals, gaps, and next review action,
+then confirm the artifacts and lint JSON exist. / `context` 或 `query` 返回复盘主题；指出检索产物、质量信号、缺口和下一次复核动作，再确认产物和 lint JSON。
+
+## Boundaries / 边界
+
+These scenarios use local Markdown inputs and the base CLI. The host Agent reads
+and understands a source before using `ingest-agent`; the CLI does not perform
+that reading. If retrieval is insufficient, use `context` → `query` → `show` →
+broaden the topic or ingest user-provided material → bounded local inspection,
+and state which command was insufficient. / 这些场景使用本地 Markdown 输入和基础 CLI。使用 `ingest-agent` 前由宿主 Agent 读取并理解资料；CLI 不负责这一读取。检索不足时遵循 `context` → `query` → `show` → 扩大主题或入库用户提供的资料 → 有边界地检查本地文件，并说明哪个命令不足。

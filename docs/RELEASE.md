@@ -183,7 +183,7 @@ npm view @itradingai/aiwiki version
 npm view @itradingai/aiwiki versions --json
 ```
 
-Then create a new remote temporary consumer that installs only `@itradingai/aiwiki@0.5.1` from the registry and reruns the CLI, public import, schema-document, Skill bundle, and Health Report sanity checks. Do not announce the release before this registry sanity passes.
+Then create a new remote temporary consumer that installs only `@itradingai/aiwiki@0.6.0` from the registry and reruns the CLI, public import, schema-document, Skill bundle, and Health Report sanity checks. Do not announce the release before this registry sanity passes.
 
 If Trusted Publishing fails, verify the npm Trusted Publisher settings, repository name, workflow filename, and `id-token: write` permission.
 

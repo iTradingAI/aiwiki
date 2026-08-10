@@ -201,8 +201,12 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
       "aiwiki index status --path <workspace> --json",
       "aiwiki index rebuild --path <workspace> --json",
       "aiwiki plugin list --json",
+      "aiwiki plugin inspect <id>",
       "aiwiki plugin add <directory>",
-      "aiwiki plugin enable <id>"
+      "aiwiki plugin enable <id>",
+      "aiwiki plugin disable <id>",
+      "aiwiki plugin remove <id>",
+      "aiwiki plugin doctor"
     ]) {
       assert.match(help, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
@@ -215,7 +219,7 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
     assert.match(indexHelp, /aiwiki index rebuild --path <workspace> --json/);
     assert.equal(existsSync(path.join(packageRoot, "docs", "schema", "STATE.md")), true);
     assert.equal(existsSync(path.join(packageRoot, "docs", "schema", "STATE.zh-CN.md")), true);
-    for (const unsupported of ["aiwiki pro", "aiwiki plugin disable", "aiwiki plugin remove", "aiwiki plugin doctor"]) {
+    for (const unsupported of ["aiwiki pro"]) {
       assert.doesNotMatch(help, new RegExp(unsupported.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
     }
   } finally {

@@ -118,6 +118,15 @@ test("package gate accepts the complete consumer artifact and derives the curren
   assert.equal(lockfile.packages[""]?.version, packageJson.version);
   assert.doesNotThrow(() => releaseCheck.validatePackManifest(packedPaths, skillFiles));
   assert.equal(releaseCheck.validateReleaseTree(process.cwd(), packedPaths).version, packageJson.version);
+  for (const file of [
+    "examples/public-trial-scenarios/README.md",
+    "examples/public-trial-scenarios/input/topic-planning.md",
+    "examples/public-trial-scenarios/input/article-research.md",
+    "examples/public-trial-scenarios/input/project-decision.md",
+    "examples/public-trial-scenarios/input/review-retrospective.md"
+  ]) {
+    assert.ok(packedPaths.includes(file), `package omits public-trial scenario: ${file}`);
+  }
 });
 
 test("package gate rejects incomplete Skill, forbidden paths, traversal, and broken bilingual pairs", async () => {
@@ -140,6 +149,10 @@ test("package gate rejects incomplete Skill, forbidden paths, traversal, and bro
   assert.throws(
     () => releaseCheck.validatePackManifest(packedPaths.filter((file) => file !== "docs/FAQ.zh-CN.md"), skillFiles),
     /missing package files: .*docs\/FAQ\.zh-CN\.md/
+  );
+  assert.throws(
+    () => releaseCheck.validatePackManifest(packedPaths.filter((file) => file !== "docs/workflows/RESEARCH.md"), skillFiles),
+    /missing package files: .*docs\/workflows\/RESEARCH\.md/
   );
   assert.throws(
     () => releaseCheck.validateStagingTransformations([

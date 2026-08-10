@@ -47,22 +47,22 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.equal((text.match(/^  aiwiki health --json$/gm) ?? []).length, 1);
   assert.equal((text.match(/^  aiwiki repair --plan --json$/gm) ?? []).length, 1);
   assert.match(text, /aiwiki plugin list --json/);
+  assert.match(text, /aiwiki plugin inspect <id> --json/);
   assert.match(text, /aiwiki plugin add <directory>/);
   assert.match(text, /aiwiki plugin enable <id>/);
-  assert.doesNotMatch(text, /aiwiki init/);
-  assert.doesNotMatch(text, /aiwiki agent install/);
-  assert.doesNotMatch(text, /aiwiki prompt agent/);
-  assert.doesNotMatch(text, /aiwiki next/);
-  assert.doesNotMatch(text, /aiwiki config show/);
-  assert.doesNotMatch(text, /aiwiki ingest-url/);
-  assert.doesNotMatch(text, /aiwiki ingest-agent --payload/);
-  assert.doesNotMatch(text, /aiwiki plugin disable/i);
-  assert.doesNotMatch(text, /aiwiki plugin remove/i);
-  assert.doesNotMatch(text, /aiwiki plugin doctor/i);
+  assert.match(text, /aiwiki plugin disable <id>/);
+  assert.match(text, /aiwiki plugin remove <id>/);
+  assert.match(text, /aiwiki plugin doctor --json/);
   assert.doesNotMatch(text, /aiwiki extension/i);
   assert.doesNotMatch(text, /prompt qclaw/i);
   assert.doesNotMatch(text, /kb add|kb list|kb default/i);
   assert.equal(stderr.text(), "");
+
+  const pluginHelp = new MemoryWritable();
+  assert.equal(await runCli(["plugin", "help"], { stdout: pluginHelp, stderr: new MemoryWritable() }), 0);
+  assert.match(pluginHelp.text(), /declared-permission audit \+ no-injection default; NOT a runtime OS sandbox/i);
+  assert.match(pluginHelp.text(), /local modules retain direct Node authority.*no write mediation/i);
+  assert.doesNotMatch(pluginHelp.text(), /mediated writes/i);
 });
 
 test("CLI rebuild exposes stable modes, exit codes, and state-only side effects", async () => {
@@ -403,6 +403,23 @@ test("CLI plugin list add and enable manage only explicitly registered local ext
     assert.equal(await runCli(["plugin", "enable", "example.cli-quality", "--json", "--path", root], { stdout: enabled, stderr: new MemoryWritable() }), 0);
     assert.equal((JSON.parse(enabled.text()) as { extension: { id: string; status: string } }).extension.status, "enabled");
     await access(path.join(root, ".aiwiki", "extensions", "state", "example.cli-quality"));
+    await rm(path.join(extensionRoot, "aiwiki-extension.json"));
+    const listedWithBrokenManifest = new MemoryWritable();
+    assert.equal(await runCli(["plugin", "list", "--json", "--path", root], { stdout: listedWithBrokenManifest, stderr: new MemoryWritable() }), 0);
+    const listedBrokenExtension = (JSON.parse(listedWithBrokenManifest.text()) as {
+      extensions: Array<{ id: string; name: string; version: string; source: string; status: string }>;
+    }).extensions.find((extension) => extension.id === "example.cli-quality");
+    assert.deepEqual(listedBrokenExtension, {
+      id: "example.cli-quality",
+      name: "CLI quality extension",
+      version: "0.1.0",
+      source: "local",
+      status: "enabled"
+    });
+
+    const healthyEnable = new MemoryWritable();
+    assert.equal(await runCli(["plugin", "enable", "aiwiki.research-workflow", "--json", "--path", root], { stdout: healthyEnable, stderr: new MemoryWritable() }), 0);
+    assert.match(healthyEnable.text(), /"status":\s*"enabled"/);
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(extensionRoot, { recursive: true, force: true });

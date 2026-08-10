@@ -1,5 +1,7 @@
 # Article Research Memory
 
+**Workflow Type / 工作流类型:** Research / 研究
+
 ## Source
 
 A team is evaluating how to keep research notes useful after an assistant reads
