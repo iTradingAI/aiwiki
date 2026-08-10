@@ -3,11 +3,11 @@ name: aiwiki
 description: Local Markdown knowledge base workflow for AI assistants.
 ---
 
-<!-- aiwiki-skill-version: 0.5.1 -->
+<!-- aiwiki-skill-version: 0.6.0 -->
 
 # AIWiki Skill
 
-Use this skill when the user asks an Agent to process one URL, article body, or local text file with the `aiwiki` keyword, or says phrases like `入库 <url>` / `收录 <url>` / `从 AIWiki 里了解 <topic>`.
+Use this skill when the user asks an Agent to process one URL, article body, or local text file with the `aiwiki` keyword, or says phrases like `入库 <url>` / `收录 <url>` / `从 AIWiki 里了解 <topic>`. Also use it for explicit AIWiki knowledge reuse in writing / 写作, research / 研究, decisions / 决策, review / 审查, retrospective / 复盘; route those requests through the [Workflow Router](QUERY_PROTOCOL.md#workflow-router).
 
 AIWiki is a local Markdown knowledge base for AI assistants. Save what the assistant reads, ask it later, and keep everything local.
 
@@ -276,7 +276,7 @@ If `fetch_status` is `failed`, say that AIWiki recorded the failure reason but d
 
 ## Query Protocol
 
-Call AIWiki context before writing, researching, deciding, or reviewing when the user asks you to reuse knowledge from this workspace. This includes drafting from prior notes, comparing evidence, recovering project constraints, checking rejected alternatives, or validating whether a match is strong enough to cite.
+Call AIWiki context before writing, researching, deciding, reviewing, or running a retrospective / 复盘 when the user asks you to reuse knowledge from this workspace. For the intent-to-protocol mapping, use the compact [Workflow Router](QUERY_PROTOCOL.md#workflow-router); keep the command-first retrieval steps below as the shared path.
 
 When the user asks to understand a topic from AIWiki, call:
 

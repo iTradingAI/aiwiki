@@ -1,5 +1,7 @@
 # Topic Planning Memory
 
+**Workflow Type / 工作流类型:** Writing / 写作
+
 ## Planning Note
 
 The public trial needs content that helps users understand what AIWiki is for.

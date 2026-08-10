@@ -2,6 +2,12 @@
 
 Use this note when an Agent finishes `aiwiki agent sync`.
 
+## 0.6.0
+
+- Added four packaged, runnable workflow packs for research, writing, decisions, and review / retrospective work, with public-trial scenarios as concrete starting points.
+- Skill routing now directs explicit research, writing, decision, review, and retrospective requests through the matching workflow guidance.
+- CLI behavior, JSON keys, schema identifiers, enum values, and matching precedence remain unchanged.
+
 ## 0.5.1
 
 - The packaged Skill marker and public release guidance now agree on 0.5.1.

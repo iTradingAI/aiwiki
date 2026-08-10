@@ -227,12 +227,22 @@ aiwiki show --artifact-path <artifact.md> --path <workspace>
 aiwiki show "<topic>" --json
 ```
 
-Use query/context before the assistant writes, researches, decides, or reviews:
+### Workflow Protocols
 
-- Writing: retrieve prior angles, outlines, source-backed points, and quality warnings before drafting.
-- Research: start from Wiki Entries, then follow `related_refs` and Source Cards when evidence matters.
-- Decisions: recover constraints, prior judgments, and rejected alternatives before changing direction.
-- Review: check `result_quality`, `match_reasons`, `quality_signals`, and warnings before treating a match as reusable knowledge.
+Use query/context before the assistant writes, researches, decides, or reviews.
+Each protocol starts with the same command-first path and then explains its
+specific reuse guidance, expected artifacts, failure handling, and proof that
+AIWiki was used:
+
+- [Writing](workflows/WRITING.md): retrieve prior angles, outlines,
+  source-backed points, and quality warnings before drafting.
+- [Research](workflows/RESEARCH.md): start from Wiki Entries, then follow
+  `related_refs` and Source Cards when evidence matters.
+- [Decision](workflows/DECISION.md): recover constraints, prior judgments, and
+  rejected alternatives before changing direction.
+- [Review / retrospective](workflows/REVIEW.md): assess `result_quality`,
+  `match_reasons`, `quality_signals`, and warnings before treating a match as
+  reusable knowledge. Retrospective is the review workflow alias.
 
 Useful filters:
 

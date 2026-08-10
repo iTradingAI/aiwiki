@@ -1,6 +1,6 @@
 # AIWiki 中文文档
 
-当前版本：**0.5.1**
+当前版本：**0.6.0**
 
 ## Core Intent Matrix
 
@@ -18,6 +18,15 @@ AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 - [常见问题](FAQ.zh-CN.md)
 - [Agent 接入说明](AGENT_HANDOFF.zh-CN.md)
 - [案例展示](SHOWCASE.zh-CN.md)
+
+## 工作流包
+
+- [写作工作流](workflows/WRITING.zh-CN.md)
+- [研究工作流](workflows/RESEARCH.zh-CN.md)
+- [决策工作流](workflows/DECISION.zh-CN.md)
+- [审查 / 复盘工作流](workflows/REVIEW.zh-CN.md)
+
+每个工作流包提供命令优先的复用路径、预期产物、安全回退和可观察的 AIWiki 使用核对清单。对应英文文档位于 [`workflows/`](workflows/)。
 - [运营反馈闭环](OPERATING_FEEDBACK_LOOP.zh-CN.md)
 - [路线图](ROADMAP.zh-CN.md)
 - [维护者发布手册](RELEASE.zh-CN.md)
@@ -29,6 +38,8 @@ AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 - [`../examples/demo-run/`](../examples/demo-run/)：记录输入、命令和 CLI 输出。
 - [`../examples/obsidian-vault-sample/`](../examples/obsidian-vault-sample/)：已经生成好的样例知识库。
 
+
+- [`../examples/public-trial-scenarios/`](../examples/public-trial-scenarios/)：四个公开试用场景，分别是文章研究（研究）、主题规划（写作）、项目决策（决策）和审查 / 复盘记忆（审查）。
 ## 核心流程
 
 ```text

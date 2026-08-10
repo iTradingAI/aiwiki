@@ -2,6 +2,16 @@
 
 This changelog records public, consumer-visible release history. Repository tags and npm artifacts are cited only where both mappings were verified; registry-only history is labeled separately.
 
+## [0.6.0] - 2026-08-10
+
+- Added four packaged workflow packs for research, writing, decisions, and review / retrospective work, each with an ordered command path, expected outputs, safe fallbacks, and a runnable public-trial scenario.
+- Added public-trial scenario examples that demonstrate the workflow packs against an AIWiki workspace.
+- Routed explicit research, writing, decision, review, and retrospective requests in the packaged Skill to their matching workflow guidance.
+- Included the workflow and public-trial scenario documentation in the published package contents.
+- Kept CLI behavior, JSON keys, schema identifiers, enum values, and matching precedence unchanged.
+
+This entry describes the current source release. It does not assert a tag, GitHub Release, or npm artifact before those publication gates complete.
+
 ## [0.5.1] - 2026-07-26
 
 - Aligned the current-release declarations, packaged Skill marker, upgrade guidance, and bilingual public documentation on 0.5.1.

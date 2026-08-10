@@ -162,6 +162,8 @@ Wiki 条目：<wiki_entry>
 
 ## 查询协议
 
+用户要求从工作区复用知识以写作、研究、决策、审查或复盘时，先调用 AIWiki context。之后按对应的规范执行：[写作](workflows/WRITING.zh-CN.md)、[研究](workflows/RESEARCH.zh-CN.md)、[决策](workflows/DECISION.zh-CN.md) 和 [审查 / 复盘](workflows/REVIEW.zh-CN.md)。复盘是 review 的别名。保持命令优先回退顺序：`context` → `query` → `show` → 扩大主题或入库用户提供的资料 → 有边界地检查本地文件，并说明哪个命令不足。
+
 用户问 AIWiki 里某个主题时，调用：
 
 ```bash

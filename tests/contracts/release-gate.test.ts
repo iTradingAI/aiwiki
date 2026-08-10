@@ -142,6 +142,10 @@ test("package gate rejects incomplete Skill, forbidden paths, traversal, and bro
     /missing package files: .*docs\/FAQ\.zh-CN\.md/
   );
   assert.throws(
+    () => releaseCheck.validatePackManifest(packedPaths.filter((file) => file !== "docs/workflows/RESEARCH.md"), skillFiles),
+    /missing package files: .*docs\/workflows\/RESEARCH\.md/
+  );
+  assert.throws(
     () => releaseCheck.validateStagingTransformations([
       { operation: "rewrite", source: "README.md", destination: "README.md" },
       { operation: "replace-and-relocate", source: "README.zh-CN.md", destination: "docs/README.zh-CN.md" },

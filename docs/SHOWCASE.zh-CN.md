@@ -1,87 +1,54 @@
 # AIWiki 案例展示
 
-每个案例都遵循 [Core Intent Matrix](AGENT_HANDOFF.zh-CN.md#core-intent-matrix)：先把用户请求匹配到 AIWiki 命令，解释命令输出；仅在命令无法回答时使用 fallback。
+本页展示四种面向工作流的本地 Markdown 知识复用方式。遵循 [Core Intent Matrix](AGENT_HANDOFF.zh-CN.md#core-intent-matrix)：先把请求匹配到 AIWiki 命令，再解释命令输出；只有命令不能回答时才使用有边界的回退。
 
-资料暂时读不到时，宿主 Agent 应写入 failed-fetch payload 留痕，而不是默认抓取网页或要求用户手工保存 payload。查询结果不足时，应先说明 `context`、`query` 或 `show` 为什么不足，再对相关文件做有限的 fallback 检查。
-
-这页直接展示一次真实 AIWiki 运行会生成什么。
-
-公开试用结束后，先按 [运营反馈闭环](OPERATING_FEEDBACK_LOOP.zh-CN.md) 把反馈归类为安装、首次使用、入库结果、目录理解、查询和复用、功能请求，再判断是否进入开发队列。
-
-## 场景 1：入库一篇文章
-
-用户说：
-
-```text
-把这个资料入库到 AIWiki：
-https://example.com/article
-```
-
-助手会：
-
-1. 读取资料
-2. 生成 `aiwiki.agent_payload.v1`
-3. 能理解时提供 `analysis` 或 `wiki_entry`
-4. 调用 `aiwiki ingest-agent --stdin`
-5. 汇报生成文件
-
-核心产物：
-
-```text
-09-runs/<run-id>/payload.json
-09-runs/<run-id>/raw.md
-09-runs/<run-id>/source-card.md
-09-runs/<run-id>/wiki-entry.md
-09-runs/<run-id>/processing-summary.md
-02-raw/articles/<slug>.md
-03-sources/article-cards/<slug>.md
-05-wiki/source-knowledge/<slug>.md
-```
-
-可选产物只在助手提供对应内容时出现：
-
-```text
-09-runs/<run-id>/creative-assets.md
-09-runs/<run-id>/topics.md
-09-runs/<run-id>/draft-outline.md
-04-claims/_suggestions/
-06-assets/_suggestions/
-07-topics/ready/
-08-outputs/outlines/
-```
-
-## 场景 2：资料暂时读不到
-
-有些页面需要登录，或助手暂时无法访问正文。
-
-AIWiki 仍然应该记录这次尝试：
-
-```text
-09-runs/<run-id>/payload.json
-09-runs/<run-id>/processing-summary.md
-```
-
-失败原因会被保留，之后助手能读到正文时可以重新入库。
-
-## 场景 3：以后复用知识
-
-用户问：
-
-```text
-AIWiki 里关于 AI Agent 有什么？
-```
-
-助手应该调用：
+## 通用试用路径
 
 ```bash
-aiwiki context "AI Agent"
+aiwiki setup --path ./aiwiki-trial --yes
+aiwiki ingest-file --file ./my-input.md --path ./aiwiki-trial
+aiwiki context "<主题>" --path ./aiwiki-trial
+aiwiki query "<主题>" --path ./aiwiki-trial
+aiwiki show "<选中的主题>" --path ./aiwiki-trial
+aiwiki lint --json --path ./aiwiki-trial
 ```
 
-助手回答前应读取返回 JSON 里的匹配原因和质量信号。
+成功入库本地文件后会生成 Raw 记录、Source Card、Wiki Entry 和运行产物。`context` 返回稳定的 Agent JSON，`query` 提供可读检索结果，`show` 检查选中的产物，`lint --json` 检查工作区。使用结果前先读取质量信号。
 
-## 样例文件
+## 1. 写作：保留主题规划
 
-- [`../examples/demo-run/`](../examples/demo-run/)：输入、命令和 CLI 输出。
-- [`../examples/obsidian-vault-sample/`](../examples/obsidian-vault-sample/)：已经生成好的样例知识库。
+**试用：**使用[主题规划输入](../examples/public-trial-scenarios/input/topic-planning.md)，再询问已经记录了哪些主题方向。
 
-这个样例不依赖爬虫、向量检索、RAG-over-wiki 或 Pro 自动化，只展示基础 CLI 的真实落盘结果。
+**展示内容：**写作工作流在起草前取回既有受众、角度和质量警告。助手会指出影响草稿的 Wiki Entry 或 Source Card，而不是只依赖当前聊天。
+
+**协议：**[写作工作流](workflows/WRITING.zh-CN.md)。
+
+## 2. 研究：追溯文章回答
+
+**试用：**使用[文章研究输入](../examples/public-trial-scenarios/input/article-research.md)，再询问保存了哪些证据。
+
+**展示内容：**研究工作流先检索上下文，比较可读匹配结果；需要来源细节时使用 `show`。回答会区分可追踪脚手架和经 Agent 补全的结果。
+
+**协议：**[研究工作流](workflows/RESEARCH.zh-CN.md)。
+
+## 3. 决策：改变方向前找回约束
+
+**试用：**使用[项目决策输入](../examples/public-trial-scenarios/input/project-decision.md)，再询问此前为什么做出该选择。
+
+**展示内容：**决策工作流在建议改变前找回约束和被否决方案。匹配不完整时记录不确定性，不能假装已解决取舍。
+
+**协议：**[决策工作流](workflows/DECISION.zh-CN.md)。
+
+## 4. 审查 / 复盘：记录下一次检查
+
+**试用：**使用[审查与复盘输入](../examples/public-trial-scenarios/input/review-retrospective.md)，再询问验证了什么、还缺什么、下一次该复核什么。
+
+**展示内容：**审查工作流保留既有结果、证据与质量观察、缺口和下一次复核动作。复盘是 review 工作流的别名，不是独立检索类型。
+
+**协议：**[审查工作流](workflows/REVIEW.zh-CN.md)。
+
+## 公开试用场景包
+
+[公开试用场景包](../examples/public-trial-scenarios/)提供四个可独立运行的示例：研究、写作、决策和审查 / 复盘。每个示例都有输入资料、setup 和检索命令、预期 Raw/Source Card/Wiki Entry/运行产物、复用问题、长期维护价值和成功证据。
+
+检索不足时，显式遵循以下顺序：`context` → `query` → `show` → 扩大主题或入库用户提供的资料 → 有边界地检查本地文件。说明哪个命令不足；不能把本地检查当作默认路径。
