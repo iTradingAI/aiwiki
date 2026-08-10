@@ -131,8 +131,12 @@ test("Skill routes explicit workflow reuse requests through the workflow router"
   assert.match(skill, /\[Workflow Router\]\(QUERY_PROTOCOL\.md#workflow-router\)/);
   assert.match(router, /start with the shared retrieval path/i);
   assert.match(router, /reuse_guidance\.review/);
+  const workflowLinks = [...router.matchAll(/\]\((workflows\/[^)#]+\.md)\)/g)].map((match) => match[1]);
+  assert.equal(workflowLinks.length, workflows.length);
   for (const workflow of workflows) {
-    assert.match(router, new RegExp(`docs/workflows/${workflow.english.replace(".", "\\.")}`));
+    const link = `workflows/${workflow.english}`;
+    assert.ok(workflowLinks.includes(link), `Skill router lacks ${link}`);
+    assert.ok(existsSync(path.join(process.cwd(), "skill", link)), `Skill workflow link does not resolve: ${link}`);
   }
   assert.match(router, /retrospective is not a separate type/i);
 });

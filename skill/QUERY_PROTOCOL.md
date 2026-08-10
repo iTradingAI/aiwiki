@@ -16,10 +16,10 @@ precedence unchanged.
 
 | Intent / intent | Canonical protocol |
 | --- | --- |
-| Writing / 写作 | [`docs/workflows/WRITING.md`](../docs/workflows/WRITING.md) |
-| Research / 研究 | [`docs/workflows/RESEARCH.md`](../docs/workflows/RESEARCH.md) |
-| Decision / 决策 | [`docs/workflows/DECISION.md`](../docs/workflows/DECISION.md) |
-| Review, retrospective / 审查、复盘 | [`docs/workflows/REVIEW.md`](../docs/workflows/REVIEW.md) |
+| Writing / 写作 | [`workflows/WRITING.md`](workflows/WRITING.md) |
+| Research / 研究 | [`workflows/RESEARCH.md`](workflows/RESEARCH.md) |
+| Decision / 决策 | [`workflows/DECISION.md`](workflows/DECISION.md) |
+| Review, retrospective / 审查、复盘 | [`workflows/REVIEW.md`](workflows/REVIEW.md) |
 
 For every routed workflow, start with the shared retrieval path:
 

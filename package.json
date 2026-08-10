@@ -73,6 +73,7 @@
     "docs/workflows",
     "examples/extensions/local-quality-extension",
     "examples/plugins/research-workflow",
+    "examples/public-trial-scenarios",
     "skill"
   ],
   "bin": {
