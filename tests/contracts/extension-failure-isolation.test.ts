@@ -5,9 +5,13 @@ import path from "node:path";
 import test from "node:test";
 import {
   addLocalExtension,
+  disableExtension,
+  doctorExtensions,
   enableExtension,
+  inspectExtension,
   listExtensionStatuses,
-  loadEnabledExtensions
+  loadEnabledExtensions,
+  removeExtension
 } from "../../src/extension/host.js";
 import { readExtensionManifest } from "../../src/extension/manifest.js";
 
@@ -252,5 +256,42 @@ test("an extension command cannot overlap an enabled extension command path by p
     rmSync(workspace, { recursive: true, force: true });
     rmSync(first.parent, { recursive: true, force: true });
     rmSync(second.parent, { recursive: true, force: true });
+  }
+});
+
+test("extension administration stays metadata-only until enable and removal leaves a recoverable source", async () => {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), "aiwiki-extension-workspace-"));
+  const fixture = createExtension({ ...validManifest, id: "example.admin-static", name: "Admin static extension" });
+  writeFileSync(path.join(fixture.root, "index.mjs"), 'throw new Error("administration must not import");\n', "utf8");
+  try {
+    await addLocalExtension(workspace, fixture.root);
+    assert.equal((await inspectExtension(workspace, "example.admin-static")).status, "available");
+    assert.equal((await doctorExtensions(workspace)).ok, true);
+    assert.equal((await disableExtension(workspace, "example.admin-static")).status, "disabled");
+    assert.deepEqual(await removeExtension(workspace, "example.admin-static"), {
+      id: "example.admin-static",
+      source: "local",
+      removed: true
+    });
+    await assert.rejects(
+      () => removeExtension(workspace, "example.admin-static"),
+      /does not have a registered extension with id example\.admin-static/i
+    );
+
+    writeFileSync(path.join(fixture.root, "index.mjs"), [
+      "export default {",
+      '  id: "example.admin-static",',
+      '  name: "Admin static extension",',
+      '  version: "0.1.0",',
+      '  apiVersion: "aiwiki.extension.v1"',
+      "};",
+      ""
+    ].join("\n"), "utf8");
+    await addLocalExtension(workspace, fixture.root);
+    await enableExtension(workspace, "example.admin-static");
+    assert.equal((await inspectExtension(workspace, "example.admin-static")).status, "enabled");
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+    rmSync(fixture.parent, { recursive: true, force: true });
   }
 });

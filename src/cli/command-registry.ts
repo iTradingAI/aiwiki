@@ -154,8 +154,12 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
       handle: handlers.plugin,
       help: [
         { usage: "aiwiki plugin list --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki plugin inspect <id> --json", visibility: "public", scope: "base" },
         { usage: "aiwiki plugin add <directory>", visibility: "public", scope: "base" },
-        { usage: "aiwiki plugin enable <id>", visibility: "public", scope: "base" }
+        { usage: "aiwiki plugin enable <id>", visibility: "public", scope: "base" },
+        { usage: "aiwiki plugin disable <id>", visibility: "public", scope: "base" },
+        { usage: "aiwiki plugin remove <id>", visibility: "public", scope: "base" },
+        { usage: "aiwiki plugin doctor --json", visibility: "public", scope: "base" }
       ]
     },
     {

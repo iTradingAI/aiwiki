@@ -570,3 +570,35 @@ Help first-time AIWiki users try three concrete workflows without inventing thei
 ### Boundaries
 
 - No crawler, WeChat reader, browser plugin, vector search, RAG-over-wiki, RBAC, RSS, scheduled collection, Pro command, or new dependency was added.
+
+## 2026-08-10 - CORE-0600 Plugin Ecosystem MVP: blocked and abandoned
+
+Status: blocked / abandoned. Working tree reverted to clean `dev@05fea0c` (Core 0.5.1 baseline, 173 pass / 0 fail).
+
+### Goal
+
+Implement CORE-0600 (Core 0.6 Plugin Ecosystem MVP): extend plugin manifest with capabilities/permissions, complete plugin CLI (inspect/disable/remove/doctor), establish a declared-permission model, ship a bundled Research Workflow Pack exercising all four extension capability paths, and preserve failure isolation.
+
+### What happened
+
+The mdev Critical pipeline ran through classification, scout mapping, Fable planning (v1→v3, 9 plan-review findings closed), and implementation (6 workers). The integration gate passed (build clean, tests green, release:check ok).
+
+The mandatory change + security review then entered a 30-round review→remediate→re-review loop on **CHANGE-031 (prototype-poisoning failure isolation)**:
+
+- CORE-0600 introduced `contextProviders` and `artifactGenerators` — extension callbacks that **return data** which Core validates and merges into its output. This created a failure-propagation surface: a buggy plugin that configurably poisons a common prototype method (e.g. `Array.prototype.push`) can make a healthy sibling's callback or Core's own traversal throw, wrongly disabling the healthy extension or breaking the Core command.
+- We attempted captured primordials, null-prototype arrays, full-descriptor snapshot/restore, dynamic globalThis enumeration, exhaustive iterator-prototype sampling, and async-tail serialization. Each round the reviewers found another in-scope configurable poisoning path (Array methods → String methods → iterator prototypes → hidden iterator prototypes like Intl.Segmenter/Iterator.from wrappers/Iterator helpers → fs.Stats/Dirent → structuredClone accessor escapes → Buffer() deprecation).
+- The root cause is architectural: **same-realm execution cannot provide exhaustive prototype-poisoning isolation** — JS continuously defines new hidden iterator/prototype types, and only Worker/isolated-realm execution can eliminate the class entirely.
+
+Security review was consistently **SECURE** (no injection / authority amplification / untrusted-import path). The blocker was purely failure-isolation depth under the approved "buggy plugin" scope.
+
+### Decision
+
+User-directed abandonment (2026-08-10): the plugin approach as designed was wrong from the start. The `contextProvider`/`artifactGenerator` production call-paths introduced unnecessary failure-propagation complexity that cannot be resolved in the current same-realm architecture. All changes were discarded; the workspace was reset to clean `dev@05fea0c`.
+
+### Recommendations
+
+1. **Split CORE-0600**: `CORE-0600a` (manifest + CLI + permissions + Research Workflow Pack using only command/lint_rule — safe under same-realm) and `CORE-0600b` (contextProvider/artifactGenerator production paths — defer to Core 0.7 with Worker/isolated-realm support).
+2. **Worker/isolated-realm plugin execution** is the architectural fix for prototype-poisoning isolation; it belongs in Core 0.7 (Knowledge Layer Interfaces / SDK / MCP).
+3. **Or adopt a more conservative plugin model**: plugins provide only commands (self-contained output) and lint rules (read-only snapshots + findings), not data-merging callbacks.
+
+Full record: `Plan/20260810-CORE-0600-Plugin-Ecosystem-阻塞与放弃决策.md`

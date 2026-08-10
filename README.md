@@ -258,7 +258,7 @@ Source Capsules were introduced in 0.3.0. AIWiki treats these files as one logic
 
 Legacy workspace `schema_version: 1` is read as `aiwiki.workspace.v1` without rewriting the file. Default Agent JSON remains `aiwiki.context.v1` and capsule view remains `aiwiki.context.capsule.v1`; declared unknown future majors require manual review. See the [Schema Compatibility catalog](docs/schema/README.md).
 
-Schema compatibility does not change existing Skill matching. Extension commands remain explicit: do not infer them from ordinary natural-language requests, and preserve the documented precedence, fallback, and acceptance boundaries.
+Schema compatibility does not change existing Skill matching. `aiwiki.extension.v1` commands remain explicit: `aiwiki plugin list`, `aiwiki plugin inspect <id>`, `aiwiki plugin add <directory>`, `aiwiki plugin enable <id>`, `aiwiki plugin disable <id>`, `aiwiki plugin remove <id>`, and `aiwiki plugin doctor`. They use the declared-permission audit + no-injection default; NOT a runtime OS sandbox. Do not infer them from ordinary natural-language requests, and preserve the documented precedence, fallback, and acceptance boundaries.
 
 The structured index uses the additive `aiwiki.index.v1` metadata contract. It is explicitly built, removable, and does not change the default `aiwiki.context.v1` retrieval output. See [Derived State v1](docs/schema/STATE.md).
 

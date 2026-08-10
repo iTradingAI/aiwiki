@@ -76,6 +76,12 @@ aiwiki show <topic> --path <workspace>
 aiwiki index status --path <workspace> --json
 aiwiki graph status --path <workspace> --json
 aiwiki plugin list --json --path <workspace>
+aiwiki plugin inspect <id> --json --path <workspace>
+aiwiki plugin add <directory> --path <workspace>
+aiwiki plugin enable <id> --path <workspace>
+aiwiki plugin disable <id> --path <workspace>
+aiwiki plugin remove <id> --path <workspace>
+aiwiki plugin doctor --json --path <workspace>
 ```
 
 Use fallback shell/file search only after the relevant AIWiki command has been tried or when the command is unavailable. If you fall back, explain which AIWiki command was insufficient and why. If you skip the AIWiki commands entirely, the knowledge-base features are not being exercised.
@@ -97,13 +103,13 @@ Match user requests to this command contract before using generic file tools:
 | explicitly inspect, build, or rebuild the structured index | inspect with `aiwiki index status --path <workspace> --json`; build or rebuild only when the user asks to write metadata | explain `fresh`, `missing`, `stale`, or `invalid`, category counts, duplicate-source URLs, and resolved local links | Do not automatically build or rebuild the index; Markdown-backed retrieval remains available when the index is missing, stale, or invalid |
 | explicitly inspect, build, or rebuild the relationship graph | inspect with `aiwiki graph status --path <workspace> --json`; build or rebuild only when the user asks to write metadata | explain `fresh`, `missing`, `stale`, or `invalid`, typed-edge counts, unresolved targets, and lock conflicts | Do not automatically build or rebuild the graph; Markdown-backed retrieval remains available when graph metadata is missing, stale, or invalid; default Context v1 remains independent |
 | explicitly trace a relationship, upstream/downstream dependency, or conflict | with an already fresh graph, run `aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>` | read `aiwiki.context.v2`, graph state, relationship paths, evidence status, lifecycle/risk warnings, and `recommended_next_action` | do not use graph context for ordinary retrieval; never build or rebuild graph state automatically; `--graph-depth` is only `1`, `2`, or `3` |
-| explicit extension administration | `aiwiki plugin list --json --path <workspace>`; add only a user-supplied directory with `aiwiki plugin add <directory> --path <workspace>`; enable only a user-supplied ID with `aiwiki plugin enable <id> --path <workspace>` | report the command result and the exact extension state | for “find a plugin”, “auto choose a skill”, or “enable a suitable extension”, ask for an explicit action, directory, or ID; do not discover, enable, or execute automatically |
+| explicit extension administration | list with `aiwiki plugin list --json --path <workspace>`; inspect, enable, disable, or remove only a user-supplied exact ID with `aiwiki plugin inspect <id> --json --path <workspace>`, `aiwiki plugin enable <id> --path <workspace>`, `aiwiki plugin disable <id> --path <workspace>`, or `aiwiki plugin remove <id> --path <workspace>`; add only a user-supplied directory with `aiwiki plugin add <directory> --path <workspace>`; run `aiwiki plugin doctor --json --path <workspace>` only on explicit request | report the command result and the exact extension state | for “find a plugin”, “auto choose a skill”, or “enable a suitable extension”, ask for an explicit action, directory, or ID; do not discover, inspect, enable, execute, disable, or remove automatically |
 
 ## Schema Compatibility Boundary
 
 Keep the current command-first matching unchanged. Existing workspaces with `schema_version: 1` remain compatible as `aiwiki.workspace.v1`; Agent outputs remain `aiwiki.context.v1` and `aiwiki.context.capsule.v1`. Do not invent a schema migration command or rewrite user frontmatter for this feature. Declared future schema majors require manual review.
 
-The declaration-only Extension API v0.1 supports explicit extension administration through `aiwiki plugin list --json`, `aiwiki plugin add <directory> --path <workspace>`, and `aiwiki plugin enable <id> --path <workspace>`. Keep the matching contract unchanged: do not infer these commands from ordinary natural-language requests, automatically discover extensions, or describe the Host as a sandbox. Read [Extension Protocol](EXTENSION_PROTOCOL.md) before handling an extension request.
+The declaration-only `aiwiki.extension.v1` Extension API supports explicit extension administration through `aiwiki plugin list --json`, `aiwiki plugin inspect <id> --json`, `aiwiki plugin add <directory> --path <workspace>`, `aiwiki plugin enable <id> --path <workspace>`, `aiwiki plugin disable <id> --path <workspace>`, `aiwiki plugin remove <id> --path <workspace>`, and `aiwiki plugin doctor --json`. It uses the declared-permission audit + no-injection default; NOT a runtime OS sandbox. Keep the matching contract unchanged: do not infer these commands from ordinary natural-language requests or automatically discover, inspect, enable, execute, disable, or remove extensions. Read [Extension Protocol](EXTENSION_PROTOCOL.md) before handling an extension request.
 
 ## Health And Repair Intent
 
