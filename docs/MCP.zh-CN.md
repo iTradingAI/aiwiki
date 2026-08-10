@@ -4,36 +4,91 @@
 
 ## 启动服务器
 
+### 命令行
+
 构建或安装包后，以可选工作区根目录启动二进制程序：
 
 ```sh
 aiwiki-mcp ./knowledge
 ```
 
-未传参数时，服务器把当前工作目录解析为工作区。stdio 仅用于协议流量：不要向 stdout 输出启动横幅或诊断信息。典型客户端配置如下：
+未传参数时，服务器把当前工作目录解析为工作区。stdio 仅用于协议流量：日志输出到 stderr，不输出到 stdout。
+
+### Claude Desktop / Cline / 其他 MCP 客户端
+
+在客户端的 MCP 服务器配置中添加一条目。具体格式取决于客户端，但大多数基于 stdio 的 MCP 客户端（Claude Desktop、Cline 等）都需要 `mcpServers` 对象：
+
+**Claude Desktop**（`claude_desktop_config.json`）：
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+使用 `npx`（无需全局安装）：
 
 ```json
 {
-  "command": "aiwiki-mcp",
-  "args": ["/absolute/path/to/knowledge"]
+  "mcpServers": {
+    "aiwiki": {
+      "command": "npx",
+      "args": ["-y", "@itradingai/aiwiki@latest", "/absolute/path/to/your/knowledge"]
+    }
+  }
 }
 ```
 
-嵌入宿主可通过公共 MCP 入口以编程方式启动自己的处理器：
+> **注意：** `npx` 启动的是包的默认二进制（`aiwiki`）。如果需要直接启动 MCP 服务器，使用下方显式形式。
 
-```ts
-import { runMcpServer, type ServerHandlers } from "@itradingai/aiwiki/mcp";
+使用显式 MCP 二进制（推荐，更可靠）：
 
-const handlers: ServerHandlers = {
-  listTools: () => [],
-  callTool: async () => ({ content: [{ type: "text", text: "No tools configured" }], isError: true })
-};
-await runMcpServer(handlers);
+```json
+{
+  "mcpServers": {
+    "aiwiki": {
+      "command": "npx",
+      "args": ["-y", "@itradingai/aiwiki@latest", "--mcp", "/absolute/path/to/your/knowledge"]
+    }
+  }
+}
 ```
 
-已打包的六个 AIWiki 工具由 `aiwiki-mcp` CLI 组合并启动。公共 `/mcp` 入口导出 `runMcpServer` 和协议类型（`ServerHandlers`、`Tool`、`CallToolResult`、`ContentBlock`）。
+使用全局安装：
 
-客户端必须完成正常生命周期：先发送 `initialize`，再发送 `notifications/initialized`，之后才能调用 `tools/list` 或 `tools/call`。初始化完成前，`ping`、`tools/list` 和 `tools/call` 会因服务器未就绪被拒绝。
+```sh
+npm install -g @itradingai/aiwiki
+```
+
+```json
+{
+  "mcpServers": {
+    "aiwiki": {
+      "command": "aiwiki-mcp",
+      "args": ["/absolute/path/to/your/knowledge"]
+    }
+  }
+}
+```
+
+> 始终使用**绝对路径**指向工作区。客户端可能以非预期的工作目录启动进程。
+
+### 编程方式（嵌入宿主）
+
+嵌入宿主可导入 `runMcpServer` 并提供工具处理器：
+
+```ts
+import { runMcpServer } from "@itradingai/aiwiki/mcp";
+
+await runMcpServer({
+  listTools: () => [],
+  callTool: async () => ({ content: [{ type: "text", text: "未实现" }] })
+});
+```
+
+公共 `/mcp` 入口导出 `runMcpServer` 和协议类型（`ServerHandlers`、`Tool`、`CallToolResult`、`ContentBlock`）。
+
+### 生命周期
+
+客户端必须完成正常 MCP 生命周期：先发送 `initialize`，再发送 `notifications/initialized`，之后才能调用 `tools/list` 或 `tools/call`。初始化完成前，`ping`、`tools/list` 和 `tools/call` 会因服务器未就绪被拒绝。
+
+详见 [MCP 规范](https://modelcontextprotocol.io/specification)。
 
 ## 工具
 

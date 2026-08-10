@@ -345,6 +345,37 @@ aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
 
 `--graph-depth` accepts only `1`, `2`, or `3` and defaults to `1`. Graph context never writes state; a non-fresh graph returns an explicit bounded v2 result with its state and recommended next action.
 
+## Connect an MCP Client
+
+AIWiki ships with `aiwiki-mcp`, a standard [Model Context Protocol](https://modelcontextprotocol.io/) server. It lets AI clients like Claude Desktop, Cline, or any MCP-compatible tool use your knowledge base directly — ingest sources, query context, show capsules, lint, and check health — without CLI commands.
+
+The server exposes six tools: `aiwiki_ingest` (inline payload only), `aiwiki_context`, `aiwiki_query`, `aiwiki_show`, `aiwiki_lint`, and `aiwiki_health`. See the [MCP Server Guide](MCP.md) for tool schemas and the trust model.
+
+### Claude Desktop
+
+Edit `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`):
+
+```json
+{
+  "mcpServers": {
+    "aiwiki": {
+      "command": "npx",
+      "args": ["-y", "@itradingai/aiwiki@latest", "/absolute/path/to/your/knowledge"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving. The AI client can now ingest, query, and maintain your knowledge base through MCP tools.
+
+### Command line (for testing)
+
+```sh
+aiwiki-mcp ./knowledge
+```
+
+The server reads JSON-RPC 2.0 messages from stdin and writes responses to stdout. Logging goes to stderr.
+
 ## 6. Generated Artifacts
 
 Core artifacts:

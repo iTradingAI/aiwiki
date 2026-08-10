@@ -2,7 +2,7 @@
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 
-Current release: **0.7.0**
+Current release: **0.7.1**
 
 This docs folder keeps the public guides short and task-oriented. The main README is the product entry point; these files explain daily use, assistant handoff, examples, release checks, and roadmap boundaries.
 
@@ -15,6 +15,9 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 - [Agent Handoff](AGENT_HANDOFF.md)
 - [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix)
 - [Showcase](SHOWCASE.md)
+- [SDK Reference](SDK.md)
+- [MCP Server Guide](MCP.md)
+- [Agent Contract](AGENT_CONTRACT.md)
 
 ## Workflow Packs
 

@@ -4,33 +4,93 @@
 
 ## Start the server
 
+### Command line
+
 Build/install the package, then start the binary with an optional workspace root:
 
 ```sh
 aiwiki-mcp ./knowledge
 ```
 
-With no argument, the server resolves the current working directory as its workspace. Stdio is protocol traffic only: do not print banners or diagnostic messages to stdout. Client configuration typically uses:
+With no argument, the server resolves the current working directory as its workspace. Stdio is protocol traffic only: logging goes to stderr, not stdout.
+
+### Claude Desktop / Cline / other MCP clients
+
+Add an entry to the client's MCP server configuration. The exact format depends on the client, but most stdio-based MCP clients (Claude Desktop, Cline, etc.) expect a `mcpServers` object:
+
+**Claude Desktop** (`claude_desktop_config.json`):
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Using `npx` (no global install needed):
 
 ```json
 {
-  "command": "aiwiki-mcp",
-  "args": ["/absolute/path/to/knowledge"]
+  "mcpServers": {
+    "aiwiki": {
+      "command": "npx",
+      "args": ["-y", "@itradingai/aiwiki@latest", "/absolute/path/to/your/knowledge"]
+    }
+  }
 }
 ```
 
-For an embedded host, provide tool handlers and run the server programmatically:
+> **Note:** `npx` spawns the package's default binary (`aiwiki`). To start the MCP server instead, the CLI entry detects MCP mode automatically — but if your client passes the workspace as the first arg, use the direct binary path. If `npx @itradingai/aiwiki` resolves to the CLI instead of the MCP server, use the explicit form below.
+
+Using the explicit MCP binary (recommended for reliability):
+
+```json
+{
+  "mcpServers": {
+    "aiwiki": {
+      "command": "npx",
+      "args": ["-y", "@itradingai/aiwiki@latest", "--mcp", "/absolute/path/to/your/knowledge"]
+    }
+  }
+}
+```
+
+Using a global install:
+
+```sh
+npm install -g @itradingai/aiwiki
+```
+
+```json
+{
+  "mcpServers": {
+    "aiwiki": {
+      "command": "aiwiki-mcp",
+      "args": ["/absolute/path/to/your/knowledge"]
+    }
+  }
+}
+```
+
+> Always use an **absolute path** to the workspace. The client may launch the process with an unexpected working directory.
+
+### Programmatic (embedded host)
+
+For an embedded host, import `runMcpServer` and provide tool handlers:
 
 ```ts
 import { runMcpServer } from "@itradingai/aiwiki/mcp";
-import { createToolHandlers } from "@itradingai/aiwiki/dist/src/mcp/tools.js";
 
-await runMcpServer(createToolHandlers("/absolute/path/to/knowledge"));
+// The bundled tool handlers are in the internal tools module.
+// For custom handlers, implement ServerHandlers directly.
+await runMcpServer({
+  listTools: () => [],
+  callTool: async () => ({ content: [{ type: "text", text: "not implemented" }] })
+});
 ```
 
-The package's public `/mcp` entry point exports `runMcpServer` and the protocol types (`ServerHandlers`, `Tool`, `CallToolResult`, `ContentBlock`). `createToolHandlers` is the server composition module used by the bundled CLI.
+The package's public `/mcp` entry point exports `runMcpServer` and the protocol types (`ServerHandlers`, `Tool`, `CallToolResult`, `ContentBlock`).
 
-A client must complete the normal lifecycle: send `initialize`, then `notifications/initialized`, then call `tools/list` or `tools/call`. Before initialization completes, `ping`, `tools/list`, and `tools/call` are rejected as not ready.
+### Lifecycle
+
+A client must complete the normal MCP lifecycle: send `initialize`, then `notifications/initialized`, then call `tools/list` or `tools/call`. Before initialization completes, `ping`, `tools/list`, and `tools/call` are rejected as not ready.
+
+See the [MCP specification](https://modelcontextprotocol.io/specification) for protocol details.
 
 ## Tools
 

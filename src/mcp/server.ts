@@ -29,7 +29,7 @@ type JsonObject = Record<string, unknown>;
 const INITIALIZE_RESULT: InitializeResult = {
   protocolVersion: PROTOCOL_VERSION,
   capabilities: { tools: { listChanged: false } },
-  serverInfo: { name: "aiwiki-mcp", version: "0.7.0" },
+  serverInfo: { name: "aiwiki-mcp", version: "0.7.1" },
 };
 
 export async function runMcpServer(handlers: ServerHandlers): Promise<void> {
