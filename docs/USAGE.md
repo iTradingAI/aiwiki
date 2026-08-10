@@ -94,7 +94,7 @@ aiwiki agent sync --path <workspace> --yes
 
 This writes marker-bounded guidance into the knowledge base root so future assistants entering that workspace know to use AIWiki commands before generic file search.
 
-Extensions are never selected or activated from a vague natural-language request. Use `aiwiki plugin list --json --path <workspace>` only when the user explicitly asks to list them, `aiwiki plugin add <directory> --path <workspace>` only for a directory the user supplied, and `aiwiki plugin enable <id> --path <workspace>` only for an exact user-supplied ID. See `skill/EXTENSION_PROTOCOL.md` in the installed package.
+Extensions are never selected or administered from a vague natural-language request. Only when the user explicitly requests the matching action, use `aiwiki plugin list --json --path <workspace>`, `aiwiki plugin inspect <id> --json --path <workspace>`, `aiwiki plugin add <directory> --path <workspace>`, `aiwiki plugin enable <id> --path <workspace>`, `aiwiki plugin disable <id> --path <workspace>`, `aiwiki plugin remove <id> --path <workspace>`, or `aiwiki plugin doctor --json --path <workspace>`. These `aiwiki.extension.v1` operations follow the declared-permission audit + no-injection default; NOT a runtime OS sandbox. See `skill/EXTENSION_PROTOCOL.md` in the installed package.
 
 Verify both layers:
 
@@ -405,11 +405,15 @@ See the [Schema Compatibility catalog](schema/README.md) and [Derived State v1](
 
 ```text
 aiwiki plugin list --json
+aiwiki plugin inspect <id> --json
 aiwiki plugin add <directory> --path <workspace>
 aiwiki plugin enable <id> --path <workspace>
+aiwiki plugin disable <id> --path <workspace>
+aiwiki plugin remove <id> --path <workspace>
+aiwiki plugin doctor --json
 ```
 
-These commands do not discover packages or create an automatic Skill match. The Host is not a sandbox; it only contains Host-managed state and disables failed extensions while Core continues. Natural-language extension matching remains explicit and follows the documented precedence and fallback rules.
+These `aiwiki.extension.v1` commands do not discover packages or create an automatic Skill match. They use the declared-permission audit + no-injection default; NOT a runtime OS sandbox. The Host only contains Host-managed state and disables failed extensions while Core continues. Natural-language extension matching remains explicit and follows the documented precedence and fallback rules.
 
 ## 8. Troubleshooting
 

@@ -94,7 +94,7 @@ aiwiki agent sync --path <workspace> --yes
 
 这会在知识库根目录写入带标记的指导，让以后进入这个目录的 Agent 先使用 AIWiki 命令，而不是直接翻文件。
 
-extension 不会因模糊自然语言请求而被自动选择或启用。只有用户明确要求列出时才运行 `aiwiki plugin list --json --path <workspace>`，只有用户提供目录时才运行 `aiwiki plugin add <directory> --path <workspace>`，只有用户提供精确 ID 时才运行 `aiwiki plugin enable <id> --path <workspace>`。安装包中的 `skill/EXTENSION_PROTOCOL.md` 规定了完整边界。
+extension 不会因模糊自然语言请求而被自动选择或管理。只有用户明确要求相应动作时，才运行 `aiwiki plugin list --json --path <workspace>`、`aiwiki plugin inspect <id> --json --path <workspace>`、`aiwiki plugin add <directory> --path <workspace>`、`aiwiki plugin enable <id> --path <workspace>`、`aiwiki plugin disable <id> --path <workspace>`、`aiwiki plugin remove <id> --path <workspace>` 或 `aiwiki plugin doctor --json --path <workspace>`。这些 `aiwiki.extension.v1` 操作采用 declared-permission audit + no-injection default；NOT a runtime OS sandbox。安装包中的 `skill/EXTENSION_PROTOCOL.md` 规定了完整边界。
 
 验证两层同步：
 
@@ -325,11 +325,15 @@ AIWiki 会把历史工作区 `schema_version: 1` 按 `aiwiki.workspace.v1` 读�
 
 ```text
 aiwiki plugin list --json
+aiwiki plugin inspect <id> --json
 aiwiki plugin add <directory> --path <workspace>
 aiwiki plugin enable <id> --path <workspace>
+aiwiki plugin disable <id> --path <workspace>
+aiwiki plugin remove <id> --path <workspace>
+aiwiki plugin doctor --json
 ```
 
-这些命令不会自动发现包，也不会自动 Skill 匹配。Host 不是 sandbox；它只约束 Host 管理的状态，并在 extension 失败后禁用该 extension，同时保持 Core 继续运行。自然语言 extension 匹配保持显式触发，并遵循文档定义的优先级与 fallback 规则。
+这些 `aiwiki.extension.v1` 命令不会自动发现包，也不会自动 Skill 匹配。它们采用 declared-permission audit + no-injection default；NOT a runtime OS sandbox。Host 只约束 Host 管理的状态，并在 extension 失败后禁用该 extension，同时保持 Core 继续运行。自然语言 extension 匹配保持显式触发，并遵循文档定义的优先级与 fallback 规则。
 
 ## 8. 常见排障
 

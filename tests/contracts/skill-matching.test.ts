@@ -136,11 +136,15 @@ test("packed Skill bundle installs every protocol and locks explicit extension i
     }
     for (const text of [prompt, usage, skill, extensionProtocol]) {
       assert.match(text, /aiwiki plugin list/);
+      assert.match(text, /aiwiki plugin inspect/);
       assert.match(text, /aiwiki plugin add <directory>/);
       assert.match(text, /aiwiki plugin enable <id>/);
+      assert.match(text, /aiwiki plugin disable/);
+      assert.match(text, /aiwiki plugin remove/);
+      assert.match(text, /aiwiki plugin doctor/);
     }
-    assert.match(extensionProtocol, /do not automatically discover, enable, or execute/i);
-    assert.match(prompt, /不要自动发现、启用或执行/);
+    assert.match(extensionProtocol, /do not automatically discover, inspect, enable, execute, disable, or remove/i);
+    assert.match(prompt, /不要自动发现、选择、启用、执行、禁用或移除/);
     assert.match(extensionProtocol, /does not add Pro behavior/i);
     assert.match(extensionProtocol, /entitlement checks, license checks, scheduling/i);
     assert.match(prompt, /不要自动构建或重建索引/);

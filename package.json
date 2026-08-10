@@ -69,7 +69,9 @@
     "docs/USAGE.md",
     "docs/USAGE.zh-CN.md",
     "docs/schema",
+    "docs/plugins",
     "examples/extensions/local-quality-extension",
+    "examples/plugins/research-workflow",
     "skill"
   ],
   "bin": {
