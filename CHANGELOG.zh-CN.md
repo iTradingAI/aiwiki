@@ -2,6 +2,14 @@
 
 本日志记录面向使用者的公开版本历史。只有同时验证仓库 tag 与 npm 产物映射后才会列出两类证据；仅存在于 registry 的历史会单独标注。
 
+## [0.7.0] - 2026-08-10
+
+- 在 `aiwiki.public.v1` 中新增稳定 SDK 导出：query、show、health、lifecycle、relationship 和 graph-context 操作。
+- 新增零运行时依赖的 MCP server：提供 6 个工具，通过 stdio 实现手写 JSON-RPC 2.0，并使用 `2025-06-18` 协议版本。
+- 新增 Agent Contract 文档，说明 AIWiki 与宿主 Agent 的集成合同。
+
+本条目描述当前源码版本。在发布门槛完成前，不声称已经存在对应 tag、GitHub Release 或 npm 产物。
+
 ## [0.6.0] - 2026-08-10
 
 - 新增四套随包发布的工作流：研究、写作、决策、审查 / 复盘；每套均提供有序命令路径、预期输出、安全 fallback 与可运行的公开试用场景。

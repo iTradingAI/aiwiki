@@ -61,7 +61,13 @@ assert.equal(contracts.AIWIKI_PUBLIC_API_VERSION, "aiwiki.public.v1");
 for (const name of [
   "createAiwikiCli", "ingestPayload", "ingestFile", "discoverArtifacts",
   "readArtifact", "buildCapsules", "buildCapsuleContext", "buildContext",
-  "lintWorkspace", "resolveWorkspace"
+  "lintWorkspace", "resolveWorkspace", "renderCapsuleQuery", "showCapsule",
+  "resolveCapsule", "renderCapsule", "buildHealthReport", "defaultLifecycle",
+  "lifecycleFromFrontmatter", "lifecycleToFrontmatter", "lifecyclePenalty",
+  "lifecycleWarnings", "isAnswerSafeByDefault", "relationshipsFromFrontmatter",
+  "relationshipsToFrontmatter", "validateRelationships", "isRelationshipType",
+  "buildRelationshipGraph", "inspectRelationshipGraph", "readRelationshipGraph",
+  "buildGraphContext"
 ]) assert.equal(typeof api[name], "function", name);
 
 const chunks = [];
@@ -107,14 +113,50 @@ assert.equal(typeof api.createAiwikiCli, "function");
   type AiwikiCli,
   type AiwikiCliStreams,
   type CapsuleContextResult,
+  type CapsuleQueryOptions,
+  type ConfidenceLevel,
   type ContextFilters,
   type ContextResult,
+  type FrontmatterValue,
+  type GraphContextOptions,
+  type GraphContextResult,
+  type GraphEdgeOrigin,
+  type HealthReport,
+  type WrittenHealthReport,
   type IngestResult,
   type KnowledgeLifecycle,
+  type KnowledgeStatus,
   type LintReport,
-  type SourceCapsule
+  type RelationshipGraph,
+  type RelationshipGraphArtifactNode,
+  type RelationshipGraphCapsuleNode,
+  type RelationshipGraphEdge,
+  type RelationshipGraphNode,
+  type RelationshipGraphRead,
+  type RelationshipGraphState,
+  type RelationshipGraphStatus,
+  type RelationshipGraphSummary,
+  type RelationshipType,
+  type ShowCapsuleOptions,
+  type SourceCapsule,
+  type Staleness,
+  type TypedRelationship,
+  type UnresolvedRelationshipGraphEdge
 } from "@itradingai/aiwiki";
-import type { AiwikiArtifact as ContractArtifact, ContextResult as ContractContextResult } from "@itradingai/aiwiki/contracts";
+import type {
+  AiwikiArtifact as ContractArtifact,
+  ContextResult as ContractContextResult,
+  WrittenHealthReport as ContractWrittenHealthReport
+} from "@itradingai/aiwiki/contracts";
+
+type NewSdkTypes = [
+  CapsuleQueryOptions, ShowCapsuleOptions, HealthReport, WrittenHealthReport, KnowledgeStatus, ConfidenceLevel, Staleness,
+  RelationshipType, TypedRelationship, GraphContextOptions, GraphContextResult, FrontmatterValue,
+  RelationshipGraph, RelationshipGraphState, RelationshipGraphStatus, RelationshipGraphRead,
+  RelationshipGraphNode, RelationshipGraphArtifactNode, RelationshipGraphCapsuleNode,
+  RelationshipGraphEdge, UnresolvedRelationshipGraphEdge, RelationshipGraphSummary, GraphEdgeOrigin,
+  ContractWrittenHealthReport
+];
 
 const apiVersion: "aiwiki.public.v1" = AIWIKI_PUBLIC_API_VERSION;
 const cli: AiwikiCli = createAiwikiCli();
@@ -126,7 +168,8 @@ const filters: ContextFilters | undefined = undefined;
 const context: ContextResult | ContractContextResult | CapsuleContextResult | undefined = undefined;
 const ingest: IngestResult | undefined = undefined;
 const lint: LintReport | undefined = undefined;
-void [apiVersion, cli, streams, artifact, capsule, lifecycle, filters, context, ingest, lint];
+const newSdkTypes: NewSdkTypes | undefined = undefined;
+void [apiVersion, cli, streams, artifact, capsule, lifecycle, filters, context, ingest, lint, newSdkTypes];
 `,
       "utf8"
     );
