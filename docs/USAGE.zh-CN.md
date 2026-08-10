@@ -276,6 +276,37 @@ aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
 
 `--graph-depth` 只接受 `1`、`2` 或 `3`，默认是 `1`。图上下文不会写入 state；关系图不是 fresh 时，返回受限的 v2 结果，明确说明状态和建议的下一步。
 
+## 连接 MCP 客户端
+
+AIWiki 内置 `aiwiki-mcp`，一个标准 [Model Context Protocol](https://modelcontextprotocol.io/) 服务器。它让 Claude Desktop、Cline 或任何 MCP 兼容的 AI 工具直接使用你的知识库——收录来源、查询上下文、查看胶囊、检查和健康报告——无需 CLI 命令。
+
+服务器暴露六个工具：`aiwiki_ingest`（仅内联 payload）、`aiwiki_context`、`aiwiki_query`、`aiwiki_show`、`aiwiki_lint`、`aiwiki_health`。工具 schema 和信任模型见 [MCP 服务器指南](MCP.zh-CN.md)。
+
+### Claude Desktop
+
+编辑 `claude_desktop_config.json`（macOS: `~/Library/Application Support/Claude/`，Windows: `%APPDATA%\Claude\`）：
+
+```json
+{
+  "mcpServers": {
+    "aiwiki": {
+      "command": "npx",
+      "args": ["-y", "@itradingai/aiwiki@latest", "/absolute/path/to/your/knowledge"]
+    }
+  }
+}
+```
+
+保存后重启 Claude Desktop。AI 客户端即可通过 MCP 工具收录、查询和维护你的知识库。
+
+### 命令行（用于测试）
+
+```sh
+aiwiki-mcp ./knowledge
+```
+
+服务器从 stdin 读取 JSON-RPC 2.0 消息，向 stdout 写入响应。日志输出到 stderr。
+
 ## 6. 生成的文件
 
 核心产物：

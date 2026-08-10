@@ -3,7 +3,7 @@ name: aiwiki
 description: Local Markdown knowledge base workflow for AI assistants.
 ---
 
-<!-- aiwiki-skill-version: 0.7.0 -->
+<!-- aiwiki-skill-version: 0.7.1 -->
 
 # AIWiki Skill
 

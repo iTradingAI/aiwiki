@@ -2,6 +2,11 @@
 
 This changelog records public, consumer-visible release history. Repository tags and npm artifacts are cited only where both mappings were verified; registry-only history is labeled separately.
 
+## [0.7.1] - 2026-08-10
+
+- Fixed MCP client configuration documentation: added `mcpServers` wrapper format, `npx` usage, and absolute-path examples for Claude Desktop, Cline, and other MCP clients.
+- Added MCP quickstart sections to README.md, README.zh-CN.md, USAGE.md, and USAGE.zh-CN.md.
+
 ## [0.7.0] - 2026-08-10
 
 - Added stable SDK exports for query, show, health, lifecycle, relationship, and graph-context operations to `aiwiki.public.v1`.
