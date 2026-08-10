@@ -179,6 +179,15 @@ aiwiki show --artifact-path <artifact.md> --path <workspace>
 aiwiki show "<主题>" --json
 ```
 
+### 工作流协议
+
+助手写作、研究、决策或审查前都应先用 query/context。每份协议都从相同的命令优先路径开始，并说明对应的复用指引、预期产物、失败处理，以及如何证明确实使用了 AIWiki：
+
+- [写作](workflows/WRITING.zh-CN.md)：起草前取回既有角度、提纲、来源支撑的要点和质量警告。
+- [研究](workflows/RESEARCH.zh-CN.md)：先从 Wiki Entry 开始；证据重要时再跟随 `related_refs` 和 Source Card。
+- [决策](workflows/DECISION.zh-CN.md)：改变方向前找回约束、既有判断和被否决方案。
+- [审查 / 复盘](workflows/REVIEW.zh-CN.md)：在把匹配当作可复用知识前，检查 `result_quality`、`match_reasons`、`quality_signals` 和警告。复盘是 review 工作流的别名。
+
 ## 5. 检查和维护知识库
 
 对 AI 助手说：

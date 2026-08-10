@@ -2,7 +2,7 @@
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 
-Current release: **0.5.1**
+Current release: **0.6.0**
 
 This docs folder keeps the public guides short and task-oriented. The main README is the product entry point; these files explain daily use, assistant handoff, examples, release checks, and roadmap boundaries.
 
@@ -15,6 +15,17 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 - [Agent Handoff](AGENT_HANDOFF.md)
 - [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix)
 - [Showcase](SHOWCASE.md)
+
+## Workflow Packs
+
+- [Writing workflow](workflows/WRITING.md)
+- [Research workflow](workflows/RESEARCH.md)
+- [Decision workflow](workflows/DECISION.md)
+- [Review / retrospective workflow](workflows/REVIEW.md)
+
+Each pack provides the command-first reuse path, expected artifacts, safe
+fallback, and an observable AIWiki-use checklist. The paired Chinese documents
+are in [`workflows/`](workflows/).
 - [Trial Feedback Template](TRIAL_FEEDBACK_TEMPLATE.md)
 - [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md)
 - [Roadmap](ROADMAP.md)
@@ -30,6 +41,11 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 - [Chinese Agent Handoff](AGENT_HANDOFF.zh-CN.md)
 - [Chinese FAQ](FAQ.zh-CN.md)
 - [Chinese Showcase](SHOWCASE.zh-CN.md)
+
+- [Chinese Writing Workflow](workflows/WRITING.zh-CN.md)
+- [Chinese Research Workflow](workflows/RESEARCH.zh-CN.md)
+- [Chinese Decision Workflow](workflows/DECISION.zh-CN.md)
+- [Chinese Review / Retrospective Workflow](workflows/REVIEW.zh-CN.md)
 - [Chinese Roadmap](ROADMAP.zh-CN.md)
 - [Chinese Maintainer Release Runbook](RELEASE.zh-CN.md)
 - [Chinese Changelog](../CHANGELOG.zh-CN.md)
@@ -40,7 +56,7 @@ This docs folder keeps the public guides short and task-oriented. The main READM
 
 - [`../examples/demo-run/`](../examples/demo-run/) records input files, CLI commands, and outputs from a regenerated run.
 - [`../examples/obsidian-vault-sample/`](../examples/obsidian-vault-sample/) is a sample Markdown vault showing the current core-first artifact contract.
-- [`../examples/public-trial-scenarios/`](../examples/public-trial-scenarios/) contains three public-trial scenarios: article research, topic planning, and project decision memory.
+- [`../examples/public-trial-scenarios/`](../examples/public-trial-scenarios/) contains four public-trial scenarios: article research (research), topic planning (writing), project decision (decision), and review / retrospective memory (review).
 
 ## Core Workflow
 

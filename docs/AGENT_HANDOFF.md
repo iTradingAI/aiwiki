@@ -236,6 +236,13 @@ If `fetch_status` is `failed`, say that AIWiki recorded the failure reason but d
 
 Call AIWiki context before writing, researching, deciding, or reviewing when the user asks you to reuse knowledge from this workspace. This includes drafting from prior notes, comparing evidence, recovering project constraints, checking rejected alternatives, or validating whether a match is strong enough to cite.
 
+For the workflow-specific protocol after that first command, use the canonical
+documents: [Writing](workflows/WRITING.md), [Research](workflows/RESEARCH.md),
+[Decision](workflows/DECISION.md), and [Review / retrospective](workflows/REVIEW.md).
+Retrospective is the review alias. Keep the command-first fallback: `context` →
+`query` → `show` → broaden the topic or ingest user-provided material → bounded
+local inspection, while stating which command was insufficient.
+
 When the user asks what AIWiki knows about a topic, call:
 
 ```bash
