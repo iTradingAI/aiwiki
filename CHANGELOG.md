@@ -2,6 +2,14 @@
 
 This changelog records public, consumer-visible release history. Repository tags and npm artifacts are cited only where both mappings were verified; registry-only history is labeled separately.
 
+## [0.7.0] - 2026-08-10
+
+- Added stable SDK exports for query, show, health, lifecycle, relationship, and graph-context operations to `aiwiki.public.v1`.
+- Added a zero-runtime-dependency MCP server with six tools, hand-rolled JSON-RPC 2.0 over stdio, and protocol version `2025-06-18`.
+- Added Agent Contract documentation for integrating AIWiki with host agents.
+
+This entry describes the current source release. It does not assert a tag, GitHub Release, or npm artifact before those publication gates complete.
+
 ## [0.6.0] - 2026-08-10
 
 - Added four packaged workflow packs for research, writing, decisions, and review / retrospective work, each with an ordered command path, expected outputs, safe fallbacks, and a runnable public-trial scenario.

@@ -1,6 +1,6 @@
 {
   "name": "@itradingai/aiwiki",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "types": "./dist/src/public/index.d.ts",
   "exports": {
@@ -15,6 +15,10 @@
     "./extension-api": {
       "types": "./dist/src/extension/api.d.ts",
       "import": "./dist/src/extension/api.js"
+    },
+    "./mcp": {
+      "types": "./dist/src/mcp/index.d.ts",
+      "import": "./dist/src/mcp/index.js"
     }
   },
   "description": "Local Markdown knowledge base for AI assistants. Save what your AI reads, ask it later, and keep everything local.",
@@ -58,6 +62,12 @@
     "SECURITY.zh-CN.md",
     "docs/README.md",
     "docs/README.zh-CN.md",
+    "docs/AGENT_CONTRACT.md",
+    "docs/AGENT_CONTRACT.zh-CN.md",
+    "docs/MCP.md",
+    "docs/MCP.zh-CN.md",
+    "docs/SDK.md",
+    "docs/SDK.zh-CN.md",
     "docs/FAQ.md",
     "docs/FAQ.zh-CN.md",
     "docs/OPERATING_FEEDBACK_LOOP.md",
@@ -77,7 +87,8 @@
     "skill"
   ],
   "bin": {
-    "aiwiki": "dist/src/cli.js"
+    "aiwiki": "dist/src/cli.js",
+    "aiwiki-mcp": "dist/src/mcp/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -82,60 +82,76 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
   await fs.mkdir(runDir, { recursive: false });
 
   const generatedFiles: string[] = [];
-  await writeFile(path.join(runDir, "payload.json"), `${JSON.stringify(payload, null, 2)}\n`, generatedFiles);
+  try {
+    await writeFile(path.join(runDir, "payload.json"), `${JSON.stringify(payload, null, 2)}\n`, generatedFiles);
 
-  if (payload.source.fetch_status === "failed") {
+    if (payload.source.fetch_status === "failed") {
+      const grounding = buildGroundingReport(payload);
+      await writeSummary(root, runDir, payload, generatedFiles, [
+        ...payload.warnings,
+        "宿主 Agent 未能提供正文，AIWiki CLI 没有自行抓取网页。"
+      ], undefined, grounding);
+      return { runId: runDirName, runDir, generatedFiles, warnings: payload.warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
+    }
+
+    const slug = slugify(payload.source.title ?? payload.source.url);
+    const content = payload.source.content ?? "";
+    const contentFingerprint = createContentFingerprint(content);
+    const collisionWarnings: string[] = [];
+    await detectDuplicateContent(root, payload, contentFingerprint, collisionWarnings);
+    const optionalOutputs = optionalOutputPlan(payload);
+    const longTermTargets = await chooseLongTermTargets(root, slug, runId, collisionWarnings, optionalOutputs);
+    const links = buildArtifactLinks(root, slug, runDirName, runStartedAt, contentFingerprint, longTermTargets);
     const grounding = buildGroundingReport(payload);
-    await writeSummary(root, runDir, payload, generatedFiles, [
-      ...payload.warnings,
-      "宿主 Agent 未能提供正文，AIWiki CLI 没有自行抓取网页。"
-    ], undefined, grounding);
-    return { runId: runDirName, runDir, generatedFiles, warnings: payload.warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
-  }
 
-  const slug = slugify(payload.source.title ?? payload.source.url);
-  const content = payload.source.content ?? "";
-  const contentFingerprint = createContentFingerprint(content);
-  const collisionWarnings: string[] = [];
-  await detectDuplicateContent(root, payload, contentFingerprint, collisionWarnings);
-  const optionalOutputs = optionalOutputPlan(payload);
-  const longTermTargets = await chooseLongTermTargets(root, slug, runId, collisionWarnings, optionalOutputs);
-  const links = buildArtifactLinks(root, slug, runDirName, runStartedAt, contentFingerprint, longTermTargets);
-  const grounding = buildGroundingReport(payload);
+    await writeFile(path.join(runDir, "raw.md"), contentFile(payload, content, links), generatedFiles);
+    await writeFile(path.join(runDir, "source-card.md"), sourceCard(payload, runDirName, links, grounding), generatedFiles);
+    const wikiEntryResult = renderWikiEntry(payload, links);
+    await writeFile(path.join(runDir, "wiki-entry.md"), wikiEntryResult.markdown, generatedFiles);
+    if (optionalOutputs.assets && links.assets) {
+      await writeFile(path.join(runDir, "creative-assets.md"), creativeAssets(payload, links), generatedFiles);
+    }
+    if (optionalOutputs.topics && links.topics) {
+      await writeFile(path.join(runDir, "topics.md"), topics(payload, links), generatedFiles);
+    }
+    if (optionalOutputs.outline && links.outline) {
+      await writeFile(path.join(runDir, "draft-outline.md"), outline(payload, links), generatedFiles);
+    }
 
-  await writeFile(path.join(runDir, "raw.md"), contentFile(payload, content, links), generatedFiles);
-  await writeFile(path.join(runDir, "source-card.md"), sourceCard(payload, runDirName, links, grounding), generatedFiles);
-  const wikiEntryResult = renderWikiEntry(payload, links);
-  await writeFile(path.join(runDir, "wiki-entry.md"), wikiEntryResult.markdown, generatedFiles);
-  if (optionalOutputs.assets && links.assets) {
-    await writeFile(path.join(runDir, "creative-assets.md"), creativeAssets(payload, links), generatedFiles);
-  }
-  if (optionalOutputs.topics && links.topics) {
-    await writeFile(path.join(runDir, "topics.md"), topics(payload, links), generatedFiles);
-  }
-  if (optionalOutputs.outline && links.outline) {
-    await writeFile(path.join(runDir, "draft-outline.md"), outline(payload, links), generatedFiles);
-  }
+    await writeFile(longTermTargets.raw, contentFile(payload, content, links), generatedFiles);
+    await writeFile(longTermTargets.sourceCard, sourceCard(payload, runDirName, links, grounding), generatedFiles);
+    await writeFile(longTermTargets.wikiEntry, wikiEntryResult.markdown, generatedFiles);
+    if (optionalOutputs.claims && longTermTargets.claims) {
+      await writeFile(longTermTargets.claims, claims(payload, links, grounding), generatedFiles);
+    }
+    if (optionalOutputs.assets && longTermTargets.assets) {
+      await writeFile(longTermTargets.assets, creativeAssets(payload, links), generatedFiles);
+    }
+    if (optionalOutputs.topics && longTermTargets.topics) {
+      await writeFile(longTermTargets.topics, topics(payload, links), generatedFiles);
+    }
+    if (optionalOutputs.outline && longTermTargets.outline) {
+      await writeFile(longTermTargets.outline, outline(payload, links), generatedFiles);
+    }
 
-  await writeFile(longTermTargets.raw, contentFile(payload, content, links), generatedFiles);
-  await writeFile(longTermTargets.sourceCard, sourceCard(payload, runDirName, links, grounding), generatedFiles);
-  await writeFile(longTermTargets.wikiEntry, wikiEntryResult.markdown, generatedFiles);
-  if (optionalOutputs.claims && longTermTargets.claims) {
-    await writeFile(longTermTargets.claims, claims(payload, links, grounding), generatedFiles);
+    const warnings = [...payload.warnings, ...groundingWarnings(grounding), ...collisionWarnings];
+    await writeSummary(root, runDir, payload, generatedFiles, warnings, links, grounding);
+    return { runId, runDir, generatedFiles, warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
+  } catch (error) {
+    await Promise.all(generatedFiles.map(async (file) => {
+      try {
+        await fs.rm(file, { force: true });
+      } catch {
+        // Preserve the original write error when cleanup cannot remove an artifact.
+      }
+    }));
+    try {
+      await fs.rm(runDir, { recursive: true, force: true });
+    } catch {
+      // Preserve the original write error when cleanup cannot remove the run directory.
+    }
+    throw error;
   }
-  if (optionalOutputs.assets && longTermTargets.assets) {
-    await writeFile(longTermTargets.assets, creativeAssets(payload, links), generatedFiles);
-  }
-  if (optionalOutputs.topics && longTermTargets.topics) {
-    await writeFile(longTermTargets.topics, topics(payload, links), generatedFiles);
-  }
-  if (optionalOutputs.outline && longTermTargets.outline) {
-    await writeFile(longTermTargets.outline, outline(payload, links), generatedFiles);
-  }
-
-  const warnings = [...payload.warnings, ...groundingWarnings(grounding), ...collisionWarnings];
-  await writeSummary(root, runDir, payload, generatedFiles, warnings, links, grounding);
-  return { runId, runDir, generatedFiles, warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
 }
 
 export async function ingestFile(rootPath: string, filePath: string) {
@@ -249,15 +265,16 @@ function frontmatterValue(markdown: string, key: string, expected: string): bool
 }
 
 async function writeFile(target: string, content: string, generatedFiles: string[]) {
+  generatedFiles.push(target);
   try {
     await fs.writeFile(target, content, { encoding: "utf8", flag: "wx" });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      generatedFiles.pop();
       throw new Error(`target file already exists: ${target}`);
     }
     throw error;
   }
-  generatedFiles.push(target);
 }
 
 async function writeSummary(
@@ -323,8 +340,7 @@ async function writeSummary(
     "- 请在 Obsidian 中人工审阅资料卡、Claim 建议、素材建议、选题和大纲。",
     "- AIWiki CLI 不负责网页抓取稳定性。"
   ];
-  await fs.writeFile(summaryPath, `${lines.join("\n")}\n`, { encoding: "utf8", flag: "wx" });
-  generatedFiles.push(summaryPath);
+  await writeFile(summaryPath, `${lines.join("\n")}\n`, generatedFiles);
 }
 
 function contentFile(payload: NormalizedPayload, content: string, links: ArtifactLinks): string {
@@ -822,7 +838,7 @@ function obsidianLink(vaultPath: string, label: string) {
 }
 
 function escapeYaml(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r");
 }
 
 function createRunId(now: string): string {
