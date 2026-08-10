@@ -1,6 +1,13 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { AIWIKI_EXTENSION_API_VERSION } from "./api.js";
+import {
+  isExtensionCapability,
+  satisfiesApiRange,
+  validatePermissionToken,
+  type ExtensionCapability,
+  type ExtensionPermissionToken,
+} from "./permissions.js";
 
 export const EXTENSION_MANIFEST_FILE = "aiwiki-extension.json";
 
@@ -10,6 +17,11 @@ export type ExtensionManifest = Readonly<{
   name: string;
   version: string;
   apiVersion: typeof AIWIKI_EXTENSION_API_VERSION;
+  /** Advisory declarations supplied as extension metadata. */
+  capabilities?: readonly ExtensionCapability[];
+  /** Advisory declarations supplied as extension metadata. */
+  permissions?: readonly ExtensionPermissionToken[];
+  aiwikiApi?: string;
   entry: string;
 }>;
 
@@ -45,12 +57,25 @@ export function parseExtensionManifest(value: unknown): ExtensionManifest {
   const version = requiredString(value, "version");
   const apiVersion = requiredString(value, "api_version");
   const entry = requiredString(value, "entry");
+  const aiwikiApi = optionalString(value, "aiwiki_api");
+  const capabilities = optionalCapabilities(value);
+  const permissions = optionalPermissions(value);
 
   if (schemaVersion !== AIWIKI_EXTENSION_API_VERSION) {
     throw new ExtensionManifestError(`schema_version must be "${AIWIKI_EXTENSION_API_VERSION}".`);
   }
   if (apiVersion !== AIWIKI_EXTENSION_API_VERSION) {
+    if (aiwikiApi !== undefined) {
+      throw new ExtensionManifestError(
+        `api_version "${apiVersion}" conflicts with aiwiki_api "${aiwikiApi}"; api_version must be "${AIWIKI_EXTENSION_API_VERSION}".`,
+      );
+    }
     throw new ExtensionManifestError(`api_version must be "${AIWIKI_EXTENSION_API_VERSION}".`);
+  }
+  if (aiwikiApi !== undefined && !satisfiesApiRange(aiwikiApi, "1.0.0")) {
+    throw new ExtensionManifestError(
+      `aiwiki_api "${aiwikiApi}" must be a supported API range compatible with implemented API 1.0.0.`,
+    );
   }
   if (!/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(id)) {
     throw new ExtensionManifestError("id must be a lowercase dotted, dashed, or underscored identifier.");
@@ -59,7 +84,69 @@ export function parseExtensionManifest(value: unknown): ExtensionManifest {
     throw new ExtensionManifestError("entry must be an in-root relative .js or .mjs path.");
   }
 
-  return { schemaVersion, id, name, version, apiVersion, entry };
+  return {
+    schemaVersion,
+    id,
+    name,
+    version,
+    apiVersion,
+    entry,
+    ...(aiwikiApi === undefined ? {} : { aiwikiApi }),
+    ...(capabilities === undefined ? {} : { capabilities }),
+    ...(permissions === undefined ? {} : { permissions }),
+  };
+}
+
+function optionalString(value: Record<string, unknown>, field: string): string | undefined {
+  if (!Object.hasOwn(value, field)) {
+    return undefined;
+  }
+
+  const fieldValue = value[field];
+  if (typeof fieldValue !== "string" || fieldValue.trim() === "") {
+    throw new ExtensionManifestError(`${field} must be a non-empty string when present.`);
+  }
+
+  return fieldValue;
+}
+
+function optionalCapabilities(value: Record<string, unknown>): ExtensionCapability[] | undefined {
+  if (!Object.hasOwn(value, "capabilities")) {
+    return undefined;
+  }
+
+  const rawCapabilities = value["capabilities"];
+  if (!Array.isArray(rawCapabilities)) {
+    throw new ExtensionManifestError("capabilities must be an array when present.");
+  }
+
+  return rawCapabilities.map((capability) => {
+    if (!isExtensionCapability(capability)) {
+      throw new ExtensionManifestError(
+        `capabilities contains unknown capability kind ${JSON.stringify(capability)}.`,
+      );
+    }
+    return capability;
+  });
+}
+
+function optionalPermissions(value: Record<string, unknown>): ExtensionPermissionToken[] | undefined {
+  if (!Object.hasOwn(value, "permissions")) {
+    return undefined;
+  }
+
+  const rawPermissions = value["permissions"];
+  if (!Array.isArray(rawPermissions)) {
+    throw new ExtensionManifestError("permissions must be an array when present.");
+  }
+
+  return rawPermissions.map((permission) => {
+    const validation = validatePermissionToken(permission);
+    if (!validation.ok) {
+      throw new ExtensionManifestError(`permissions contains ${validation.error}`);
+    }
+    return validation.token;
+  });
 }
 
 async function resolveExtensionRoot(extensionRoot: string): Promise<string> {

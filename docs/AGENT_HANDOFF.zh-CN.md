@@ -76,13 +76,13 @@ aiwiki show <topic> --path <workspace>
 | 只有用户明确要求确认结构化索引是否最新、构建索引或重建索引时 | 先用 `aiwiki index status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、分类计数和重复来源 URL 数 | 不要自动构建或重建索引；索引缺失、过期或损坏时仍可直接从 Markdown 检索 |
 | 只有用户明确要求确认关系图是否最新、构建关系图或重建关系图时 | 先用 `aiwiki graph status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki graph build --path <workspace> --json` 或 `aiwiki graph rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、有类型边计数、未解析 target 诊断和锁冲突 | 不要自动构建或重建关系图；关系图缺失、过期或损坏时仍可直接从 Markdown 检索；默认 Context v1 保持独立 |
 | 只有在用户明确要求追溯关系、上游/下游依赖或冲突时 | 在已有 fresh 关系图时，运行 `aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>` | 读取 `aiwiki.context.v2`、图状态、关系路径、evidence 状态、生命周期/风险警告与 `recommended_next_action` | 不用于普通 context；不要自动构建或重建关系图 state；`--graph-depth` 只能是 `1`、`2` 或 `3` |
-| 显式 extension 管理 | 列表使用 `aiwiki plugin list --json --path <workspace>`；仅添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；仅启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>` | 汇报命令结果和精确 extension 状态 | 对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，要求明确动作、目录或 ID；不要自动发现、启用或执行 |
+| 显式 extension 管理 | 列表使用 `aiwiki plugin list --json --path <workspace>`；仅检查、启用、禁用或移除用户提供的精确 ID，分别使用 `aiwiki plugin inspect <id> --json --path <workspace>`、`aiwiki plugin enable <id> --path <workspace>`、`aiwiki plugin disable <id> --path <workspace>` 或 `aiwiki plugin remove <id> --path <workspace>`；仅添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；只有用户明确要求时运行 `aiwiki plugin doctor --json --path <workspace>` | 汇报命令结果和精确 extension 状态 | 对“找个插件”“自动选择 skill”“启用合适扩展”这类模糊请求，要求明确动作、目录或 ID；不要自动发现、检查、启用、执行、禁用或移除 |
 
 ## Schema Compatibility Boundary
 
 保持现有命令优先的意图映射不变。`aiwiki.context.v1` 与 `aiwiki.context.capsule.v1` 仍是受支持的 Agent JSON 输出；历史工作区 `schema_version: 1` 仍按 `aiwiki.workspace.v1` 读取且不回写。未知未来 schema 主版本只能人工复核，不存在 CLI 迁移路径。详见 [Schema Compatibility](schema/README.zh-CN.md)。
 
-仅声明的 Extension API v0.1 只支持显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`。保持该匹配边界：不要从普通自然语言推断这些命令、自动发现 extension、自动启用 extension、自动执行 extension，也不要把 Host 描述成 sandbox。精确映射见随包交付的 `skill/EXTENSION_PROTOCOL.md`。
+仅声明的 `aiwiki.extension.v1` Extension API 只支持显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin inspect <id>`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`、`aiwiki plugin disable <id>`、`aiwiki plugin remove <id>` 和 `aiwiki plugin doctor`。它采用 declared-permission audit + no-injection default；NOT a runtime OS sandbox。保持该匹配边界：不要从普通自然语言推断这些命令，也不要自动发现、检查、启用、执行、禁用或移除 extension。精确映射见随包交付的 `skill/EXTENSION_PROTOCOL.md`。
 
 `aiwiki health --json` 输出附加的只读 `aiwiki.health.v1` 快照。`aiwiki repair --plan --json` 输出附加的只读 `aiwiki.repair_plan.v1` 建议计划。用户明确要求生成或保存报告时，`aiwiki health --write --json` 输出 `aiwiki.health_report.v1`，只更新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录；不会修改知识 Markdown 或构建派生 state。
 
@@ -108,7 +108,7 @@ aiwiki context <topic> --view graph --graph-depth 1 --path <workspace>
 
 ## 显式 Extension 意图
 
-只有在用户明确提出 extension 管理请求时才使用这些命令。列出使用 `aiwiki plugin list --json --path <workspace>`；只添加用户提供的目录 `aiwiki plugin add <directory> --path <workspace>`；只启用用户提供的精确 ID `aiwiki plugin enable <id> --path <workspace>`。对于模糊请求，要求用户给出明确动作以及所需目录或 ID；不要自动扫描、选择、启用或执行 extension。
+只有在用户明确提出 extension 管理请求时才使用这些 `aiwiki.extension.v1` 命令：`aiwiki plugin list --json --path <workspace>`、`aiwiki plugin inspect <id> --json --path <workspace>`、`aiwiki plugin add <directory> --path <workspace>`、`aiwiki plugin enable <id> --path <workspace>`、`aiwiki plugin disable <id> --path <workspace>`、`aiwiki plugin remove <id> --path <workspace>` 和 `aiwiki plugin doctor --json --path <workspace>`。它们采用 declared-permission audit + no-injection default；NOT a runtime OS sandbox。对于模糊请求，要求用户给出明确动作以及所需目录或 ID；不要自动扫描、选择、检查、启用、执行、禁用或移除 extension。
 
 ## 合同测试矩阵
 
@@ -161,6 +161,8 @@ Wiki 条目：<wiki_entry>
 如果 `wiki_entry_quality` 是 `scaffold`，要说明它只是可追踪脚手架，仍需要助手继续补全高质量知识提炼。
 
 ## 查询协议
+
+用户要求从工作区复用知识以写作、研究、决策、审查或复盘时，先调用 AIWiki context。之后按对应的规范执行：[写作](workflows/WRITING.zh-CN.md)、[研究](workflows/RESEARCH.zh-CN.md)、[决策](workflows/DECISION.zh-CN.md) 和 [审查 / 复盘](workflows/REVIEW.zh-CN.md)。复盘是 review 的别名。保持命令优先回退顺序：`context` → `query` → `show` → 扩大主题或入库用户提供的资料 → 有边界地检查本地文件，并说明哪个命令不足。
 
 用户问 AIWiki 里某个主题时，调用：
 

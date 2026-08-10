@@ -1,0 +1,11 @@
+{
+  "schema_version": "aiwiki.extension.v1",
+  "id": "example.research-workflow",
+  "name": "AIWiki Research Workflow example",
+  "version": "1.0.0",
+  "entry": "index.mjs",
+  "api_version": "aiwiki.extension.v1",
+  "aiwiki_api": "^1.0.0",
+  "capabilities": ["command", "lint_rule"],
+  "permissions": ["workspace:read"]
+}

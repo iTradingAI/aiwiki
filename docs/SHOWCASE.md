@@ -1,140 +1,76 @@
 # AIWiki Showcase
 
-This page shows what a real AIWiki run creates.
+This page shows four workflow-specific ways to reuse a local Markdown knowledge
+base. Follow the [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix): match
+the request to an AIWiki command first, interpret the command output, and use a
+bounded fallback only when the command cannot answer the request.
 
-Each scenario follows the [Core Intent Matrix](AGENT_HANDOFF.md#core-intent-matrix): match the request to an AIWiki command first, explain the command output, and use a fallback only when the command cannot answer the request.
-
-## 10-minute Trial Walkthrough
-
-This is the public-trial happy path:
-
-```text
-1. Create a temporary knowledge base.
-2. Ingest one readable source.
-3. Inspect the generated run summary, Source Card, and Wiki Entry.
-4. Ask the knowledge base one question.
-5. Run lint/doctor for workspace health.
-6. Send feedback with the trial template.
-7. Classify the signal before it enters the queue.
-```
-
-Commands for a local-file trial:
+## Shared Trial Path
 
 ```bash
 aiwiki setup --path ./aiwiki-trial --yes
-aiwiki doctor --path ./aiwiki-trial
-aiwiki ingest-file --file ./my-first-source.md --path ./aiwiki-trial
-aiwiki query "my topic" --path ./aiwiki-trial
-aiwiki context "my topic" --path ./aiwiki-trial
+aiwiki ingest-file --file ./my-input.md --path ./aiwiki-trial
+aiwiki context "<topic>" --path ./aiwiki-trial
+aiwiki query "<topic>" --path ./aiwiki-trial
+aiwiki show "<selected topic>" --path ./aiwiki-trial
 aiwiki lint --json --path ./aiwiki-trial
 ```
 
-For a URL trial, the assistant reads the URL first, then calls `aiwiki ingest-agent` with the content it read.
+A successful local-file ingest creates a Raw record, Source Card, Wiki Entry, and
+run artifacts. `context` returns the stable Agent JSON; `query` gives readable
+retrieval output; `show` inspects a selected artifact; and `lint --json` checks
+the workspace. Read quality signals before relying on a result.
 
-After the walkthrough, use [TRIAL_FEEDBACK_TEMPLATE.md](TRIAL_FEEDBACK_TEMPLATE.md) and [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md). Classify the result as installation, first-use, ingest-result, directory, query-reuse, or feature-request before making roadmap decisions.
+## 1. Writing: Keep Topic Planning Available
 
-## Scenario 1: Ingest an Article
+**Try:** the [topic-planning input](../examples/public-trial-scenarios/input/topic-planning.md), then ask what topic directions are already captured.
 
-User message:
+**What it shows:** a writing workflow retrieves prior audience, angles, and
+quality warnings before a draft begins. The assistant identifies the Wiki Entry
+or Source Card that informed the draft instead of relying only on the current
+chat.
 
-```text
-Ingest this into AIWiki:
-https://example.com/article
-```
+**Protocol:** [Writing workflow](workflows/WRITING.md).
 
-Assistant work:
+## 2. Research: Trace an Article Answer
 
-1. read the source
-2. create an `aiwiki.agent_payload.v1` payload
-3. provide `analysis` or `wiki_entry` when possible
-4. call `aiwiki ingest-agent --stdin`
-5. report the generated files
+**Try:** the [article-research input](../examples/public-trial-scenarios/input/article-research.md), then ask what evidence is preserved.
 
-Core output:
+**What it shows:** a research workflow starts with context, compares readable
+matches, and uses `show` when source detail matters. The answer distinguishes a
+traceable scaffold from an Agent-enriched result.
 
-```text
-09-runs/<run-id>/payload.json
-09-runs/<run-id>/raw.md
-09-runs/<run-id>/source-card.md
-09-runs/<run-id>/wiki-entry.md
-09-runs/<run-id>/processing-summary.md
-02-raw/articles/<slug>.md
-03-sources/article-cards/<slug>.md
-05-wiki/source-knowledge/<slug>.md
-```
+**Protocol:** [Research workflow](workflows/RESEARCH.md).
 
-Optional output appears only when the assistant provides matching content:
+## 3. Decision: Recover Constraints Before Changing Direction
 
-```text
-09-runs/<run-id>/creative-assets.md
-09-runs/<run-id>/topics.md
-09-runs/<run-id>/draft-outline.md
-04-claims/_suggestions/
-06-assets/_suggestions/
-07-topics/ready/
-08-outputs/outlines/
-```
+**Try:** the [project-decision input](../examples/public-trial-scenarios/input/project-decision.md), then ask why the earlier choice was made.
 
-## Scenario 2: The Source Cannot Be Read
+**What it shows:** a decision workflow recovers constraints and rejected
+alternatives before recommending a change. It records uncertainty instead of
+pretending that an incomplete match resolves a tradeoff.
 
-Some pages require login or cannot be accessed by the assistant.
+**Protocol:** [Decision workflow](workflows/DECISION.md).
 
-AIWiki should still record the attempt:
+## 4. Review / Retrospective: Record the Next Check
 
-```text
-09-runs/<run-id>/payload.json
-09-runs/<run-id>/processing-summary.md
-```
+**Try:** the [review-retrospective input](../examples/public-trial-scenarios/input/review-retrospective.md), then ask what was verified, what gaps remain, and what should be reviewed next.
 
-The failure reason is preserved, and the user can retry later when the assistant can access the source.
+**What it shows:** a review workflow preserves the prior outcome, evidence and
+quality observations, gaps, and next review action. Retrospective is the review
+workflow alias, not a separate retrieval type.
 
-The fallback is not a generic crawl or a manual payload task for the user. The host Agent records a failed-fetch payload so the failed attempt remains traceable.
+**Protocol:** [Review workflow](workflows/REVIEW.md).
 
-## Scenario 3: Reuse the Knowledge Later
+## Public-Trial Scenario Pack
 
-User message:
+The [public-trial scenario pack](../examples/public-trial-scenarios/) contains
+four independently runnable examples: research, writing, decision, and review /
+retrospective. Each includes input material, setup and retrieval commands,
+expected Raw/Source Card/Wiki Entry/run artifacts, a reuse request, maintenance
+value, and success evidence.
 
-```text
-What does AIWiki know about AI agents?
-```
-
-Assistant command:
-
-```bash
-aiwiki context "AI agents"
-```
-
-The assistant should use the returned JSON, including match reasons and quality signals, before answering.
-
-If the result cannot answer the question, the assistant may inspect the relevant files after explaining why `context` or `query` was insufficient.
-
-## Sample Files
-
-- [`../examples/demo-run/`](../examples/demo-run/) records input files, commands, and CLI outputs.
-- [`../examples/obsidian-vault-sample/`](../examples/obsidian-vault-sample/) is a generated sample vault.
-- [`../examples/public-trial-scenarios/`](../examples/public-trial-scenarios/) provides three runnable public-trial examples: article research memory, topic planning memory, and project decision memory.
-
-The sample does not rely on crawling, vector search, RAG-over-wiki, or Pro automation. It shows the real base CLI file contract.
-
-## Public Trial Scenario Pack
-
-Use the scenario pack when a user asks, "What should I try first?"
-
-Each scenario includes:
-
-- sample input material
-- base CLI commands
-- expected Raw, Source Card, Wiki Entry, and run artifacts
-- a query/context reuse prompt
-- why the knowledge is worth maintaining over time
-- WeChat-group-ready usage copy
-
-Suggested order:
-
-```text
-article research memory
-  -> topic planning memory
-  -> project decision memory
-```
-
-This order starts from the most common reading workflow, moves into content reuse, and ends with team/project memory. It keeps the trial focused on local Markdown knowledge reuse instead of adding crawling, vectors, or Pro features.
+If retrieval is insufficient, keep the fallback explicit and ordered: `context`
+→ `query` → `show` → broaden the topic or ingest user-provided material →
+bounded local inspection. State which command was insufficient; do not present
+local inspection as the default path.

@@ -7,6 +7,33 @@ Use this protocol when the user asks:
 - AIWiki 里有没有关于某个主题的内容
 - 帮我用 AIWiki 写一篇文章大纲
 
+
+## Workflow Router
+
+Use this compact router only for an explicit request to reuse AIWiki knowledge in
+one of these workflows. Keep normal command-first ingest, query, and lint
+precedence unchanged.
+
+| Intent / intent | Canonical protocol |
+| --- | --- |
+| Writing / 写作 | [`workflows/WRITING.md`](workflows/WRITING.md) |
+| Research / 研究 | [`workflows/RESEARCH.md`](workflows/RESEARCH.md) |
+| Decision / 决策 | [`workflows/DECISION.md`](workflows/DECISION.md) |
+| Review, retrospective / 审查、复盘 | [`workflows/REVIEW.md`](workflows/REVIEW.md) |
+
+For every routed workflow, start with the shared retrieval path:
+
+```bash
+aiwiki context "<topic>"
+aiwiki query "<topic>"
+aiwiki show "<selected topic>"
+```
+
+Read the returned quality and next-action fields before answering. If retrieval
+is insufficient, follow the documented fallback: broaden the topic or ingest
+user-provided material before bounded local inspection. Review and retrospective
+share the `reuse_guidance.review` key; retrospective is not a separate type.
+
 ## Steps
 
 1. Identify the topic and expected output shape.

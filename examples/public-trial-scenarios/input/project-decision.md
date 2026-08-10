@@ -1,5 +1,7 @@
 # Project Decision Memory
 
+**Workflow Type / 工作流类型:** Decision / 决策
+
 ## Decision
 
 Start with a local Markdown knowledge base before adding heavier retrieval
@@ -14,12 +16,12 @@ systems.
 
 ## Rejected Alternatives
 
-- Browser plugin first: too much installation and permission surface for the
+- Browser integration first: too much installation and permission surface for the
   first trial.
-- Vector database first: useful later, but it hides the file contract before
-  users trust the workflow.
-- Scheduled RSS collection first: it solves volume before the basic reuse loop
-  is proven.
+- A hosted retrieval system first: it hides the file contract before users trust
+  the workflow.
+- Automatic collection first: it solves volume before the basic reuse loop is
+  proven.
 
 ## Review Trigger
 
