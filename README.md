@@ -18,7 +18,7 @@
 
 **Save what your AI reads. Ask it later. Keep everything local.**
 
-Current release: **0.7.0**
+Current release: **0.7.1**
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 
@@ -339,6 +339,25 @@ The goal is simple: make what your assistant reads useful again later.
 AIWiki is built for assistant-driven workflows. `aiwiki setup --path "<workspace>" --yes` creates or repairs the knowledge base and refreshes workspace guidance in `AGENTS.md`. `aiwiki agent sync --yes` syncs packaged AIWiki instructions into supported local assistant environments. Use `aiwiki agent sync --path "<workspace>" --yes` only when you want to manually refresh workspace guidance without running setup.
 
 See [Agent Handoff](docs/AGENT_HANDOFF.md) for the full command-first contract.
+
+## MCP Server
+
+AIWiki includes a standard [Model Context Protocol](https://modelcontextprotocol.io/) server (`aiwiki-mcp`) that exposes all six knowledge capabilities (ingest, context, query, show, lint, health) to any MCP-compatible AI client. It has zero runtime dependencies and communicates over stdio using JSON-RPC 2.0.
+
+To connect Claude Desktop or another MCP client, add this to your client configuration:
+
+```json
+{
+  "mcpServers": {
+    "aiwiki": {
+      "command": "npx",
+      "args": ["-y", "@itradingai/aiwiki@latest", "/absolute/path/to/your/knowledge"]
+    }
+  }
+}
+```
+
+See [MCP Server Guide](docs/MCP.md) for the full configuration options, tool schemas, and trust model.
 
 ## Obsidian and Dataview
 

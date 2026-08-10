@@ -16,8 +16,11 @@ const repositoryTreeRoot = "https://github.com/iTradingAI/aiwiki/tree/main/";
 const englishPackageLinkRewrites = new Map([
   ["docs/AGENT_HANDOFF.md#core-intent-matrix", `${repositoryBlobRoot}docs/AGENT_HANDOFF.md#core-intent-matrix`],
   ["docs/AGENT_HANDOFF.md", `${repositoryBlobRoot}docs/AGENT_HANDOFF.md`],
-  ["docs/RELEASE.md", `${repositoryBlobRoot}docs/RELEASE.md`],
   ["docs/TRIAL_FEEDBACK_TEMPLATE.md", `${repositoryBlobRoot}docs/TRIAL_FEEDBACK_TEMPLATE.md`],
+  ["docs/RELEASE.md", `${repositoryBlobRoot}docs/RELEASE.md`],
+  ["docs/SDK.md", "./docs/SDK.md"],
+  ["docs/MCP.md", "./docs/MCP.md"],
+  ["docs/AGENT_CONTRACT.md", "./docs/AGENT_CONTRACT.md"],
   ["examples/demo-run/", `${repositoryTreeRoot}examples/demo-run`],
   ["examples/obsidian-vault-sample/", `${repositoryTreeRoot}examples/obsidian-vault-sample`],
   ["examples/public-trial-scenarios/", `${repositoryTreeRoot}examples/public-trial-scenarios`]
@@ -42,6 +45,9 @@ const chinesePackageLinkRewrites = new Map([
   ["docs/SHOWCASE.zh-CN.md", "./SHOWCASE.zh-CN.md"],
   ["docs/USAGE.zh-CN.md#3-入库资料", "./USAGE.zh-CN.md#3-入库资料"],
   ["docs/USAGE.zh-CN.md", "./USAGE.zh-CN.md"],
+  ["docs/SDK.zh-CN.md", "./SDK.zh-CN.md"],
+  ["docs/MCP.zh-CN.md", "./MCP.zh-CN.md"],
+  ["docs/AGENT_CONTRACT.zh-CN.md", "./AGENT_CONTRACT.zh-CN.md"],
   ["docs/schema/README.zh-CN.md", "./schema/README.zh-CN.md"],
   ["docs/schema/STATE.zh-CN.md", "./schema/STATE.zh-CN.md"],
   ["examples/demo-run/", `${repositoryTreeRoot}examples/demo-run`],

@@ -1,6 +1,6 @@
 # AIWiki 中文文档
 
-当前版本：**0.7.0**
+当前版本：**0.7.1**
 
 ## Core Intent Matrix
 
@@ -17,6 +17,9 @@ AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 - [使用指南](USAGE.zh-CN.md)
 - [常见问题](FAQ.zh-CN.md)
 - [Agent 接入说明](AGENT_HANDOFF.zh-CN.md)
+- [SDK 参考](SDK.zh-CN.md)
+- [MCP 服务器指南](MCP.zh-CN.md)
+- [Agent 合同](AGENT_CONTRACT.zh-CN.md)
 - [案例展示](SHOWCASE.zh-CN.md)
 
 ## 工作流包

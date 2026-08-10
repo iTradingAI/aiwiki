@@ -2,6 +2,11 @@
 
 本日志记录面向使用者的公开版本历史。只有同时验证仓库 tag 与 npm 产物映射后才会列出两类证据；仅存在于 registry 的历史会单独标注。
 
+## [0.7.1] - 2026-08-10
+
+- 修复 MCP 客户端配置文档：添加 `mcpServers` 包装格式、`npx` 用法和绝对路径示例，覆盖 Claude Desktop、Cline 和其他 MCP 客户端。
+- 在 README.md、README.zh-CN.md、USAGE.md 和 USAGE.zh-CN.md 中新增 MCP 快速上手说明。
+
 ## [0.7.0] - 2026-08-10
 
 - 在 `aiwiki.public.v1` 中新增稳定 SDK 导出：query、show、health、lifecycle、relationship 和 graph-context 操作。

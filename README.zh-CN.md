@@ -28,7 +28,7 @@ Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、`doctor`、`status` �
 
 **把 AI 助手读过的资料，变成以后可以查询、复用、整理的本地知识库。**
 
-当前版本：**0.7.0**
+当前版本：**0.7.1**
 
 AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 
@@ -328,6 +328,25 @@ AIWiki 不是简单拼接两套方法。
 AIWiki 面向 AI 助手驱动的工作流。`aiwiki setup --path "<workspace>" --yes` 会创建或修复知识库，并刷新知识库根目录的 `AGENTS.md` 指导。`aiwiki agent sync --yes` 会把 AIWiki 的说明同步到支持的本地助手环境。只有想手动刷新根指导、但不需要重新 setup 时，才需要运行 `aiwiki agent sync --path "<workspace>" --yes`。
 
 完整的命令优先协作约定见 [Agent 接入说明](docs/AGENT_HANDOFF.zh-CN.md)。
+
+## MCP 服务器
+
+AIWiki 内置标准 [Model Context Protocol](https://modelcontextprotocol.io/) 服务器（`aiwiki-mcp`），将全部六项知识能力（ingest、context、query、show、lint、health）暴露给任何 MCP 兼容的 AI 客户端。零运行时依赖，通过 stdio 使用 JSON-RPC 2.0 通信。
+
+在 Claude Desktop 或其他 MCP 客户端的配置中添加：
+
+```json
+{
+  "mcpServers": {
+    "aiwiki": {
+      "command": "npx",
+      "args": ["-y", "@itradingai/aiwiki@latest", "/absolute/path/to/your/knowledge"]
+    }
+  }
+}
+```
+
+完整配置选项、工具 schema 和信任模型见 [MCP 服务器指南](docs/MCP.zh-CN.md)。
 
 ## Obsidian / Dataview
 
