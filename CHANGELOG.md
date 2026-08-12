@@ -2,6 +2,16 @@
 
 This changelog records public, consumer-visible release history. Repository tags and npm artifacts are cited only where both mappings were verified; registry-only history is labeled separately.
 
+## [0.8.0] - 2026-08-12
+
+- Added additive `aiwiki.doctor.v1`, `aiwiki.status.v1`, and `aiwiki.next.v1` JSON contracts with one shared readiness model and stable ordered action identifiers.
+- Added five explicit first-use states: `repair_required`, `setup_required`, `first_ingest_required`, `review_required`, and `ready`.
+- Made diagnostic collection strictly read-only, including capability checks, live lint observation, content metrics, and run history; no command or suggested action is executed automatically.
+- Preserved existing text output and exit-code behavior while adding machine-readable diagnostics for fresh and incomplete workspaces.
+- Kept Health, repair planning, host-Agent checks, SDK exports, MCP tools, extensions, and Pro capabilities outside the readiness contract.
+
+This entry describes the current source release. It does not assert a tag, GitHub Release, or npm artifact before those publication gates complete.
+
 ## [0.7.1] - 2026-08-10
 
 - Fixed MCP client configuration documentation: added `mcpServers` wrapper format, `npx` usage, and absolute-path examples for Claude Desktop, Cline, and other MCP clients.

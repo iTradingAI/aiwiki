@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { promises as fs } from "node:fs";
 import { test } from "node:test";
 import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -62,6 +63,34 @@ test("config and doctor report fresh workspace", async () => {
     const checks = await doctor(root);
     assert.equal(checks.some((check) => check.status !== "ok"), false);
   } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("doctor diagnostics never invoke mutation methods", async () => {
+  const root = await tempRoot("aiwiki-doctor-read-only");
+  const mutationMethods = ["writeFile", "unlink", "mkdir", "rename", "rm"] as const;
+  const originals = new Map<string, unknown>();
+  const calls: string[] = [];
+  try {
+    await initWorkspace(root);
+    for (const method of mutationMethods) {
+      originals.set(method, fs[method]);
+      Object.defineProperty(fs, method, {
+        configurable: true,
+        value: async () => {
+          calls.push(method);
+          throw new Error(`diagnostic mutation attempted: ${method}`);
+        }
+      });
+    }
+
+    await doctor(root);
+    assert.deepEqual(calls, []);
+  } finally {
+    for (const [method, original] of originals) {
+      Object.defineProperty(fs, method, { configurable: true, value: original });
+    }
     await rm(root, { recursive: true, force: true });
   }
 });

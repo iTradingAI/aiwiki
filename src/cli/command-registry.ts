@@ -212,13 +212,19 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
       id: "doctor",
       matches: ({ command }) => command === "doctor",
       handle: handlers.doctor,
-      help: [{ usage: "aiwiki doctor", visibility: "public", scope: "base" }]
+      help: [
+        { usage: "aiwiki doctor", visibility: "public", scope: "base" },
+        { usage: "aiwiki doctor --json", visibility: "public", scope: "base" }
+      ]
     },
     {
       id: "status",
       matches: ({ command }) => command === "status",
       handle: handlers.status,
-      help: [{ usage: "aiwiki status", visibility: "public", scope: "base" }]
+      help: [
+        { usage: "aiwiki status", visibility: "public", scope: "base" },
+        { usage: "aiwiki status --json", visibility: "public", scope: "base" }
+      ]
     },
     {
       id: "show",
@@ -295,7 +301,8 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
     {
       id: "next",
       matches: ({ command }) => command === "next",
-      handle: handlers.next
+      handle: handlers.next,
+      help: [{ usage: "aiwiki next --json", visibility: "public", scope: "base" }]
     },
     {
       id: "ingest-url",

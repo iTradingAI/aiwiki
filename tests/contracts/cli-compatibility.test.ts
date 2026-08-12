@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -50,6 +50,19 @@ function runInstalledCliResult(consumerRoot: string, args: string[]): RunResult 
   return runResult(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", ["node_modules\\.bin\\aiwiki.cmd", ...args].join(" ")], consumerRoot);
 }
 
+function fileSnapshot(root: string): string[] {
+  const visit = (directory: string): string[] => {
+    if (!existsSync(directory)) return [];
+    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) return visit(absolute);
+      if (entry.isFile()) return [path.relative(root, absolute).replace(/\\/g, "/")];
+      return [];
+    });
+  };
+  return visit(root).sort();
+}
+
 test("packed CLI preserves Core command and Context view compatibility", () => {
   const repositoryRoot = process.cwd();
   const consumerRoot = mkdtempSync(path.join(os.tmpdir(), "aiwiki-cli-contract-"));
@@ -68,6 +81,27 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
     runInstalledCli(consumerRoot, ["init", "--path", vaultPath, "--yes"]);
 
     const vaultRoot = path.join(consumerRoot, vaultPath);
+    const beforeDiagnostics = fileSnapshot(vaultRoot);
+    const diagnosticReadiness: unknown[] = [];
+    for (const [command, schema] of [
+      ["doctor", "aiwiki.doctor.v1"],
+      ["status", "aiwiki.status.v1"],
+      ["next", "aiwiki.next.v1"]
+    ] as const) {
+      const result = JSON.parse(runInstalledCli(consumerRoot, [command, "--json", "--path", vaultPath])) as {
+        schema_version: string;
+        would_write: boolean;
+        readiness: { state: string; actions: unknown[] };
+      };
+      assert.equal(result.schema_version, schema);
+      assert.equal(result.would_write, false);
+      assert.equal(result.readiness.state, "first_ingest_required");
+      diagnosticReadiness.push(result.readiness);
+    }
+    assert.deepEqual(diagnosticReadiness[0], diagnosticReadiness[1]);
+    assert.deepEqual(diagnosticReadiness[1], diagnosticReadiness[2]);
+    assert.deepEqual(fileSnapshot(vaultRoot), beforeDiagnostics);
+    assert.equal(existsSync(path.join(vaultRoot, "_system", "logs", ".doctor-write-test")), false);
     const graphPath = path.join(vaultRoot, ".aiwiki", "state", "graph.json");
     mkdirSync(path.join(vaultRoot, "02-raw", "articles"), { recursive: true });
     mkdirSync(path.join(vaultRoot, "05-wiki", "source-knowledge"), { recursive: true });
@@ -191,6 +225,9 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
     assert.equal(indexStatus.state, "fresh");
     for (const command of [
       "aiwiki setup",
+      "aiwiki doctor --json",
+      "aiwiki status --json",
+      "aiwiki next --json",
       "aiwiki context <query>",
       "aiwiki context <query> --view graph --graph-depth 1",
       "aiwiki lint --maintenance --json",

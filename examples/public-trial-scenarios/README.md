@@ -14,14 +14,19 @@ question:
 
 ```bash
 aiwiki setup --path ./aiwiki-trial --yes
+aiwiki agent check --path ./aiwiki-trial --json
+aiwiki doctor --json --path ./aiwiki-trial
+aiwiki status --json --path ./aiwiki-trial
 aiwiki ingest-file --file examples/public-trial-scenarios/input/<input>.md --path ./aiwiki-trial
+aiwiki status --json --path ./aiwiki-trial
+aiwiki next --json --path ./aiwiki-trial
 aiwiki context "<scenario question>" --path ./aiwiki-trial
 aiwiki query "<scenario question>" --path ./aiwiki-trial
 aiwiki show "<scenario topic>" --path ./aiwiki-trial
 aiwiki lint --json --path ./aiwiki-trial
 ```
 
-`setup` creates the workspace. Successful local-file ingestion produces a Raw
+This is a 5-10 minute first-use route. `setup` creates the workspace; `agent check` independently verifies workspace guidance; and the three read-only diagnostic commands expose `repair_required`, `setup_required`, `first_ingest_required`, `review_required`, or `ready`. They return `would_write: false`; `next` returns `actions_executed: false` and only recommends action IDs such as `ingest_first_source` or `query_knowledge`. Successful local-file ingestion produces a Raw
 record, Source Card, Wiki Entry, and run artifacts. `context` returns
 `aiwiki.context.v1`; `query` gives readable retrieval output; `show` inspects a
 selected artifact or source package; `lint --json` reports structural findings.

@@ -11,7 +11,8 @@ The roadmap keeps the base CLI focused. Advanced automation, crawling, multi-kno
 - clearer assistant-first installation prompt
 - safer `agent sync` and workspace guidance
 - better `agent check` diagnostics
-- a clean path from setup to first ingest to first query
+- a 5-10 minute path from setup to first ingest to first query
+- read-only `doctor --json`, `status --json`, and `next --json` readiness guidance with stable states and action IDs
 
 ### 2. Reusable local knowledge
 
@@ -27,7 +28,7 @@ The roadmap keeps the base CLI focused. Advanced automation, crawling, multi-kno
 - practical lint output for humans and assistants
 - opt-in capsule, lifecycle, and OKF-ready lint checks
 - safe automatic fixes only when the fix is narrow and reversible
-- better status and doctor guidance
+- clear ownership between first-use readiness, health/repair maintenance, and Agent checks
 - fewer empty optional artifacts in new workspaces
 
 ### 4. Public trial assets

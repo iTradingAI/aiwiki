@@ -11,7 +11,8 @@ AIWiki 基础版只有一个公开产品定位：给 AI 助手使用的本地 Ma
 - 更清楚的 AI 助手安装提示词
 - 更安全的 `agent sync` 和知识库根指导
 - 更清楚的 `agent check` 诊断
-- 从 setup 到第一次入库、第一次查询的完整路径
+- 从 setup 到第一次入库、第一次查询的 5-10 分钟完整路径
+- 只读的 `doctor --json`、`status --json`、`next --json` readiness 指引，以及稳定状态和 action ID
 
 ### 2. 本地知识复用
 
@@ -27,7 +28,7 @@ AIWiki 基础版只有一个公开产品定位：给 AI 助手使用的本地 Ma
 - 给人和 AI 助手都能读懂的 lint 输出
 - 显式开启的 capsule、lifecycle 和 OKF-ready lint 检查
 - 只在窄范围、可逆时提供自动安全修复
-- 更好的 status 和 doctor 引导
+- 清楚区分首次使用 readiness、health/repair 维护和 Agent check 的职责
 - 新知识库减少空洞可选产物
 
 ### 4. 公开试用资产

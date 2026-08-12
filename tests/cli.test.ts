@@ -27,6 +27,9 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.match(text, /aiwiki agent check --json/);
   assert.match(text, /aiwiki ingest-agent --stdin/);
   assert.match(text, /aiwiki ingest-file --file <file>/);
+  assert.match(text, /aiwiki doctor --json/);
+  assert.match(text, /aiwiki status --json/);
+  assert.match(text, /aiwiki next --json/);
   assert.match(text, /aiwiki show <query>/);
   assert.match(text, /aiwiki context <query>/);
   assert.match(text, /aiwiki context <query> --view graph --graph-depth 1/);
@@ -981,6 +984,57 @@ test("CLI init config doctor and status", async () => {
   }
 });
 
+test("CLI doctor status and next expose machine-readable readiness JSON", async () => {
+  const root = await tempRoot("aiwiki-cli-readiness-json");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const readiness: unknown[] = [];
+    for (const [command, schema] of [
+      ["doctor", "aiwiki.doctor.v1"],
+      ["status", "aiwiki.status.v1"],
+      ["next", "aiwiki.next.v1"]
+    ] as const) {
+      const stdout = new MemoryWritable();
+      const stderr = new MemoryWritable();
+      const code = await runCli([command, "--json", "--path", root], { stdout, stderr });
+      assert.equal(code, 0);
+      assert.equal(stderr.text(), "");
+      const result = JSON.parse(stdout.text()) as { schema_version: string; readiness: { state: string; actions: unknown[] } };
+      assert.equal(result.schema_version, schema);
+      assert.equal(result.readiness.state, "first_ingest_required");
+      assert.ok(Array.isArray(result.readiness.actions));
+      readiness.push(result.readiness);
+    }
+    assert.deepEqual(readiness[0], readiness[1]);
+    assert.deepEqual(readiness[1], readiness[2]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI readiness JSON reports setup-required paths without stderr leakage", async () => {
+  const parent = await tempRoot("aiwiki-cli-readiness-missing");
+  const root = path.join(parent, "带 空格 的知识库");
+  try {
+    for (const [command, schema, expectedCode] of [
+      ["doctor", "aiwiki.doctor.v1", 1],
+      ["status", "aiwiki.status.v1", 0],
+      ["next", "aiwiki.next.v1", 0]
+    ] as const) {
+      const stdout = new MemoryWritable();
+      const stderr = new MemoryWritable();
+      assert.equal(await runCli([command, "--json", "--path", root], { stdout, stderr }), expectedCode);
+      assert.equal(stderr.text(), "");
+      const result = JSON.parse(stdout.text()) as { schema_version: string; workspace: string; readiness: { state: string } };
+      assert.equal(result.schema_version, schema);
+      assert.equal(result.workspace, root);
+      assert.equal(result.readiness.state, "setup_required");
+    }
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
 test("CLI setup stores default workspace for no-path commands", async () => {
   const root = await tempRoot("aiwiki-cli-setup-root");
   const configHome = await tempRoot("aiwiki-cli-setup-home");
@@ -1697,7 +1751,7 @@ test("CLI next gives setup guidance for fresh workspace and active workspace", a
     await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
     const activeOut = new MemoryWritable();
     assert.equal(await runCli(["next", "--path", root], { stdout: activeOut, stderr: new MemoryWritable() }), 0);
-    assert.match(activeOut.text(), /aiwiki query/);
+    assert.match(activeOut.text(), /Workspace needs review/);
     assert.match(activeOut.text(), /aiwiki lint/);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -1729,6 +1783,62 @@ test("CLI next prioritizes lint-needed workspace guidance", async () => {
     assert.match(out.text(), /结构检查发现/);
     assert.match(out.text(), /aiwiki lint/);
     assert.doesNotMatch(out.text(), /已有入库记录，可以继续/);
+
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI doctor keeps exit zero when only live lint has a blocking error", async () => {
+  const root = await tempRoot("aiwiki-cli-doctor-lint-error");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await writeFile(path.join(root, "05-wiki", "source-knowledge", "broken-link.md"), "# Broken\n\n[[missing-target]]\n", "utf8");
+    const stdout = new MemoryWritable();
+    const stderr = new MemoryWritable();
+    assert.equal(await runCli(["doctor", "--json", "--path", root], { stdout, stderr }), 0);
+    assert.equal(stderr.text(), "");
+    assert.equal((JSON.parse(stdout.text()) as { readiness: { state: string } }).readiness.state, "repair_required");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("CLI next text follows readiness actions for schema, failure, and quality review", async () => {
+  const root = await tempRoot("aiwiki-cli-next-readiness-actions");
+  try {
+    await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const configPath = path.join(root, "aiwiki.yaml");
+    const config = await readFile(configPath, "utf8");
+    await writeFile(configPath, config.replace("schema_version: 1", "schema_version: 2"), "utf8");
+    const schemaOut = new MemoryWritable();
+    assert.equal(await runCli(["next", "--path", root], { stdout: schemaOut, stderr: new MemoryWritable() }), 0);
+    assert.match(schemaOut.text(), /Workspace requires repair/);
+    assert.match(schemaOut.text(), /aiwiki doctor --json/);
+    assert.doesNotMatch(schemaOut.text(), /healthy enough/);
+
+    await writeFile(configPath, config, "utf8");
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.analysis.grounded.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.fetch_failed.valid.json"), "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+    const failureOut = new MemoryWritable();
+    assert.equal(await runCli(["next", "--path", root], { stdout: failureOut, stderr: new MemoryWritable() }), 0);
+    assert.match(failureOut.text(), /Workspace needs review/);
+    assert.match(failureOut.text(), /aiwiki status --json/);
+    assert.match(failureOut.text(), /repair_order: review/);
+    assert.doesNotMatch(failureOut.text(), /healthy enough/);
+
+    const qualityRoot = await tempRoot("aiwiki-cli-next-quality-review");
+    try {
+      await runCli(["init", "--path", qualityRoot, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+      await runCli(["ingest-agent", "--payload", fixturePath("agent_payload.url.valid.json"), "--path", qualityRoot], { stdout: new MemoryWritable(), stderr: new MemoryWritable() });
+      const qualityOut = new MemoryWritable();
+      assert.equal(await runCli(["next", "--path", qualityRoot], { stdout: qualityOut, stderr: new MemoryWritable() }), 0);
+      assert.match(qualityOut.text(), /Workspace needs review/);
+      assert.match(qualityOut.text(), /aiwiki lint --json --no-write/);
+      assert.doesNotMatch(qualityOut.text(), /healthy enough/);
+    } finally {
+      await rm(qualityRoot, { recursive: true, force: true });
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }
