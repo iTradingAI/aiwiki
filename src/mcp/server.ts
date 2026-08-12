@@ -1,4 +1,5 @@
 import { once } from "node:events";
+import { PACKAGE_VERSION } from "../package-version.js";
 import {
   INTERNAL_ERROR,
   INVALID_PARAMS,
@@ -29,7 +30,7 @@ type JsonObject = Record<string, unknown>;
 const INITIALIZE_RESULT: InitializeResult = {
   protocolVersion: PROTOCOL_VERSION,
   capabilities: { tools: { listChanged: false } },
-  serverInfo: { name: "aiwiki-mcp", version: "0.8.0" },
+  serverInfo: { name: "aiwiki-mcp", version: PACKAGE_VERSION },
 };
 
 export async function runMcpServer(handlers: ServerHandlers): Promise<void> {

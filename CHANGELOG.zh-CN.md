@@ -2,6 +2,12 @@
 
 本日志记录面向使用者的公开版本历史。只有同时验证仓库 tag 与 npm 产物映射后才会列出两类证据；仅存在于 registry 的历史会单独标注。
 
+## [0.8.1] - 2026-08-12
+
+- 修正已发布的 0.8.0 发布记录，并将中英文维护者发布手册改为版本无关的可复用流程。
+- 为所有 0.6.0 之后的公开发布线补充随包 Skill 升级说明。
+- 将 MCP `initialize` 的 `serverInfo.version` 与包版本对齐；协议、工具及其他 CLI/API/schema/extension/Pro 行为均保持不变。
+
 ## [0.8.0] - 2026-08-12
 
 - 新增增量兼容的 `aiwiki.doctor.v1`、`aiwiki.status.v1` 与 `aiwiki.next.v1` JSON 合同；三个命令共享一套 readiness 模型和稳定、有序的 action 标识。
@@ -10,7 +16,7 @@
 - 保留既有文本输出和退出码行为，同时为新建或结构不完整的工作区提供机器可读诊断。
 - Health、修复计划、宿主 Agent 检查、SDK 导出、MCP 工具、extension 与 Pro 能力均不进入 readiness 合同。
 
-本条目描述当前源码版本。在发布门槛完成前，不声称已经存在对应 tag、GitHub Release 或 npm 产物。
+已验证发布：注释 tag `v0.8.0` 指向 `081fa1a3f4ebaa2ac26efab42151eff972471005`；[GitHub Release v0.8.0](https://github.com/iTradingAI/aiwiki/releases/tag/v0.8.0) 已于 2026-08-12 发布；npm 产物 `@itradingai/aiwiki@0.8.0` 的 SHA-1 为 `8c8dcbc83b76ca038761f8dac037dd47b39c4d4e`，完整性校验为 `sha512-sYHJ14NROsDag6X/UU8VcrnOb9LfMEu3L20c/ZJP1+AQRpfVWH8bZFORCCfN4IsIDBWLIGskqWT/p2WUUa+SWQ==`。
 
 ## [0.7.1] - 2026-08-10
 
@@ -23,7 +29,7 @@
 - 新增零运行时依赖的 MCP server：提供 6 个工具，通过 stdio 实现手写 JSON-RPC 2.0，并使用 `2025-06-18` 协议版本。
 - 新增 Agent Contract 文档，说明 AIWiki 与宿主 Agent 的集成合同。
 
-本条目描述当前源码版本。在发布门槛完成前，不声称已经存在对应 tag、GitHub Release 或 npm 产物。
+本条目记录 0.7.0 发布线的源码变更；只有独立验证过的发布映射才会明确列出。
 
 ## [0.6.0] - 2026-08-10
 
@@ -33,7 +39,7 @@
 - 已将工作流与公开试用场景文档纳入发布包内容。
 - CLI 行为、JSON 键、schema 标识符、枚举值和匹配优先级保持不变。
 
-本条目描述当前源码版本。在发布门槛完成前，不声称已经存在对应 tag、GitHub Release 或 npm 产物。
+本条目记录 0.6.0 发布线的源码变更；只有独立验证过的发布映射才会明确列出。
 
 ## [0.5.1] - 2026-07-26
 
@@ -42,7 +48,7 @@
 - 将公开发布说明与维护者发布手册分开，并从使用者文档移除内部任务编号；命令行为和 JSON 合同不变。
 - 在替代站点通过就绪门槛之前，继续以 `https://maxking.cc/aiwiki` 作为规范主页。
 
-本条目描述当前源码版本。在发布门槛完成前，不声称已经存在对应 tag、GitHub Release 或 npm 产物。
+本条目记录 0.5.1 发布线的源码变更；只有独立验证过的发布映射才会明确列出。
 
 ## [0.5.0] - 2026-07-20
 
