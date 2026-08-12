@@ -1,4 +1,4 @@
-import { promises as fs } from "node:fs";
+import { constants as fsConstants, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -57,9 +57,12 @@ export type UserConfig = {
 };
 
 export type DoctorCheck = {
+  id?: string;
   name: string;
-  status: "ok" | "missing" | "permission error";
+  status: "ok" | "missing" | "permission error" | "unknown";
   detail: string;
+  method?: "exists" | "access_check";
+  capabilityState?: "ok" | "blocked" | "unknown";
 };
 
 export type ReadinessStatus = "ok" | "missing" | "needs_attention";
@@ -677,39 +680,63 @@ export async function doctor(rootPath: string) {
   const checks: DoctorCheck[] = [];
   const configPath = path.join(root, CONFIG_FILE);
   checks.push({
+    id: "workspace_config",
     name: CONFIG_FILE,
     status: (await exists(configPath)) ? "ok" : "missing",
-    detail: configPath
+    detail: configPath,
+    method: "exists"
   });
 
   for (const dir of REQUIRED_DIRS) {
     const absolute = path.join(root, dir);
     checks.push({
+      id: `required_directory:${dir}`,
       name: dir,
       status: (await exists(absolute)) ? "ok" : "missing",
-      detail: absolute
+      detail: absolute,
+      method: "exists"
     });
   }
 
   for (const file of REQUIRED_FILES) {
     const absolute = path.join(root, file);
     checks.push({
+      id: `required_file:${file}`,
       name: file,
       status: (await exists(absolute)) ? "ok" : "missing",
-      detail: absolute
+      detail: absolute,
+      method: "exists"
     });
   }
 
-  const writeTarget = path.join(root, "_system", "logs", ".doctor-write-test");
-  try {
-    await fs.writeFile(writeTarget, "ok", "utf8");
-    await fs.unlink(writeTarget);
-    checks.push({ name: "write_permission", status: "ok", detail: root });
-  } catch {
-    checks.push({ name: "write_permission", status: "permission error", detail: root });
-  }
+  checks.push(await accessCheck(root, "workspace_access", "read_permission", fsConstants.R_OK));
+  checks.push(await accessCheck(root, "write_capability", "write_permission", fsConstants.W_OK));
 
   return checks;
+}
+
+async function accessCheck(root: string, id: string, name: string, mode: number): Promise<DoctorCheck> {
+  try {
+    const target = await nearestExistingPath(root);
+    await fs.access(target, mode);
+    return { id, name, status: "ok", detail: root, method: "access_check", capabilityState: "ok" };
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : undefined;
+    if (code === "EACCES" || code === "EPERM" || code === "EROFS" || code === "ENOENT") {
+      return { id, name, status: "permission error", detail: root, method: "access_check", capabilityState: "blocked" };
+    }
+    return { id, name, status: "unknown", detail: code ?? "access_check_failed", method: "access_check", capabilityState: "unknown" };
+  }
+}
+
+async function nearestExistingPath(target: string): Promise<string> {
+  let current = target;
+  while (!(await exists(current))) {
+    const parent = path.dirname(current);
+    if (parent === current) return current;
+    current = parent;
+  }
+  return current;
 }
 
 export type StatusSummary = {
@@ -744,37 +771,30 @@ export async function statusSummary(rootPath: string) {
 
   const entries = await fs.readdir(runsRoot, { withFileTypes: true });
   const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
-  let failedCount = 0;
-
+  const stats: Array<{ dir: string; mtimeMs: number; outcome: "success" | "failure" }> = [];
   for (const dir of dirs) {
     const payloadPath = path.join(runsRoot, dir, "payload.json");
+    let outcome: "success" | "failure" = dir.endsWith("-fetch-failed") ? "failure" : "success";
     try {
       const payload = JSON.parse(await fs.readFile(payloadPath, "utf8")) as { source?: { fetch_status?: string } };
       if (payload.source?.fetch_status === "failed") {
-        failedCount += 1;
+        outcome = "failure";
       }
     } catch {
-      if (dir.endsWith("-fetch-failed")) {
-        failedCount += 1;
-      }
+      // The stable directory suffix remains the compatibility fallback when payload metadata is unavailable.
     }
+    stats.push({ dir, mtimeMs: (await fs.stat(path.join(runsRoot, dir))).mtimeMs, outcome });
   }
-
-  const stats: Array<{ dir: string; mtimeMs: number }> = [];
-  for (const dir of dirs) {
-    stats.push({ dir, mtimeMs: (await fs.stat(path.join(runsRoot, dir))).mtimeMs });
-  }
-  stats.sort((a, b) => b.mtimeMs - a.mtimeMs);
-  const successDirs = dirs.filter((dir) => !dir.endsWith("-fetch-failed"));
-  const failureDirs = dirs.filter((dir) => dir.endsWith("-fetch-failed"));
+  stats.sort((a, b) => b.mtimeMs - a.mtimeMs || a.dir.localeCompare(b.dir));
+  const failedCount = stats.filter((item) => item.outcome === "failure").length;
 
   return {
     root,
     runCount: dirs.length,
     failedCount,
     lastRunId: stats[0]?.dir,
-    lastSuccessRunId: await newestDir(root, successDirs),
-    lastFailureRunId: await newestDir(root, failureDirs),
+    lastSuccessRunId: stats.find((item) => item.outcome === "success")?.dir,
+    lastFailureRunId: stats.find((item) => item.outcome === "failure")?.dir,
     fallbackCount: await countWikiEntries(root, "deterministic_fallback"),
     groundingReviewCount: await countGroundingReviewEntries(root),
     lintStatus: await readLintStatus(root),
@@ -809,15 +829,6 @@ async function systemFileSummary(root: string) {
     files.push({ path: file, status: await exists(path.join(root, file)) ? "ok" : "missing" });
   }
   return files;
-}
-
-async function newestDir(root: string, dirs: string[]): Promise<string | undefined> {
-  const stats: Array<{ dir: string; mtimeMs: number }> = [];
-  for (const dir of dirs) {
-    stats.push({ dir, mtimeMs: (await fs.stat(path.join(root, "09-runs", dir))).mtimeMs });
-  }
-  stats.sort((a, b) => b.mtimeMs - a.mtimeMs);
-  return stats[0]?.dir;
 }
 
 async function countWikiEntries(root: string, generationMode: string): Promise<number> {

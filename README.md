@@ -18,7 +18,7 @@
 
 **Save what your AI reads. Ask it later. Keep everything local.**
 
-Current release: **0.7.1**
+Current release: **0.8.0**
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 
@@ -44,7 +44,7 @@ Project test: ./aiwiki-test
 Install AIWiki, use <my-local-aiwiki-path> as the workspace, sync the supported Agent integration, and tell me what needs attention.
 ```
 
-The assistant should use `aiwiki setup`, `aiwiki agent sync/check`, `doctor`, and `status` in that order, then explain the resulting workspace and Agent state. The [Usage Guide](docs/USAGE.md) and [Agent Handoff](docs/AGENT_HANDOFF.md#core-intent-matrix) define the command contract, result interpretation, and fallback rules.
+The assistant should use `aiwiki setup`, `aiwiki agent sync/check`, then the read-only JSON `doctor`, `status`, and `next` diagnostics in that order. The [Usage Guide](docs/USAGE.md) and [Agent Handoff](docs/AGENT_HANDOFF.md#core-intent-matrix) define the command contract, result interpretation, and fallback rules.
 
 Use the following detailed installation checklist only when the assistant needs explicit environment troubleshooting:
 
@@ -69,8 +69,9 @@ aiwiki setup --path "<replace-with-my-aiwiki-path>" --yes
 aiwiki agent sync --yes
 aiwiki agent check --json
 aiwiki agent check --path "<replace-with-my-aiwiki-path>" --json
-aiwiki doctor --path "<replace-with-my-aiwiki-path>"
-aiwiki status --path "<replace-with-my-aiwiki-path>"
+aiwiki doctor --json --path "<replace-with-my-aiwiki-path>"
+aiwiki status --json --path "<replace-with-my-aiwiki-path>"
+aiwiki next --json --path "<replace-with-my-aiwiki-path>"
 
 Then tell me:
 
@@ -87,7 +88,15 @@ If assistant sync fails, open an [Agent Integration issue](https://github.com/iT
 
 ## First Use
 
-Trying AIWiki for the first time? Use the short trial route in the [Usage Guide](docs/USAGE.md#3-ingest-a-source).
+Trying AIWiki for the first time? Use the 5-10 minute trial route in the [Usage Guide](docs/USAGE.md#3-ingest-a-source): setup → agent check → `doctor/status` → one local ingest → `status/next` → query/context.
+
+`doctor --json`, `status --json`, and `next --json` are read-only readiness
+reports with `would_write: false`; `next` also returns `actions_executed: false`.
+Agents should read their five stable states—`repair_required`, `setup_required`,
+`first_ingest_required`, `review_required`, and `ready`—plus action IDs, rather
+than parsing display text. `ready` permits retrieval; it is not a truth claim
+about every stored note. `agent check --json` remains Agent-integration status,
+while `health --json` and `repair --plan --json` remain deep maintenance tools.
 
 ### Ingest a source
 

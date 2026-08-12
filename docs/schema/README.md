@@ -15,6 +15,9 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 | Capsule context | `aiwiki.context.capsule.v1` | Agent JSON output | Explicit capsule view remains stable. |
 | Agent payload | `aiwiki.agent_payload.v1` | Agent JSON input | Input validation remains strict. |
 | Agent sync/check | `aiwiki.agent_sync.v1`, `aiwiki.agent_check.v1` | Agent JSON output | Existing output contracts remain stable. |
+| First-use doctor | `aiwiki.doctor.v1` | JSON output | Read-only blocking-check diagnostics; additive fields only. |
+| First-use status | `aiwiki.status.v1` | JSON output | Read-only activity/content/lint/readiness summary; additive fields only. |
+| First-use next | `aiwiki.next.v1` | JSON output | Read-only ordered readiness actions; it never executes an action. |
 | Derived state | `aiwiki.state.*.v1` | `.aiwiki/state/*.json` | Rebuildable cache only; see [Derived State v1](STATE.md). |
 | Structured index | `aiwiki.index.v1` | `.aiwiki/state/index.json` | Explicitly built removable metadata; not semantic or vector search. |
 | Relationship graph | `aiwiki.graph.v1` | `.aiwiki/state/graph.json` | Explicitly built deterministic local-relationship metadata; does not change Context v1. |
@@ -33,6 +36,9 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 - A declared unknown or future major version is non-writable and requires manual review. The internal `planSchemaMigration()` report is always `dry_run: true` and `would_write: false`.
 - Schema compatibility intentionally exposes no migration CLI command and no `--apply` path. A future migration must be explicitly designed, reviewed, and separately released.
 - `aiwiki health --json` and `aiwiki repair --plan --json` emit the additive, read-only `aiwiki.health.v1` and `aiwiki.repair_plan.v1` contracts. `aiwiki health --write --json` explicitly emits `aiwiki.health_report.v1`: it refreshes only marker-bounded dashboard content and writes an immutable JSON run record. No health path modifies knowledge Markdown or builds derived state.
+- `aiwiki doctor --json`, `aiwiki status --json`, and `aiwiki next --json` are separate first-use JSON envelopes, each with `would_write: false` and an additive-fields-only compatibility policy. `next` additionally returns `actions_executed: false`; recommendations never execute automatically. `doctor` may exit `1` for a blocking check while still returning parseable JSON, while `status` and `next` return `0` after producing a report.
+- Their shared readiness object has exactly five stable states: `repair_required`, `setup_required`, `first_ingest_required`, `review_required`, and `ready`. Machine consumers use action IDs rather than localized prose: `run_setup`, `restore_workspace_access`, `verify_workspace_access`, `review_schema`, `review_repair_plan`, `ingest_first_source`, `inspect_failed_run`, `review_low_quality_content`, and `query_knowledge`.
+- Readiness is deliberately narrower than `aiwiki.health.v1` / `aiwiki.repair_plan.v1` maintenance diagnostics and separate from `aiwiki.agent_check.v1` host-Agent and root-guidance checks. `ready` means the workspace can proceed to retrieval; it does not certify knowledge correctness.
 
 Optional frontmatter markers are available only when a producer needs to declare them:
 

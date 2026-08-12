@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 
 import { flagBool, flagString, type ParsedArgs } from "../../args.js";
 import { buildCapsuleContext } from "../../capsule-context.js";
-import { buildCapsules, capsuleMetrics } from "../../capsule.js";
 import type { CapsuleLintOptions } from "../../capsule-lint.js";
 import { buildContext, type ContextFilters, type ContextResult } from "../../context.js";
 import { buildGraphContext } from "../../graph-context.js";
@@ -14,20 +13,19 @@ import { evaluateExtensionLintFindings } from "../../extension/host.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "../../ingest.js";
 import { attachAppliedSafeFixes, filterLintReport, lintWorkspace, mergeLintIssues, removeEmptyOptionalDirs, renderLintReport, renderLintSummary, writeLintReport, type LintIssue, type LintSeverity } from "../../lint.js";
 import { CliError, type CliStreams, writeLine } from "../../output.js";
+import { buildWorkspaceDiagnosticSnapshot, deriveWorkspaceReadiness, doctorEnvelope, nextEnvelope, statusEnvelope, type WorkspaceDiagnosticSnapshot } from "../../readiness.js";
 import { renderCapsuleQuery } from "../../query-view.js";
 import { showCapsule } from "../../show.js";
 import {
   confirmInit,
   directorySummary,
-  doctor,
   exists,
   initWorkspace,
   promptForSetup,
   promptForInitPath,
   readConfig,
   resolveWorkspace,
-  setDefaultWorkspace,
-  statusSummary
+  setDefaultWorkspace
 } from "../../workspace.js";
 
 import type { CommandContext } from "../command-context.js";
@@ -193,16 +191,17 @@ const root = await resolveWorkspace(flagString(args, "path"));
 
   async function handleDoctor(context: CommandContext): Promise<number> {
     const { args, streams } = context;
-const root = await resolveWorkspace(flagString(args, "path"));
-      const checks = await doctor(root);
-      let failed = false;
-      for (const check of checks) {
-        writeLine(streams.stdout, `${doctorStatusText(check.status)}: ${check.name}`);
-        if (check.status !== "ok") {
-          failed = true;
-        }
+      const root = await resolveDiagnosticWorkspace(args);
+      const snapshot = await buildWorkspaceDiagnosticSnapshot(root);
+      const checks = snapshot.checks;
+      if (flagBool(args, "json")) {
+        writeLine(streams.stdout, JSON.stringify(doctorEnvelope(snapshot), null, 2));
+        return doctorHasBlockingChecks(snapshot) ? 1 : 0;
       }
-      if (failed) {
+      for (const check of checks) {
+        writeLine(streams.stdout, `${doctorStatusText(check.state)}: ${check.name}`);
+      }
+      if (doctorHasBlockingChecks(snapshot)) {
         writeLine(streams.stdout, `修复命令: aiwiki setup --path "${root}" --yes`);
         return 1;
       }
@@ -211,13 +210,17 @@ const root = await resolveWorkspace(flagString(args, "path"));
 
   async function handleStatus(context: CommandContext): Promise<number> {
     const { args, streams } = context;
-const root = await resolveWorkspace(flagString(args, "path"));
-      const summary = await statusSummary(root);
-      writeLine(streams.stdout, `知识库路径: ${summary.root}`);
-      writeLine(streams.stdout, `处理次数: ${summary.runCount}`);
-      writeLine(streams.stdout, `失败次数: ${summary.failedCount}`);
-      writeLine(streams.stdout, `最近处理: ${summary.lastRunId ?? "无"}`);
-      await printStatusDetails(streams.stdout, root, summary.runCount);
+      const root = await resolveDiagnosticWorkspace(args);
+      const snapshot = await buildWorkspaceDiagnosticSnapshot(root);
+      if (flagBool(args, "json")) {
+        writeLine(streams.stdout, JSON.stringify(statusEnvelope(snapshot), null, 2));
+        return 0;
+      }
+      writeLine(streams.stdout, `知识库路径: ${snapshot.workspace}`);
+      writeLine(streams.stdout, `处理次数: ${snapshot.activity.runCount}`);
+      writeLine(streams.stdout, `失败次数: ${snapshot.activity.failedCount}`);
+      writeLine(streams.stdout, `最近处理: ${snapshot.activity.lastRunId ?? "无"}`);
+      printStatusDetails(streams.stdout, snapshot);
       return 0;
   }
 
@@ -277,11 +280,13 @@ const { rootPath, artifactPath } = showPathOptions(args);
 
   async function handleNext(context: CommandContext): Promise<number> {
     const { args, streams } = context;
-const root = await resolveWorkspace(flagString(args, "path"));
-      const summary = await statusSummary(root);
-      const checks = await doctor(root);
-      const report = summary.runCount > 0 ? await lintWorkspace(root) : undefined;
-      await printNext(streams.stdout, root, summary.runCount, checks, await discoverAgentTargets(), report);
+      const root = await resolveDiagnosticWorkspace(args);
+      const snapshot = await buildWorkspaceDiagnosticSnapshot(root);
+      if (flagBool(args, "json")) {
+        writeLine(streams.stdout, JSON.stringify(nextEnvelope(snapshot), null, 2));
+        return 0;
+      }
+      await printNext(streams.stdout, snapshot, await discoverAgentTargets());
       return 0;
   }
 
@@ -1113,48 +1118,42 @@ function printAgentPrompt(stream: NodeJS.WritableStream): void {
   writeLine(stream, "禁止：让用户保存 payload；让用户每次输入 --path；声称 AIWiki CLI 负责网页抓取；声称 AIWiki CLI 会在没有 Agent 分析字段时自动高质量总结。");
 }
 
-async function printStatusDetails(stream: NodeJS.WritableStream, root: string, runCount: number): Promise<void> {
-  const counts = await contentCounts(root);
-  const summary = await statusSummary(root);
-  const metrics = capsuleMetrics(await buildCapsules(root));
-  const lintPath = path.join(root, "dashboards", "Lint Report.md");
+function printStatusDetails(stream: NodeJS.WritableStream, snapshot: WorkspaceDiagnosticSnapshot): void {
+  const readiness = deriveWorkspaceReadiness(snapshot);
   writeLine(stream, "");
   writeLine(stream, "Content stats:");
-  writeLine(stream, `Wiki entries: ${counts.wikiEntries}`);
-  writeLine(stream, `Source cards: ${counts.sourceCards}`);
-  writeLine(stream, `Raw files: ${counts.rawFiles}`);
-  writeLine(stream, `Topics: ${counts.topics}`);
-  writeLine(stream, `Outlines: ${counts.outlines}`);
-  writeLine(stream, `fallback_entries: ${summary.fallbackCount}`);
-  writeLine(stream, `grounding_review_entries: ${summary.groundingReviewCount}`);
-  writeLine(stream, `capsule_count: ${metrics.capsule_count}`);
-  writeLine(stream, `capsule_with_primary_count: ${metrics.capsule_with_primary_count}`);
-  writeLine(stream, `entropy_risk: ${metrics.entropy_risk}`);
-  writeLine(stream, `lifecycle_risk: ${metrics.lifecycle_risk}`);
-  writeLine(stream, `okf_ready_count: ${metrics.okf_ready_count}`);
-  writeLine(stream, `recent_lint: ${await exists(lintPath) ? await relativeMtime(root, lintPath) : "none"}`);
-  writeLine(stream, `lint_status: ${summary.lintStatus}`);
-  if (summary.lastSuccessRunId) {
-    writeLine(stream, `last_success: ${summary.lastSuccessRunId}`);
+  writeLine(stream, `Wiki entries: ${snapshot.content.wikiEntries}`);
+  writeLine(stream, `Source cards: ${snapshot.content.sourceCards}`);
+  writeLine(stream, `Raw files: ${snapshot.content.rawFiles}`);
+  writeLine(stream, `Topics: ${snapshot.content.topics}`);
+  writeLine(stream, `Outlines: ${snapshot.content.outlines}`);
+  writeLine(stream, `fallback_entries: ${snapshot.content.fallbackEntries}`);
+  writeLine(stream, `grounding_review_entries: ${snapshot.content.groundingReviewEntries}`);
+  writeLine(stream, `capsule_count: ${snapshot.content.capsuleCount}`);
+  writeLine(stream, `capsule_with_primary_count: ${snapshot.content.capsuleWithPrimaryCount}`);
+  writeLine(stream, `entropy_risk: ${snapshot.content.entropyRisk}`);
+  writeLine(stream, `lifecycle_risk: ${snapshot.content.lifecycleRisk}`);
+  writeLine(stream, `okf_ready_count: ${snapshot.content.okfReadyCount}`);
+  writeLine(stream, `recent_lint: ${snapshot.lint.stored.reportPath ? `${snapshot.lint.stored.reportPath} (${snapshot.lint.stored.observedAt ?? "unknown"})` : "none"}`);
+  writeLine(stream, `lint_status: ${snapshot.lint.stored.state}`);
+  if (snapshot.activity.lastSuccessRunId) {
+    writeLine(stream, `last_success: ${snapshot.activity.lastSuccessRunId}`);
   }
-  if (summary.lastFailureRunId) {
-    writeLine(stream, `last_failure: ${summary.lastFailureRunId}`);
+  if (snapshot.activity.lastFailureRunId) {
+    writeLine(stream, `last_failure: ${snapshot.activity.lastFailureRunId}`);
   }
-  writeLine(stream, `system_files: ${summary.systemFiles.map((item) => `${item.path}=${item.status}`).join(", ")}`);
+  writeLine(stream, `system_files: ${snapshot.checks.filter((item) => item.id.startsWith("required_file:")).map((item) => `${item.name}=${item.state}`).join(", ")}`);
   writeLine(stream, "");
   writeLine(stream, "Next action:");
-  writeLine(stream, recommendedNextAction(runCount, summary.lintStatus, summary.systemFiles.some((item) => item.status !== "ok")));
+  writeLine(stream, `next_action: ${renderPrimaryAction(readiness, snapshot.workspace)}`);
 }
 
 async function printNext(
   stream: NodeJS.WritableStream,
-  root: string,
-  runCount: number,
-  checks: Awaited<ReturnType<typeof doctor>>,
-  targets: AgentTarget[],
-  report?: Awaited<ReturnType<typeof lintWorkspace>>
+  snapshot: WorkspaceDiagnosticSnapshot,
+  targets: AgentTarget[]
 ): Promise<void> {
-  const missing = checks.filter((check) => check.status !== "ok");
+  const readiness = deriveWorkspaceReadiness(snapshot);
   const installableMissing: AgentTarget[] = [];
   for (const target of targets) {
     if (target.detected && target.installable && target.target && !(await exists(target.target))) {
@@ -1162,40 +1161,37 @@ async function printNext(
     }
   }
   writeLine(stream, "AIWiki 下一步建议");
-  writeLine(stream, `workspace: ${root}`);
-  if (missing.length) {
+  writeLine(stream, `workspace: ${snapshot.workspace}`);
+  if (readiness.state === "setup_required") {
     writeLine(stream, "");
     writeLine(stream, "Repair workspace structure first:");
-    writeLine(stream, `- aiwiki setup --path "${root}" --yes`);
-    writeLine(stream, "- repair_order: structure");
+    writeReadinessActions(stream, readiness);
+    writeLine(stream, `- repair_order: ${nextRepairOrder(readiness, snapshot)}`);
     return;
   }
-  const actionableIssues = report?.issues.filter((issue) => issue.severity !== "info") ?? [];
-  const errorCount = actionableIssues.filter((issue) => issue.severity === "error").length;
-  const warningCount = actionableIssues.filter((issue) => issue.severity === "warning").length;
-  if (errorCount > 0) {
-    writeLine(stream, "");
-    writeLine(stream, `结构检查发现 ${errorCount} 个 error 问题。`);
-    writeLine(stream, "- aiwiki lint");
-    writeLine(stream, "- report: dashboards/Lint Report.md");
-    writeLine(stream, "- repair_order: lint_errors");
-    return;
-  }
-  if (warningCount > 0) {
-    writeLine(stream, "");
-    writeLine(stream, `结构检查发现 ${warningCount} 个 warning 问题。`);
-    writeLine(stream, "- aiwiki lint");
-    writeLine(stream, "- report: dashboards/Lint Report.md");
-    writeLine(stream, "- repair_order: lint_warnings");
-    return;
-  }
-  if (runCount === 0) {
+  if (readiness.state === "first_ingest_required") {
     writeLine(stream, "");
     writeLine(stream, "No ingest records yet.");
     writeLine(stream, "- aiwiki agent sync --yes");
     writeLine(stream, "- Then ask the host Agent to ingest a URL.");
     writeLine(stream, "- AIWiki CLI does not fetch webpages; the host Agent supplies content.");
     writeLine(stream, "- repair_order: empty_workspace");
+    return;
+  }
+  if (readiness.state === "repair_required") {
+    writeLine(stream, "");
+    writeLine(stream, "Workspace requires repair before routine retrieval:");
+    writeLintIssueCount(stream, snapshot);
+    writeReadinessActions(stream, readiness);
+    writeLine(stream, `- repair_order: ${nextRepairOrder(readiness, snapshot)}`);
+    return;
+  }
+  if (readiness.state === "review_required") {
+    writeLine(stream, "");
+    writeLine(stream, "Workspace needs review before routine retrieval:");
+    writeLintIssueCount(stream, snapshot);
+    writeReadinessActions(stream, readiness);
+    writeLine(stream, `- repair_order: ${nextRepairOrder(readiness, snapshot)}`);
     return;
   }
   writeLine(stream, "");
@@ -1210,19 +1206,6 @@ async function printNext(
       writeLine(stream, `- aiwiki agent install --agent ${target.id} --yes`);
     }
   }
-}
-
-function recommendedNextAction(runCount: number, lintStatus: "ok" | "missing" | "needs_attention", hasMissingSystemFiles: boolean): string {
-  if (hasMissingSystemFiles) {
-    return "next_action: aiwiki setup --path <workspace> --yes";
-  }
-  if (lintStatus === "needs_attention") {
-    return "next_action: aiwiki lint";
-  }
-  if (runCount === 0) {
-  return "next_action: aiwiki agent sync --yes";
-  }
-  return "next_action: aiwiki query <topic>";
 }
 
 function contextOptions(args: ParsedArgs): { filters: ContextFilters; limit?: number } {
@@ -1339,46 +1322,59 @@ function appendQueryGroup(lines: string[], label: string, items: ContextResult["
   lines.push("");
 }
 
-async function contentCounts(root: string) {
-  return {
-    wikiEntries: await countMarkdownFiles(path.join(root, "05-wiki")),
-    sourceCards: await countMarkdownFiles(path.join(root, "03-sources", "article-cards")),
-    rawFiles: await countMarkdownFiles(path.join(root, "02-raw", "articles")),
-    topics: await countMarkdownFiles(path.join(root, "07-topics", "ready")),
-    outlines: await countMarkdownFiles(path.join(root, "08-outputs", "outlines"))
-  };
-}
-
-async function countMarkdownFiles(dir: string): Promise<number> {
-  if (!(await exists(dir))) {
-    return 0;
-  }
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  let count = 0;
-  for (const entry of entries) {
-    const target = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      count += await countMarkdownFiles(target);
-    } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
-async function relativeMtime(root: string, target: string): Promise<string> {
-  const stats = await fs.stat(target);
-  return `${path.relative(root, target).replace(/\\/g, "/")} (${stats.mtime.toISOString()})`;
-}
-
-function doctorStatusText(status: "ok" | "missing" | "permission error") {
+function doctorStatusText(status: "ok" | "missing" | "blocked" | "unknown") {
   if (status === "ok") {
     return "正常";
   }
   if (status === "missing") {
     return "缺失";
   }
-  return "权限错误";
+  return status === "blocked" ? "权限错误" : "未知";
+}
+
+async function resolveDiagnosticWorkspace(args: ParsedArgs): Promise<string> {
+  const explicit = flagString(args, "path");
+  if (explicit && flagBool(args, "json")) return path.resolve(explicit);
+  return resolveWorkspace(explicit);
+}
+
+function doctorHasBlockingChecks(snapshot: WorkspaceDiagnosticSnapshot): boolean {
+  return snapshot.checks.some((check) => check.state === "missing" || check.state === "blocked");
+}
+
+function renderPrimaryAction(readiness: ReturnType<typeof deriveWorkspaceReadiness>, workspace: string): string {
+  const primary = readiness.actions[0];
+  if (!primary) return "aiwiki status --json";
+  if (primary.id === "run_setup") return "aiwiki setup --path <workspace> --yes";
+  if (primary.id === "ingest_first_source") return "aiwiki agent sync --yes";
+  if (primary.id === "query_knowledge") return "aiwiki query <topic>";
+  if (primary.command) return renderReadinessCommand(primary.command).replace(workspace, "<workspace>");
+  return "aiwiki doctor --json";
+}
+
+function writeReadinessActions(stream: NodeJS.WritableStream, readiness: ReturnType<typeof deriveWorkspaceReadiness>): void {
+  for (const action of readiness.actions) {
+    const command = action.command ?? action.verification_command;
+    writeLine(stream, `- ${command ? renderReadinessCommand(command) : action.manual_guidance_code ?? action.id}`);
+  }
+}
+
+function writeLintIssueCount(stream: NodeJS.WritableStream, snapshot: WorkspaceDiagnosticSnapshot): void {
+  if (snapshot.lint.live.errors > 0) writeLine(stream, `结构检查发现 ${snapshot.lint.live.errors} 个 error 问题。`);
+  else if (snapshot.lint.live.warnings > 0) writeLine(stream, `结构检查发现 ${snapshot.lint.live.warnings} 个 warning 问题。`);
+}
+
+function renderReadinessCommand(command: { executable: string; args: string[] }): string {
+  return [command.executable, ...command.args.map((argument) => /\s/.test(argument) ? `"${argument.replaceAll('"', '\\"')}"` : argument)].join(" ");
+}
+
+function nextRepairOrder(readiness: ReturnType<typeof deriveWorkspaceReadiness>, snapshot: WorkspaceDiagnosticSnapshot): string {
+  if (readiness.state === "setup_required") return "structure";
+  if (readiness.state === "first_ingest_required") return "empty_workspace";
+  if (readiness.state === "ready") return "healthy_query";
+  if (snapshot.lint.live.errors > 0) return "lint_errors";
+  if (snapshot.lint.live.warnings > 0) return "lint_warnings";
+  return readiness.state === "repair_required" ? "structure" : "review";
 }
 
 function printIngestResult(stream: NodeJS.WritableStream, result: Awaited<ReturnType<typeof ingestPayload>>): void {

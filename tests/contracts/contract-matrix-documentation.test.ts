@@ -32,6 +32,25 @@ test("release and handoff documentation define the reusable contract test matrix
   assert.doesNotMatch(documents[3], /CORE-[0-9]+/);
 });
 
+test("readiness documentation keeps diagnostics read-only and command ownership separate", async () => {
+  const [usage, usageZh, handoff, handoffZh, schema, schemaZh, skill] = await Promise.all([
+    readFile("docs/USAGE.md", "utf8"),
+    readFile("docs/USAGE.zh-CN.md", "utf8"),
+    readFile("docs/AGENT_HANDOFF.md", "utf8"),
+    readFile("docs/AGENT_HANDOFF.zh-CN.md", "utf8"),
+    readFile("docs/schema/README.md", "utf8"),
+    readFile("docs/schema/README.zh-CN.md", "utf8"),
+    readFile("skill/SKILL.md", "utf8")
+  ]);
+  for (const document of [usage, usageZh, handoff, handoffZh, schema, schemaZh, skill]) {
+    for (const command of ["aiwiki doctor --json", "aiwiki status --json", "aiwiki next --json"]) assert.match(document, new RegExp(command));
+    for (const state of ["repair_required", "setup_required", "first_ingest_required", "review_required", "ready"]) assert.match(document, new RegExp(state));
+    assert.match(document, /would_write/);
+  }
+  assert.match(usage, /readiness.*health.*repair.*agent check/is);
+  assert.match(usageZh, /readiness.*health.*repair.*agent check/is);
+});
+
 test("rebuild documentation keeps derived state explicit, removable, and out of normal retrieval", async () => {
   const [state, stateZh, usage, usageZh, handoff, handoffZh, skill] = await Promise.all([
     readFile("docs/schema/STATE.md", "utf8"),

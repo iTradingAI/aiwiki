@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import { buildCapsuleContext } from "../../src/capsule-context.js";
 import { buildContext } from "../../src/context.js";
+import { AIWIKI_SCHEMAS } from "../../src/schema.js";
 import { planSchemaMigration } from "../../src/schema-migration.js";
 import { initWorkspace, readConfig } from "../../src/workspace.js";
 import { tempRoot } from "../helpers.js";
@@ -38,6 +39,18 @@ test("schema compatibility keeps legacy state readable and migration planning re
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("readiness command schemas are additive JSON output contracts", () => {
+  assert.deepEqual(
+    [AIWIKI_SCHEMAS.doctor, AIWIKI_SCHEMAS.status, AIWIKI_SCHEMAS.next].map(({ id, status, storage, compatibility }) => ({ id, status, storage, compatibility })),
+    ["aiwiki.doctor.v1", "aiwiki.status.v1", "aiwiki.next.v1"].map((id) => ({
+      id,
+      status: "active",
+      storage: "json_output",
+      compatibility: "additive_fields_only"
+    }))
+  );
 });
 
 test("schema compatibility sends future majors to manual review without writes", async () => {

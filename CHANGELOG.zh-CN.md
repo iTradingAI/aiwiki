@@ -2,6 +2,16 @@
 
 本日志记录面向使用者的公开版本历史。只有同时验证仓库 tag 与 npm 产物映射后才会列出两类证据；仅存在于 registry 的历史会单独标注。
 
+## [0.8.0] - 2026-08-12
+
+- 新增增量兼容的 `aiwiki.doctor.v1`、`aiwiki.status.v1` 与 `aiwiki.next.v1` JSON 合同；三个命令共享一套 readiness 模型和稳定、有序的 action 标识。
+- 新增五种明确的首次使用状态：`repair_required`、`setup_required`、`first_ingest_required`、`review_required` 与 `ready`。
+- 诊断事实采集改为严格只读，包括能力检查、实时 lint 观察、内容指标与运行历史；不会自动执行任何命令或建议动作。
+- 保留既有文本输出和退出码行为，同时为新建或结构不完整的工作区提供机器可读诊断。
+- Health、修复计划、宿主 Agent 检查、SDK 导出、MCP 工具、extension 与 Pro 能力均不进入 readiness 合同。
+
+本条目描述当前源码版本。在发布门槛完成前，不声称已经存在对应 tag、GitHub Release 或 npm 产物。
+
 ## [0.7.1] - 2026-08-10
 
 - 修复 MCP 客户端配置文档：添加 `mcpServers` 包装格式、`npx` 用法和绝对路径示例，覆盖 Claude Desktop、Cline 和其他 MCP 客户端。

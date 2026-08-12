@@ -48,8 +48,9 @@ aiwiki setup --path "<替换成我的 AIWiki 知识库路径>" --yes
 aiwiki agent sync --yes
 aiwiki agent check --json
 aiwiki agent check --path "<替换成我的 AIWiki 知识库路径>" --json
-aiwiki doctor --path "<替换成我的 AIWiki 知识库路径>"
-aiwiki status --path "<替换成我的 AIWiki 知识库路径>"
+aiwiki doctor --json --path "<替换成我的 AIWiki 知识库路径>"
+aiwiki status --json --path "<替换成我的 AIWiki 知识库路径>"
+aiwiki next --json --path "<替换成我的 AIWiki 知识库路径>"
 
 最后总结安装是否成功、同步了哪些助手目标、知识库根指导是否存在，以及我是否需要重启或重新加载助手。
 ```
@@ -67,10 +68,11 @@ macOS/Linux: ~/AIWiki
 安装成功后应该看到：
 
 - `aiwiki --version` 可以正常输出
-- `aiwiki doctor --path <workspace>` 通过，或给出明确可处理的问题
+- `aiwiki doctor --json --path <workspace>` 通过，或给出明确可处理的问题
 - `aiwiki agent check --json` 报告支持的助手目标为 `installed`、`updated` 或 `current`
 - `aiwiki agent check --path <workspace> --json` 报告知识库根指导是 current
-- `aiwiki status --path <workspace>` 返回知识库状态和下一步动作
+- `aiwiki status --json --path <workspace>` 返回机器可读的知识库状态和下一步动作
+- `aiwiki next --json --path <workspace>` 只列出建议动作，不会执行它们
 
 ## 2. Agent 对接的两层含义
 
@@ -110,6 +112,51 @@ aiwiki prompt agent
 ```
 
 ## 3. 入库资料
+
+### 5-10 分钟首次使用路径
+
+```text
+setup
+  -> agent check
+  -> doctor/status
+  -> 入库一份本地资料
+  -> status/next
+  -> query/context
+```
+
+```bash
+aiwiki setup --path <workspace> --yes
+aiwiki agent check --path <workspace> --json
+aiwiki doctor --json --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki ingest-file --file <file> --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
+aiwiki query "<topic>" --path <workspace>
+aiwiki context "<topic>" --path <workspace>
+```
+
+### Readiness 诊断：只读、可供 Agent 稳定读取
+
+`doctor`、`status` 和 `next` 基于同一份只读 readiness 事实回答不同的首次使用问题。Agent 应读取 JSON，而不是解析终端自然语言：
+
+```bash
+aiwiki doctor --json --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
+```
+
+三个 envelope 分别使用稳定 schema：`aiwiki.doctor.v1`、`aiwiki.status.v1`、`aiwiki.next.v1`，并且都包含 `would_write: false`。`next` 还固定返回 `actions_executed: false`：它只建议 setup、入库、lint 修复、repair 或查询，绝不自行执行。`doctor` 只有 blocking check 时退出 `1`，但 stdout 仍是可解析 JSON；`status` 与 `next` 只要成功生成报告就退出 `0`，即使 readiness 还不是 `ready`。
+
+| 命令 | 负责回答 | 不负责回答 |
+| --- | --- | --- |
+| `doctor --json` | 工作区访问权限和必需结构的阻塞项 | 深度维护健康度或执行修复 |
+| `status --json` | 当前首次使用事实和 readiness 阶段 | 宿主 Agent 接入或内容正确性 |
+| `next --json` | 当前阶段按序排列的 action ID | 自动执行 action |
+| `agent check --json` | 宿主 Agent 安装和根指导状态 | 工作区 readiness 总结 |
+| `health --json` / `repair --plan --json` | 深度维护域和只读 repair 证据 | 首次使用状态机 |
+
+五个稳定 readiness 状态是 `repair_required`、`setup_required`、`first_ingest_required`、`review_required` 和 `ready`。`ready` 只表示可以继续检索，不代表每条知识都已被证实。请读取 `readiness.state` 和稳定 action `id`，不要依赖本地化文本。完整 action 集合为：`run_setup`、`restore_workspace_access`、`verify_workspace_access`、`review_schema`、`review_repair_plan`、`ingest_first_source`、`inspect_failed_run`、`review_low_quality_content`、`query_knowledge`。
 
 对 AI 助手说：
 

@@ -44,14 +44,15 @@ Use this command-first loop:
 ```bash
 aiwiki setup --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
-aiwiki doctor --path <workspace>
+aiwiki doctor --json --path <workspace>
 aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>
 aiwiki health --json --path <workspace>
 aiwiki repair --plan --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
 aiwiki ingest-agent --stdin --path <workspace>
-aiwiki status --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
 aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
 aiwiki show <topic> --path <workspace>
@@ -65,7 +66,7 @@ Use this matrix as the command contract for matching natural-language requests. 
 
 | User intent | Preferred command | Interpret the result | Fallback condition |
 | --- | --- | --- | --- |
-| Install, initialize, or repair a workspace | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json`, `aiwiki doctor --path <workspace>`, and `aiwiki status --path <workspace>` | Report workspace readiness, root-guidance state, diagnostics, and next action | If the command is unavailable, explain the environment problem; do not edit the workspace structure by hand first |
+| Install, initialize, or repair a workspace | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json`, `aiwiki doctor --json --path <workspace>`, `aiwiki status --json --path <workspace>`, and `aiwiki next --json --path <workspace>` | Read `readiness.state` and ordered action IDs from JSON; report root-guidance state separately | If the command is unavailable, explain the environment problem; do not edit the workspace structure by hand first |
 | Sync, upgrade, or repair host-Agent integration | `aiwiki agent check --json`, `aiwiki agent sync --dry-run`, then `aiwiki agent sync --yes` | Explain `installed`, `current`, `different`, backup paths, and any restart/reload requirement | Unsupported hosts must not be written automatically; use `aiwiki prompt agent` for a manual handoff |
 | Ingest a local file or material already read by the host Agent | `aiwiki ingest-file --file <file>` or `aiwiki ingest-agent --stdin` | Report ingest status, Wiki Entry quality, Source Card, Processing Summary, and warnings | Record unreadable sources as failed-fetch payloads; never require the user to write or save a payload |
 | Query, cite, or reuse local knowledge | `aiwiki query <topic>` for human output or `aiwiki context <topic>` for Agent JSON; use `aiwiki show <topic>` or capsule view for one source package | Read `result_quality`, `recommended_next_action`, provenance, and known gaps before answering | Try the relevant AIWiki command first; only then use file search and state why the command was insufficient |
@@ -85,6 +86,42 @@ Keep the current command-first intent mapping unchanged. `aiwiki.context.v1` and
 The declaration-only `aiwiki.extension.v1` Extension API supports explicit extension administration only: `aiwiki plugin list`, `aiwiki plugin inspect <id>`, `aiwiki plugin add <directory>`, `aiwiki plugin enable <id>`, `aiwiki plugin disable <id>`, `aiwiki plugin remove <id>`, and `aiwiki plugin doctor`. It uses the declared-permission audit + no-injection default; NOT a runtime OS sandbox. Keep this matching boundary: do not infer these commands from ordinary natural language or automatically discover, inspect, enable, execute, disable, or remove extensions. See the packaged `skill/EXTENSION_PROTOCOL.md` for the exact intent mapping.
 
 `aiwiki health --json` emits the additive, read-only `aiwiki.health.v1` snapshot. `aiwiki repair --plan --json` emits the additive, read-only `aiwiki.repair_plan.v1` advisory plan. When the user explicitly asks to generate or save a report, `aiwiki health --write --json` emits `aiwiki.health_report.v1`, updates only the marker-bounded section of `dashboards/Knowledge Health.md`, and writes an immutable JSON run record under `09-runs/`. It does not change knowledge Markdown or build derived state.
+
+## First-Use Readiness Contract
+
+Use `doctor --json`, `status --json`, and `next --json` for first-use diagnosis.
+They share the same `readiness` object but intentionally use separate additive
+output schemas: `aiwiki.doctor.v1`, `aiwiki.status.v1`, and `aiwiki.next.v1`.
+Every response declares `would_write: false`; `next` additionally declares
+`actions_executed: false`. These commands are diagnostic only: they never run a
+suggested setup, ingest, lint fix, repair, or query.
+
+```bash
+aiwiki doctor --json --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
+```
+
+Interpret the fixed states in priority order: `repair_required`,
+`setup_required`, `first_ingest_required`, `review_required`, and `ready`.
+Read the machine fields `readiness.state`, `actions[].id`, `rank`,
+`reason_code`, command argument arrays, and verification command argument
+arrays. Do not infer an action from localized prose. The stable action IDs are
+`run_setup`, `restore_workspace_access`, `verify_workspace_access`,
+`review_schema`, `review_repair_plan`, `ingest_first_source`,
+`inspect_failed_run`, `review_low_quality_content`, and `query_knowledge`.
+
+`doctor` checks workspace access and required structure; it exits `1` for
+blocking checks but must still emit one parseable JSON document. `status`
+summarizes current workspace activity, content, live lint, and readiness.
+`next` orders recommended actions and does not execute them. `status` and
+`next` exit `0` when they produce a report, including a non-`ready` report.
+`ready` means retrieval can continue; it does not prove every knowledge claim
+is correct.
+
+Do not fold other contracts into readiness: `agent check --json` remains the
+host-Agent and root-guidance contract, while `health --json` and
+`repair --plan --json` remain deep maintenance and advisory-repair contracts.
 
 ## Derived State Rebuild Intent
 

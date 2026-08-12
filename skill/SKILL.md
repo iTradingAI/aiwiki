@@ -3,7 +3,7 @@ name: aiwiki
 description: Local Markdown knowledge base workflow for AI assistants.
 ---
 
-<!-- aiwiki-skill-version: 0.7.1 -->
+<!-- aiwiki-skill-version: 0.8.0 -->
 
 # AIWiki Skill
 
@@ -64,7 +64,9 @@ When the user asks you to organize, inspect, ingest, query, reuse, or maintain a
 ```bash
 aiwiki setup --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
-aiwiki doctor --path <workspace>
+aiwiki doctor --json --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
 aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
@@ -92,7 +94,7 @@ Match user requests to this command contract before using generic file tools:
 
 | User intent | Preferred command | Interpret the result | Fallback condition |
 | --- | --- | --- | --- |
-| install, initialize, or repair | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json`, `aiwiki doctor --path <workspace>`, and `aiwiki status --path <workspace>` | report workspace readiness, root-guidance state, diagnostics, and next action | explain environment failures; do not hand-edit workspace structure first |
+| install, initialize, or repair | `aiwiki setup --path <workspace> --yes`, then `aiwiki agent check --path <workspace> --json`, `aiwiki doctor --json --path <workspace>`, `aiwiki status --json --path <workspace>`, and `aiwiki next --json --path <workspace>` | read `readiness.state` and ordered action IDs; report root-guidance state separately | explain environment failures; do not hand-edit workspace structure first |
 | sync, upgrade, or repair Agent integration | `aiwiki agent check --json`, `aiwiki agent sync --dry-run`, then `aiwiki agent sync --yes` | report state, backup, and restart/reload requirement | unsupported hosts use `aiwiki prompt agent`; do not write unknown host configuration |
 | ingest material | `aiwiki ingest-file --file <file>` or `aiwiki ingest-agent --stdin` | report ingest status, quality, Source Card, and Processing Summary | record unreadable sources as failed-fetch payloads; do not ask users to save payloads |
 | query or reuse knowledge | `aiwiki query <topic>` or `aiwiki context <topic>`; use `aiwiki show <topic>` for a source package | read result quality, recommended next action, provenance, and gaps | try the relevant AIWiki command before file search and explain any fallback |
@@ -118,6 +120,36 @@ Only match health when the user explicitly asks for a knowledge-base health revi
 Only match health-report generation when the user explicitly asks to generate or save a health report. Run `aiwiki health --write --json` and read `aiwiki.health_report.v1`: metrics, dashboard path, and immutable JSON run path. It may refresh only the marker-bounded managed section of `dashboards/Knowledge Health.md` and add one JSON report under `09-runs/`; it must not change knowledge Markdown or derived state.
 
 Only match repair planning when the user explicitly asks for a proposed maintenance checklist. Run `aiwiki repair --plan --json` and read the additive `aiwiki.repair_plan.v1` output: issue, evidence, suggested changes, risk, affected files, and suggested command. It is read-only: do not execute a suggested command or infer any workspace write.
+
+## First-Use Readiness Intent
+
+For installation, first use, or an explicit request to diagnose the next workspace
+step, read the three JSON diagnostics after setup and Agent guidance checks:
+
+```bash
+aiwiki doctor --json --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
+```
+
+Use `readiness.state` and `actions[].id`, never localized terminal text. The
+five states are `repair_required`, `setup_required`, `first_ingest_required`,
+`review_required`, and `ready`. Stable action IDs are `run_setup`,
+`restore_workspace_access`, `verify_workspace_access`, `review_schema`,
+`review_repair_plan`, `ingest_first_source`, `inspect_failed_run`,
+`review_low_quality_content`, and `query_knowledge`.
+
+All three contracts are read-only and return `would_write: false`; `next` also
+returns `actions_executed: false`. It only recommends an action and never runs
+setup, ingest, lint fixes, repair, or query automatically. `doctor` can exit
+`1` for a blocking workspace check while still returning JSON; `status` and
+`next` exit `0` after reporting. `ready` means the workspace can proceed to
+retrieval, not that every knowledge claim is correct.
+
+Keep ownership separate: `doctor` covers access and required structure,
+`status` covers first-use facts, and `next` orders actions. `agent check --json`
+continues to cover host-Agent and root guidance; `health --json` and
+`repair --plan --json` continue to cover deep maintenance and advisory repair.
 
 ## Derived State Rebuild Intent
 

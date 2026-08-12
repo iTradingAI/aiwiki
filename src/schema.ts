@@ -151,6 +151,27 @@ export const AIWIKI_SCHEMAS = {
     storage: "json_output",
     compatibility: "additive_fields_only"
   },
+  doctor: {
+    id: "aiwiki.doctor.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  status: {
+    id: "aiwiki.status.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
+  next: {
+    id: "aiwiki.next.v1",
+    status: "active",
+    aliases: [],
+    storage: "json_output",
+    compatibility: "additive_fields_only"
+  },
   extension: {
     id: "aiwiki.extension.v1",
     status: "active",

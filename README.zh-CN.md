@@ -20,7 +20,7 @@
 请安装 AIWiki，使用 <我的本地-aiwiki-路径> 作为工作区，同步支持的 Agent 接入，并告诉我工作区和 Agent 状态。
 ```
 
-Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、`doctor`、`status` 的路径执行，并解释结果。完整的首选命令、输出解释和 fallback 条件见 [Core Intent Matrix](docs/AGENT_HANDOFF.zh-CN.md#core-intent-matrix)。长提示只用于安装排障，不是首次使用的主路径。
+Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、再到只读 JSON `doctor`、`status`、`next` 的路径执行，并解释结果。完整的首选命令、输出解释和 fallback 条件见 [Core Intent Matrix](docs/AGENT_HANDOFF.zh-CN.md#core-intent-matrix)。长提示只用于安装排障，不是首次使用的主路径。
 
 [![npm version](https://img.shields.io/npm/v/@itradingai/aiwiki.svg)](https://www.npmjs.com/package/@itradingai/aiwiki)
 [![Node.js >=20](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](https://nodejs.org/)
@@ -28,7 +28,7 @@ Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、`doctor`、`status` �
 
 **把 AI 助手读过的资料，变成以后可以查询、复用、整理的本地知识库。**
 
-当前版本：**0.7.1**
+当前版本：**0.8.0**
 
 AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 
@@ -67,8 +67,9 @@ aiwiki setup --path "<替换成我的 AIWiki 知识库路径>" --yes
 aiwiki agent sync --yes
 aiwiki agent check --json
 aiwiki agent check --path "<替换成我的 AIWiki 知识库路径>" --json
-aiwiki doctor --path "<替换成我的 AIWiki 知识库路径>"
-aiwiki status --path "<替换成我的 AIWiki 知识库路径>"
+aiwiki doctor --json --path "<替换成我的 AIWiki 知识库路径>"
+aiwiki status --json --path "<替换成我的 AIWiki 知识库路径>"
+aiwiki next --json --path "<替换成我的 AIWiki 知识库路径>"
 
 最后请告诉我：
 
@@ -85,7 +86,9 @@ aiwiki status --path "<替换成我的 AIWiki 知识库路径>"
 
 ## 第一次使用
 
-第一次试用 AIWiki，建议先按 [使用指南](docs/USAGE.zh-CN.md#3-入库资料) 里的短路径跑一遍。
+第一次试用 AIWiki，建议按 [使用指南](docs/USAGE.zh-CN.md#3-入库资料) 的 5-10 分钟路径跑一遍：setup → agent check → `doctor/status` → 入库一份本地资料 → `status/next` → query/context。
+
+`doctor --json`、`status --json`、`next --json` 是只读 readiness 报告，固定包含 `would_write: false`；`next` 还包含 `actions_executed: false`。Agent 应读取五个稳定状态 `repair_required`、`setup_required`、`first_ingest_required`、`review_required`、`ready` 及 action ID，而不是解析显示文本。`ready` 只代表可以继续检索，不代表每一条笔记都已被证实。`agent check --json` 仍负责 Agent 接入状态，`health --json` 与 `repair --plan --json` 仍是深度维护工具。
 
 ### 入库资料
 

@@ -44,14 +44,15 @@ aiwiki agent check --path <workspace> --json
 ```bash
 aiwiki setup --path <workspace> --yes
 aiwiki agent check --path <workspace> --json
-aiwiki doctor --path <workspace>
+aiwiki doctor --json --path <workspace>
 aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>
 aiwiki health --json --path <workspace>
 aiwiki repair --plan --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
 aiwiki ingest-agent --stdin --path <workspace>
-aiwiki status --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
 aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
 aiwiki show <topic> --path <workspace>
@@ -65,7 +66,7 @@ aiwiki show <topic> --path <workspace>
 
 | 用户意图 | 首选命令 | 输出解释 | fallback 条件 |
 | --- | --- | --- | --- |
-| 安装、初始化或修复工作区 | `aiwiki setup --path <workspace> --yes`，然后 `aiwiki agent check --path <workspace> --json`、`aiwiki doctor --path <workspace>` 和 `aiwiki status --path <workspace>` | 说明工作区是否就绪、根指导是否 current、诊断结果和下一步动作 | 命令不可用时说明环境问题；不要先手工修改工作区结构 |
+| 安装、初始化或修复工作区 | `aiwiki setup --path <workspace> --yes`，然后 `aiwiki agent check --path <workspace> --json`、`aiwiki doctor --json --path <workspace>`、`aiwiki status --json --path <workspace>` 和 `aiwiki next --json --path <workspace>` | 从 JSON 读取 `readiness.state` 和有序 action ID；根指导状态独立汇报 | 命令不可用时说明环境问题；不要先手工修改工作区结构 |
 | 同步、升级或修复宿主 Agent 接入 | `aiwiki agent check --json`、`aiwiki agent sync --dry-run`，再执行 `aiwiki agent sync --yes` | 说明 `installed`、`current`、`different`、备份路径和是否需要重启/重载 | 不支持的宿主不得自动写入；使用 `aiwiki prompt agent` 作为手工接入入口 |
 | 入库本地文件或宿主 Agent 已读取的资料 | `aiwiki ingest-file --file <file>` 或 `aiwiki ingest-agent --stdin` | 汇报入库状态、Wiki Entry 质量、Source Card、Processing Summary 和 warning | 无法读取的来源使用 failed-fetch payload 留痕；不能要求用户写入或保存 payload |
 | 查询、引用或复用本地知识 | 人类可读结果用 `aiwiki query <topic>`，Agent JSON 用 `aiwiki context <topic>`；单个来源包用 `aiwiki show <topic>` 或 capsule view | 回答前读取 `result_quality`、`recommended_next_action`、来源和已知缺口 | 先尝试对应 AIWiki 命令；仅在命令不足时使用文件搜索，并说明原因 |
@@ -85,6 +86,22 @@ aiwiki show <topic> --path <workspace>
 仅声明的 `aiwiki.extension.v1` Extension API 只支持显式 extension 管理：`aiwiki plugin list`、`aiwiki plugin inspect <id>`、`aiwiki plugin add <directory>`、`aiwiki plugin enable <id>`、`aiwiki plugin disable <id>`、`aiwiki plugin remove <id>` 和 `aiwiki plugin doctor`。它采用 declared-permission audit + no-injection default；NOT a runtime OS sandbox。保持该匹配边界：不要从普通自然语言推断这些命令，也不要自动发现、检查、启用、执行、禁用或移除 extension。精确映射见随包交付的 `skill/EXTENSION_PROTOCOL.md`。
 
 `aiwiki health --json` 输出附加的只读 `aiwiki.health.v1` 快照。`aiwiki repair --plan --json` 输出附加的只读 `aiwiki.repair_plan.v1` 建议计划。用户明确要求生成或保存报告时，`aiwiki health --write --json` 输出 `aiwiki.health_report.v1`，只更新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录；不会修改知识 Markdown 或构建派生 state。
+
+## 首次使用 Readiness 合同
+
+首次使用诊断使用 `doctor --json`、`status --json` 和 `next --json`。三者共享同一个 `readiness` 对象，但故意使用独立、可增量扩展的输出 schema：`aiwiki.doctor.v1`、`aiwiki.status.v1`、`aiwiki.next.v1`。每个响应都声明 `would_write: false`；`next` 还声明 `actions_executed: false`。这些命令只做诊断：绝不执行建议的 setup、入库、lint 修复、repair 或查询。
+
+```bash
+aiwiki doctor --json --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
+```
+
+按固定优先级解释五种状态：`repair_required`、`setup_required`、`first_ingest_required`、`review_required`、`ready`。读取机器字段 `readiness.state`、`actions[].id`、`rank`、`reason_code`、命令参数数组和验证命令参数数组；不要从本地化文本推断动作。稳定 action ID 为 `run_setup`、`restore_workspace_access`、`verify_workspace_access`、`review_schema`、`review_repair_plan`、`ingest_first_source`、`inspect_failed_run`、`review_low_quality_content`、`query_knowledge`。
+
+`doctor` 负责工作区访问和必需结构；存在 blocking check 时退出 `1`，但 stdout 仍必须是一个可解析 JSON 文档。`status` 汇总当前工作区 activity、content、live lint 和 readiness。`next` 对建议 action 排序但不执行。`status` 和 `next` 只要生成报告就退出 `0`，包括非 `ready` 的报告。`ready` 只表示可以继续检索，不证明每条知识都正确。
+
+不要把其他合同混入 readiness：`agent check --json` 仍独立负责宿主 Agent 与根指导，`health --json` 和 `repair --plan --json` 仍独立负责深度维护和只读 repair 建议。
 
 ## 派生状态 Rebuild 意图
 

@@ -40,6 +40,16 @@ test("schema catalog keeps active v1 contracts and activates the extension contr
   assert.equal(AIWIKI_SCHEMAS.extension.status, "active");
   assert.equal(AIWIKI_SCHEMAS.extension.storage, "extension_contract");
   assert.equal(AIWIKI_SCHEMAS.extension.compatibility, "additive_fields_only");
+  for (const [key, id] of [
+    ["doctor", "aiwiki.doctor.v1"],
+    ["status", "aiwiki.status.v1"],
+    ["next", "aiwiki.next.v1"]
+  ] as const) {
+    assert.equal(AIWIKI_SCHEMAS[key].id, id);
+    assert.equal(AIWIKI_SCHEMAS[key].status, "active");
+    assert.equal(AIWIKI_SCHEMAS[key].storage, "json_output");
+    assert.equal(AIWIKI_SCHEMAS[key].compatibility, "additive_fields_only");
+  }
 
   assert.deepEqual(assessSchemaCompatibility("workspace", "1"), {
     schemaId: "aiwiki.workspace.v1",
