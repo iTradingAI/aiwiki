@@ -2,6 +2,12 @@
 
 This changelog records public, consumer-visible release history. Repository tags and npm artifacts are cited only where both mappings were verified; registry-only history is labeled separately.
 
+## [0.8.1] - 2026-08-12
+
+- Corrected the published 0.8.0 release record and made the bilingual maintainer release runbook version-neutral.
+- Added packaged Skill upgrade guidance for every public release line since 0.6.0.
+- Aligned MCP `initialize` `serverInfo.version` with the package version; protocol, tools, and other CLI/API/schema/extension/Pro behavior remain unchanged.
+
 ## [0.8.0] - 2026-08-12
 
 - Added additive `aiwiki.doctor.v1`, `aiwiki.status.v1`, and `aiwiki.next.v1` JSON contracts with one shared readiness model and stable ordered action identifiers.
@@ -10,7 +16,7 @@ This changelog records public, consumer-visible release history. Repository tags
 - Preserved existing text output and exit-code behavior while adding machine-readable diagnostics for fresh and incomplete workspaces.
 - Kept Health, repair planning, host-Agent checks, SDK exports, MCP tools, extensions, and Pro capabilities outside the readiness contract.
 
-This entry describes the current source release. It does not assert a tag, GitHub Release, or npm artifact before those publication gates complete.
+Verified publication: annotated tag `v0.8.0` resolves to `081fa1a3f4ebaa2ac26efab42151eff972471005`; [GitHub Release v0.8.0](https://github.com/iTradingAI/aiwiki/releases/tag/v0.8.0) was published on 2026-08-12; npm artifact `@itradingai/aiwiki@0.8.0` has SHA-1 `8c8dcbc83b76ca038761f8dac037dd47b39c4d4e` and integrity `sha512-sYHJ14NROsDag6X/UU8VcrnOb9LfMEu3L20c/ZJP1+AQRpfVWH8bZFORCCfN4IsIDBWLIGskqWT/p2WUUa+SWQ==`.
 
 ## [0.7.1] - 2026-08-10
 
@@ -23,7 +29,7 @@ This entry describes the current source release. It does not assert a tag, GitHu
 - Added a zero-runtime-dependency MCP server with six tools, hand-rolled JSON-RPC 2.0 over stdio, and protocol version `2025-06-18`.
 - Added Agent Contract documentation for integrating AIWiki with host agents.
 
-This entry describes the current source release. It does not assert a tag, GitHub Release, or npm artifact before those publication gates complete.
+This entry records source changes for the 0.7.0 release line. Publication mappings are cited only where independently verified.
 
 ## [0.6.0] - 2026-08-10
 
@@ -33,7 +39,7 @@ This entry describes the current source release. It does not assert a tag, GitHu
 - Included the workflow and public-trial scenario documentation in the published package contents.
 - Kept CLI behavior, JSON keys, schema identifiers, enum values, and matching precedence unchanged.
 
-This entry describes the current source release. It does not assert a tag, GitHub Release, or npm artifact before those publication gates complete.
+This entry records source changes for the 0.6.0 release line. Publication mappings are cited only where independently verified.
 
 ## [0.5.1] - 2026-07-26
 
@@ -42,7 +48,7 @@ This entry describes the current source release. It does not assert a tag, GitHu
 - Separated public release notes from the maintainer release runbook and removed internal task identifiers from consumer guidance without changing command behavior or JSON contracts.
 - Kept `https://maxking.cc/aiwiki` as the canonical homepage while the replacement site remains readiness-gated.
 
-This entry describes the current source release. It does not assert a tag, GitHub Release, or npm artifact before those publication gates complete.
+This entry records source changes for the 0.5.1 release line. Publication mappings are cited only where independently verified.
 
 ## [0.5.0] - 2026-07-20
 

@@ -2,6 +2,28 @@
 
 Use this note when an Agent finishes `aiwiki agent sync`.
 
+## 0.8.1
+
+- Corrected the verified 0.8.0 publication record and made the maintainer release instructions reusable across release gates.
+- Added the missing upgrade notes for 0.8.0, 0.7.1, and 0.7.0.
+- MCP `initialize` now reports the same package version as the CLI; MCP protocol and tools, CLI, API, schema, extension, and Pro behavior remain unchanged.
+
+## 0.8.0
+
+- Added read-only `aiwiki doctor --json`, `aiwiki status --json`, and `aiwiki next --json` readiness diagnostics with stable `aiwiki.doctor.v1`, `aiwiki.status.v1`, and `aiwiki.next.v1` contracts.
+- The five reported first-use states are `repair_required`, `setup_required`, `first_ingest_required`, `review_required`, and `ready`.
+- Diagnostics observe capabilities, lint state, metrics, and run history only; never execute suggested repair or setup actions automatically.
+
+## 0.7.1
+
+- Corrected MCP client configuration examples to use the `mcpServers` wrapper, `npx`, and absolute executable paths where required by the host.
+- Added MCP quickstart coverage to the public README and usage guides.
+
+## 0.7.0
+
+- Added stable `aiwiki.public.v1` SDK exports for query, show, health, lifecycle, relationship, and graph-context operations.
+- Added the zero-runtime-dependency MCP server and Agent Contract integration guidance.
+
 ## 0.6.0
 
 - Added four packaged, runnable workflow packs for research, writing, decisions, and review / retrospective work, with public-trial scenarios as concrete starting points.

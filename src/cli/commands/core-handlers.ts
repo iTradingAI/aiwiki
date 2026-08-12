@@ -13,6 +13,7 @@ import { evaluateExtensionLintFindings } from "../../extension/host.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "../../ingest.js";
 import { attachAppliedSafeFixes, filterLintReport, lintWorkspace, mergeLintIssues, removeEmptyOptionalDirs, renderLintReport, renderLintSummary, writeLintReport, type LintIssue, type LintSeverity } from "../../lint.js";
 import { CliError, type CliStreams, writeLine } from "../../output.js";
+import { PACKAGE_VERSION } from "../../package-version.js";
 import { buildWorkspaceDiagnosticSnapshot, deriveWorkspaceReadiness, doctorEnvelope, nextEnvelope, statusEnvelope, type WorkspaceDiagnosticSnapshot } from "../../readiness.js";
 import { renderCapsuleQuery } from "../../query-view.js";
 import { showCapsule } from "../../show.js";
@@ -41,7 +42,7 @@ import { handleRepairCommand } from "./repair.js";
 export function createCoreCommandHandlers(): CoreCommandHandlers {
 
   async function handleVersion(context: CommandContext): Promise<number> {
-    writeLine(context.streams.stdout, `aiwiki ${await packageVersion()}`);
+    writeLine(context.streams.stdout, `aiwiki ${PACKAGE_VERSION}`);
     return 0;
   }
 
@@ -1431,14 +1432,4 @@ function parseJson(text: string): unknown {
   } catch {
     throw new CliError("payload must be valid JSON");
   }
-}
-
-async function packageVersion(): Promise<string> {
-  const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
-  const text = await fs.readFile(path.join(packageRoot, "package.json"), "utf8");
-  const parsed = JSON.parse(text) as { version?: unknown };
-  if (typeof parsed.version !== "string") {
-    throw new CliError("package.json is missing version");
-  }
-  return parsed.version;
 }

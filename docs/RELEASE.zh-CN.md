@@ -7,10 +7,10 @@
 - `main` 是对外公开且受保护的分支。禁止直接推送、强制推送和删除分支。
 - `dev` 是 Core 集成分支。普通 Core 开发从 `dev` 开始；需要隔离时，使用 `task/<id>-<slug>` 分支。
 - 普通 Core 任务只有在分支 CI 与该任务的远端 tarball smoke 测试通过后，才可通过 PR 合并到 `dev`。
-- 只有命名的 Core 发布门槛任务可以创建进入 `main` 的 Core 发布 PR：`CORE-0408`（`0.4.0`）、`CORE-0506`（`0.5.0`）、`CORE-0601`（`0.6.0`）、`CORE-0700`（`0.7.0`）、`CORE-0805`（`0.8.0`）和 `CORE-1000`（`1.0.0`）。
+- 只有命名的 Core 发布门槛任务可以创建进入 `main` 的 Core 发布 PR：`CORE-0408`（`0.4.0`）、`CORE-0506`（`0.5.0`）、`CORE-0601`（`0.6.0`）、`CORE-0700`（`0.7.1`）、`CORE-0805`（`0.8.0`）、`CORE-0806`（`0.8.1`）和 `CORE-1000`（`1.0.0`）。
 - 控制面任务 `CORE-0000` 是一次性例外：它通过 `dev` -> `main` PR 建立本基线，但不得创建版本、标签或 npm 发布。
 - 每个 `main` PR 都必须通过 `.github/workflows/ci.yml` 中唯一命名的 `CI / verify`、解决全部讨论，并留下完成的 Codex 技术审查记录。CI 同时运行于源分支和拟合并结果；仓库维护者只在这些门禁满足后合并。
-- Core 0.5 发布门禁使用两个 PR：`task -> dev` 负责版本准备和精确 task 产物证明；只有已验证的 `dev -> main` PR 才能进入公开分支。合并后还必须通过 `main push CI` 和精确 main tarball 远端 smoke，之后才可以创建 tag。
+- 命名发布门槛任务使用两个 PR：`task -> dev` 负责版本准备和精确 task 产物证明；随后由携带已验证 dev 文件树的发布 PR 进入公开分支。合并后还必须通过 `main push CI` 和精确 main tarball 远端 smoke，之后才可以创建 tag。
 - 当 `main` 与 `dev` 的文件树相同但历史并非线性时，必须保留两条受保护历史：从已验证的 `dev` 创建发布分支，在该分支本地合入 `main`，再使用兼容线性历史保护的 PR 合并方式。禁止 reset、force-push、降低分支保护或声称不存在的祖先关系。
 
 ## 技术审核智能体
@@ -39,11 +39,11 @@ npm pack --dry-run
 
 npm 包只应包含 CLI 运行文件、用户文档、示例和需要打包的 skill 文件。
 
-## Core 0.5 发布门禁
+## 可复用的 Core 发布合同
 
-CORE-0506 只有在包清单、已安装 consumer、Health Report 行为和中英文文档一致时才接受 Core 0.5。`release-gate.test.ts` 与 `npm run release:check` 要求 CLI、Public API、Extension API、Schema、extension failure isolation、完整 Skill bundle，以及显式的 `aiwiki health --write --json` 报告合同都在包内。报告必须输出带有 metrics 的 `aiwiki.health_report.v1`，只刷新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录，不能修改知识 Markdown 或派生 state。manifest 必须包含公开运行入口、双语 Release/Agent handoff、schema 文档、examples 及每个常规 `skill/**` 文件；必须排除 `docs/assets/`、`.omx/`、`.npm-cache/`、`Plan/`、`node_modules/`、tests 和临时 smoke 产物。
+每个命名发布门槛任务只有在包清单、已安装 consumer、适用的公开合同和中英文文档一致时才可接受。`release-gate.test.ts` 与 `npm run release:check` 要求声明的 CLI、Public API、Extension API、Schema、完整 Skill bundle 和发布文档合同都在包内。当发布涉及 Health Report 行为时，`aiwiki health --write --json` 必须输出带有 metrics 的 `aiwiki.health_report.v1`，只刷新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录，不能修改知识 Markdown 或派生 state。manifest 必须包含公开运行入口、双语 changelog、面向使用者的公开文档、schema 文档、examples 及每个常规 `skill/**` 文件；必须排除仅维护者使用的发布与 Agent handoff 指南、`docs/assets/`、`.omx/`、`.npm-cache/`、`Plan/`、`node_modules/`、tests 和临时 smoke 产物。
 
-CORE-0506 不增加 Pro 行为、entitlement、自动 extension discovery、自动 enable、自动 execute、schedule 或 watcher。
+除非经批准且单独记录的 Core 合同明确改变该边界，任何发布门槛任务都不得增加 Pro 行为、entitlement、自动 extension discovery、自动 enable、自动 execute、schedule 或 watcher。
 
 ## Public API 包合同
 
@@ -74,7 +74,7 @@ CORE-0406 建立这套可复用的 Core 合同测试。使用 `npm run test:cont
 - `extension-api.test.ts`：仅声明的 extension 作者 API 及其包边界。
 - `schema-compatibility.test.ts`：历史 schema 可读性、只读迁移预检、未来主版本人工复核和稳定的 context schema。
 - `extension-failure-isolation.test.ts`：manifest 边界、显式启用、命令所有权和失败 extension 隔离。
-- `release-gate.test.ts`：Core 0.5 package/lockfile、JSON pack manifest、Health Report metrics 合同、双语发布路径和对外交付边界。
+- `release-gate.test.ts`：package/lockfile、JSON pack manifest、适用的 Health Report metrics 合同、双语发布路径和对外交付边界。
 
 extension 和未来 Pro 集成只能依赖上述已文档化的公开包入口与显式 Core CLI 命令面。该矩阵锁定完整打包 Skill 匹配，并禁止 extension 自动发现、自动启用和自动执行；不新增 Pro 行为。真实的可重建性合同需要后续的可重建状态模型，已延期至 `CORE-0501`；在此之前不得声称已有该覆盖。
 
@@ -82,10 +82,10 @@ extension 和未来 Pro 集成只能依赖上述已文档化的公开包入口�
 
 `package.json` 是版本来源，`aiwiki --version` 在运行时读取它。
 
-普通 Core 任务不得提升版本。仅在命名发布门槛任务的隔离 task 分支准备 `task -> dev` PR 时，更新到计划中的里程碑版本；已验证的 dev merge 才能成为 `dev -> main` PR 的来源：
+普通 Core 任务不得提升版本。仅在命名发布门槛任务的隔离 task 分支准备 `task -> dev` PR 时，选择已批准的精确目标版本并更新；打包前必须验证 `package.json`、lockfile、CLI、MCP `serverInfo.version`、README 声明与 Skill marker 一致；已验证的 dev merge 才能成为 `dev -> main` PR 的来源：
 
 ```bash
-npm version minor --no-git-tag-version
+npm version <version> --no-git-tag-version
 ```
 
 发布门槛 PR 合并到 `main` 后，必须从该精确的 `main` 提交创建并推送对应标签：
@@ -112,10 +112,10 @@ git push origin v<version>
   -> 精确 task 分支的 publish dry-run
   -> npm pack 并记录 SHA-256
   -> 在远端测试服务器安装精确 tarball
-  -> 运行 Core 0.5 CLI、API、extension、Schema、Skill bundle、Health Report 和 failure isolation smoke
+  -> 运行本次发布涉及的 CLI、API、extension、Schema、Skill bundle 和适用行为 smoke
   -> 任务 PR -> dev
   -> dev merge CI / verify 和重新打包的精确 dev tarball 远端 smoke
-  -> 发布门槛 PR dev -> main
+  -> 携带已验证 dev 文件树的发布 PR -> main
   -> 拟合并结果的 CI / verify 与已完成技术审查
   -> 合并 main
   -> main push CI 与重新打包的精确 main tarball 远端 smoke
@@ -127,7 +127,7 @@ git push origin v<version>
 
 远端 smoke 失败时，不得创建或合并对应 PR。应在本地修复、重新构建、重新打包并重新执行远端测试。
 
-Core 0.5 精确 tarball smoke 必须在任务专属临时 consumer 中安装经 SHA-256 校验的包，并覆盖：
+精确 tarball smoke 必须在任务专属临时 consumer 中安装经 SHA-256 校验的包，并覆盖本次发布变更的公开面。对于完整 Core 合同发布，至少包括：
 
 ```bash
 aiwiki show "<主题>" --path <workspace>
@@ -161,10 +161,10 @@ aiwiki plugin list --json --path <workspace>
 
 ## 发布
 
-AIWiki 使用 npm Trusted Publishing。工作流默认只执行验证：先从精确 task 分支运行，再从发布 PR 选定的 dev merge 运行：
+AIWiki 使用 npm Trusted Publishing。工作流默认只执行验证：先从精确 task 分支运行，再从发布 PR 选定的已验证 dev merge 运行：
 
 ```bash
-gh workflow run publish.yml --repo iTradingAI/aiwiki --ref task/CORE-0506-knowledge-health-release -f mode=dry-run
+gh workflow run publish.yml --repo iTradingAI/aiwiki --ref task/<release-task> -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
 gh workflow run publish.yml --repo iTradingAI/aiwiki --ref dev -f mode=dry-run
 gh run watch --repo iTradingAI/aiwiki
@@ -180,11 +180,11 @@ gh run watch --repo iTradingAI/aiwiki
 发布成功后验证 registry：
 
 ```bash
-npm view @itradingai/aiwiki version
-npm view @itradingai/aiwiki versions --json
+npm view @itradingai/aiwiki@<package-version> version dist.integrity dist.shasum --json
+git ls-remote --tags origin "v<package-version>"
 ```
 
-随后在新的远端临时 consumer 中只从 registry 安装 `@itradingai/aiwiki@0.6.0`，重跑 CLI、公开 import、schema 文档、Skill bundle 和 Health Report 的最小 sanity。该检查未通过前不得对外宣布发布完成。
+随后在新的远端临时 consumer 中只从 registry 安装 `@itradingai/aiwiki@<package-version>`，重跑本次发布涉及的 CLI、公开 import、随包文档、Skill bundle 和适用行为的最小 sanity。该检查未通过前不得对外宣布发布完成。
 
 Trusted Publishing 失败时，检查 npm Trusted Publisher 配置、仓库名、workflow 文件名和 `id-token: write` 权限。
 
