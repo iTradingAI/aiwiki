@@ -104,6 +104,30 @@ async function readPackPaths(): Promise<string[]> {
   return pack.files?.flatMap((file) => file.path ? [file.path] : []) ?? [];
 }
 
+test("release documentation records verified facts and keeps the runbook reusable", () => {
+  const changelog = readFileSync("CHANGELOG.md", "utf8");
+  const changelogZh = readFileSync("CHANGELOG.zh-CN.md", "utf8");
+  const releaseGuide = readFileSync(path.join("docs", "RELEASE.md"), "utf8");
+  const releaseGuideZh = readFileSync(path.join("docs", "RELEASE.zh-CN.md"), "utf8");
+  const upgradeNotes = readFileSync(path.join("skill", "UPGRADE_NOTES.md"), "utf8");
+
+  assert.match(changelog, /## \[0\.8\.1\] - 2026-08-12/);
+  assert.match(changelog, /## \[0\.8\.0\][\s\S]*Verified publication:/);
+  assert.doesNotMatch(changelog, /This entry describes the current source release\./);
+  assert.match(changelogZh, /## \[0\.8\.1\] - 2026-08-12/);
+  assert.match(changelogZh, /## \[0\.8\.0\][\s\S]*已验证发布：/);
+  assert.doesNotMatch(changelogZh, /本条目描述当前源码版本。/);
+  for (const guide of [releaseGuide, releaseGuideZh]) {
+    assert.match(guide, /CORE-0700.*0\.7\.1/);
+    assert.doesNotMatch(guide, /CORE-0506-knowledge-health-release/);
+    assert.doesNotMatch(guide, /@itradingai\/aiwiki@0\.6\.0/);
+    assert.match(guide, /@itradingai\/aiwiki@<package-version>/);
+  }
+  for (const version of ["0.8.1", "0.8.0", "0.7.1", "0.7.0"]) {
+    assert.match(upgradeNotes, new RegExp(`^## ${version.split(".").join("\\.")}$`, "m"));
+  }
+});
+
 test("package gate accepts the complete consumer artifact and derives the current version", async () => {
   const releaseCheck = await releaseCheckModule();
   const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
