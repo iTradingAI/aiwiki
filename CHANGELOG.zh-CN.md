@@ -6,7 +6,7 @@
 
 - 修正已发布的 0.8.0 发布记录，并将中英文维护者发布手册改为版本无关的可复用流程。
 - 为所有 0.6.0 之后的公开发布线补充随包 Skill 升级说明。
-- CLI、API、schema、MCP、extension 与 Pro 行为均保持不变。
+- 将 MCP `initialize` 的 `serverInfo.version` 与包版本对齐；协议、工具及其他 CLI/API/schema/extension/Pro 行为均保持不变。
 
 ## [0.8.0] - 2026-08-12
 

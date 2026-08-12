@@ -6,7 +6,7 @@ This changelog records public, consumer-visible release history. Repository tags
 
 - Corrected the published 0.8.0 release record and made the bilingual maintainer release runbook version-neutral.
 - Added packaged Skill upgrade guidance for every public release line since 0.6.0.
-- Kept CLI, API, schema, MCP, extension, and Pro behavior unchanged.
+- Aligned MCP `initialize` `serverInfo.version` with the package version; protocol, tools, and other CLI/API/schema/extension/Pro behavior remain unchanged.
 
 ## [0.8.0] - 2026-08-12
 

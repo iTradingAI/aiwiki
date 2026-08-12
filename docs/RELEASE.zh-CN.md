@@ -41,7 +41,7 @@ npm 包只应包含 CLI 运行文件、用户文档、示例和需要打包的 s
 
 ## 可复用的 Core 发布合同
 
-每个命名发布门槛任务只有在包清单、已安装 consumer、适用的公开合同和中英文文档一致时才可接受。`release-gate.test.ts` 与 `npm run release:check` 要求声明的 CLI、Public API、Extension API、Schema、完整 Skill bundle 和发布文档合同都在包内。当发布涉及 Health Report 行为时，`aiwiki health --write --json` 必须输出带有 metrics 的 `aiwiki.health_report.v1`，只刷新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录，不能修改知识 Markdown 或派生 state。manifest 必须包含公开运行入口、双语 Release/Agent handoff、schema 文档、examples 及每个常规 `skill/**` 文件；必须排除 `docs/assets/`、`.omx/`、`.npm-cache/`、`Plan/`、`node_modules/`、tests 和临时 smoke 产物。
+每个命名发布门槛任务只有在包清单、已安装 consumer、适用的公开合同和中英文文档一致时才可接受。`release-gate.test.ts` 与 `npm run release:check` 要求声明的 CLI、Public API、Extension API、Schema、完整 Skill bundle 和发布文档合同都在包内。当发布涉及 Health Report 行为时，`aiwiki health --write --json` 必须输出带有 metrics 的 `aiwiki.health_report.v1`，只刷新 `dashboards/Knowledge Health.md` 中 marker 限定的区块，并在 `09-runs/` 写入不可变 JSON 运行记录，不能修改知识 Markdown 或派生 state。manifest 必须包含公开运行入口、双语 changelog、面向使用者的公开文档、schema 文档、examples 及每个常规 `skill/**` 文件；必须排除仅维护者使用的发布与 Agent handoff 指南、`docs/assets/`、`.omx/`、`.npm-cache/`、`Plan/`、`node_modules/`、tests 和临时 smoke 产物。
 
 除非经批准且单独记录的 Core 合同明确改变该边界，任何发布门槛任务都不得增加 Pro 行为、entitlement、自动 extension discovery、自动 enable、自动 execute、schedule 或 watcher。
 
@@ -82,10 +82,10 @@ extension 和未来 Pro 集成只能依赖上述已文档化的公开包入口�
 
 `package.json` 是版本来源，`aiwiki --version` 在运行时读取它。
 
-普通 Core 任务不得提升版本。仅在命名发布门槛任务的隔离 task 分支准备 `task -> dev` PR 时，更新到计划中的里程碑版本；已验证的 dev merge 才能成为 `dev -> main` PR 的来源：
+普通 Core 任务不得提升版本。仅在命名发布门槛任务的隔离 task 分支准备 `task -> dev` PR 时，选择已批准的精确目标版本并更新；打包前必须验证 `package.json`、lockfile、CLI、MCP `serverInfo.version`、README 声明与 Skill marker 一致；已验证的 dev merge 才能成为 `dev -> main` PR 的来源：
 
 ```bash
-npm version minor --no-git-tag-version
+npm version <version> --no-git-tag-version
 ```
 
 发布门槛 PR 合并到 `main` 后，必须从该精确的 `main` 提交创建并推送对应标签：

@@ -41,7 +41,7 @@ The package should contain CLI runtime files, user documentation, examples, and 
 
 ## Reusable Core Release Contract
 
-Every named release gate is accepted only when the package manifest, installed consumer, applicable public contracts, and bilingual documentation agree. `release-gate.test.ts` and `npm run release:check` require the declared CLI, Public API, Extension API, Schema, complete Skill bundle, and release-documentation contracts to be present in the package. When the release includes Health Report behavior, `aiwiki health --write --json` must emit `aiwiki.health_report.v1` with metrics, refresh only the marker-bounded section of `dashboards/Knowledge Health.md`, and write an immutable JSON run record under `09-runs/` without modifying knowledge Markdown or derived state. The manifest must include public runtime entries, release and Agent handoff guides in both languages, schema guides, examples, and every regular `skill/**` file. It must exclude `docs/assets/`, `.omx/`, `.npm-cache/`, `Plan/`, `node_modules/`, tests, and temporary smoke artifacts.
+Every named release gate is accepted only when the package manifest, installed consumer, applicable public contracts, and bilingual documentation agree. `release-gate.test.ts` and `npm run release:check` require the declared CLI, Public API, Extension API, Schema, complete Skill bundle, and release-documentation contracts to be present in the package. When the release includes Health Report behavior, `aiwiki health --write --json` must emit `aiwiki.health_report.v1` with metrics, refresh only the marker-bounded section of `dashboards/Knowledge Health.md`, and write an immutable JSON run record under `09-runs/` without modifying knowledge Markdown or derived state. The manifest must include public runtime entries, bilingual changelogs, public consumer documentation, schema guides, examples, and every regular `skill/**` file. It must exclude maintainer-only release and Agent handoff guides, `docs/assets/`, `.omx/`, `.npm-cache/`, `Plan/`, `node_modules/`, tests, and temporary smoke artifacts.
 
 No release gate may add Pro behavior, entitlement, automatic extension discovery, automatic enablement, automatic execution, schedules, or watchers unless an approved, separately documented Core contract explicitly changes that boundary.
 
@@ -82,10 +82,10 @@ Extensions and future Pro integrations may depend only on the documented public 
 
 `package.json` is the version source. `aiwiki --version` reads it at runtime.
 
-Do not bump a version for ordinary Core tasks. At a named release gate, prepare the version on the isolated task branch before its `task -> dev` PR. The verified dev merge then becomes the source of the `dev -> main` pull request:
+Do not bump a version for ordinary Core tasks. At a named release gate, select the exact approved target version and prepare it on the isolated task branch before its `task -> dev` PR. Verify that `package.json`, the lockfile, CLI, MCP `serverInfo.version`, README declarations, and the Skill marker agree before packaging. The verified dev merge then becomes the source of the `dev -> main` pull request:
 
 ```bash
-npm version minor --no-git-tag-version
+npm version <version> --no-git-tag-version
 ```
 
 After the release-gate pull request has been merged into `main`, create and push the corresponding tag from that exact `main` commit:

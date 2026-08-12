@@ -122,7 +122,10 @@ test("release documentation records verified facts and keeps the runbook reusabl
     assert.doesNotMatch(guide, /CORE-0506-knowledge-health-release/);
     assert.doesNotMatch(guide, /@itradingai\/aiwiki@0\.6\.0/);
     assert.match(guide, /@itradingai\/aiwiki@<package-version>/);
+    assert.match(guide, /npm version <version> --no-git-tag-version/);
   }
+  assert.match(releaseGuide, /maintainer-only release and Agent handoff guides/);
+  assert.match(releaseGuideZh, /仅维护者使用的发布与 Agent handoff 指南/);
   for (const version of ["0.8.1", "0.8.0", "0.7.1", "0.7.0"]) {
     assert.match(upgradeNotes, new RegExp(`^## ${version.split(".").join("\\.")}$`, "m"));
   }

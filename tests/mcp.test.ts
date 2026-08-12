@@ -13,7 +13,7 @@ import { tempRoot } from "./helpers.js";
 
 type RpcResponse = {
   id?: string | number | null;
-  result?: { protocolVersion?: unknown; tools?: unknown };
+  result?: { protocolVersion?: unknown; serverInfo?: { version?: unknown }; tools?: unknown };
   error?: { code: number };
 };
 
@@ -125,7 +125,9 @@ test("MCP initialize notifications cannot advance the lifecycle", async () => {
     assert.equal(errorCode(await client.response()), -32600);
 
     client.send(request(2, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1" } }));
-    assert.equal((await client.response()).result?.protocolVersion, "2025-06-18");
+    const initialized = await client.response();
+    assert.equal(initialized.result?.protocolVersion, "2025-06-18");
+    assert.equal(initialized.result?.serverInfo?.version, (JSON.parse(await fs.readFile("package.json", "utf8")) as { version: string }).version);
     client.send({ jsonrpc: "2.0", method: "notifications/initialized" });
     client.send(request(3, "tools/list"));
     assert.equal(Array.isArray((await client.response()).result?.tools), true);

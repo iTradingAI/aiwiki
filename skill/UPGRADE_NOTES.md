@@ -6,7 +6,7 @@ Use this note when an Agent finishes `aiwiki agent sync`.
 
 - Corrected the verified 0.8.0 publication record and made the maintainer release instructions reusable across release gates.
 - Added the missing upgrade notes for 0.8.0, 0.7.1, and 0.7.0.
-- CLI, API, schema, MCP, extension, and Pro behavior remain unchanged.
+- MCP `initialize` now reports the same package version as the CLI; MCP protocol and tools, CLI, API, schema, extension, and Pro behavior remain unchanged.
 
 ## 0.8.0
 
