@@ -15,6 +15,9 @@ AIWiki Core 通过统一目录记录当前数据合同。该目录是内部兼�
 | Capsule context | `aiwiki.context.capsule.v1` | Agent JSON 输出 | 显式 capsule view 保持稳定。 |
 | Agent payload | `aiwiki.agent_payload.v1` | Agent JSON 输入 | 输入验证仍然严格。 |
 | Agent sync/check | `aiwiki.agent_sync.v1`、`aiwiki.agent_check.v1` | Agent JSON 输出 | 现有输出合同保持稳定。 |
+| 首次使用 doctor | `aiwiki.doctor.v1` | JSON 输出 | 只读的阻塞检查诊断；仅允许新增字段。 |
+| 首次使用 status | `aiwiki.status.v1` | JSON 输出 | 只读的 activity/content/lint/readiness 摘要；仅允许新增字段。 |
+| 首次使用 next | `aiwiki.next.v1` | JSON 输出 | 只读的有序 readiness action；绝不执行 action。 |
 | 派生状态 | `aiwiki.state.*.v1` | `.aiwiki/state/*.json` | 仅为可重建缓存；见[派生状态 v1](STATE.zh-CN.md)。 |
 | 结构化索引 | `aiwiki.index.v1` | `.aiwiki/state/index.json` | 显式构建的可删除元数据；不是语义或向量搜索。 |
 | 关系图 | `aiwiki.graph.v1` | `.aiwiki/state/graph.json` | 显式构建的确定性本地关系元数据；不改变 Context v1。 |
@@ -33,6 +36,9 @@ AIWiki Core 通过统一目录记录当前数据合同。该目录是内部兼�
 - 已声明但未知或未来主版本会被标记为不可写，必须人工复核。内部 `planSchemaMigration()` 报告始终为 `dry_run: true` 且 `would_write: false`。
 - Schema 兼容性不提供迁移 CLI 命令和 `--apply` 路径。后续迁移必须单独设计、审核和发布。
 - `aiwiki health --json` 与 `aiwiki repair --plan --json` 分别输出附加的只读 `aiwiki.health.v1` 和 `aiwiki.repair_plan.v1` 合同。显式执行 `aiwiki health --write --json` 会输出 `aiwiki.health_report.v1`：只刷新 marker 限定的 dashboard 内容并写入不可变 JSON 运行记录。任一健康路径都不会修改知识 Markdown 或构建派生 state。
+- `aiwiki doctor --json`、`aiwiki status --json` 和 `aiwiki next --json` 是三个独立的首次使用 JSON envelope；每一个都包含 `would_write: false`，兼容策略为仅新增字段。`next` 还返回 `actions_executed: false`；建议绝不自动执行。`doctor` 有 blocking check 时可退出 `1`，但仍返回可解析 JSON；`status` 和 `next` 生成报告后退出 `0`。
+- 它们共享的 readiness 对象只有五个稳定状态：`repair_required`、`setup_required`、`first_ingest_required`、`review_required`、`ready`。机器消费者读取 action ID，而不是本地化文本：`run_setup`、`restore_workspace_access`、`verify_workspace_access`、`review_schema`、`review_repair_plan`、`ingest_first_source`、`inspect_failed_run`、`review_low_quality_content`、`query_knowledge`。
+- Readiness 有意比 `aiwiki.health.v1` / `aiwiki.repair_plan.v1` 的维护诊断更窄，并与 `aiwiki.agent_check.v1` 的宿主 Agent 和根指导检查分离。`ready` 只表示工作区可以进入检索，不证明知识内容正确。
 
 仅在生产者需要显式声明时，才使用以下可选 frontmatter 标记：
 

@@ -7,10 +7,11 @@ This guide defines the delivery and release gates for AIWiki maintainers.
 - `main` is the public, protected branch. Direct pushes, force pushes, and branch deletion are prohibited.
 - `dev` is the Core integration branch. Start ordinary Core work from `dev`; use a `task/<id>-<slug>` branch when isolation is needed.
 - Ordinary Core tasks merge by pull request into `dev` only after branch CI and the task's remote tarball smoke test pass.
-- Only named Core release gates open a `dev` -> `main` pull request: `CORE-0408` (`0.4.0`), `CORE-0506` (`0.5.0`), `CORE-0601` (`0.6.0`), `CORE-0700` (`0.7.0`), and `CORE-1000` (`1.0.0`).
+- Only named Core release gates open a Core release pull request to `main`: `CORE-0408` (`0.4.0`), `CORE-0506` (`0.5.0`), `CORE-0601` (`0.6.0`), `CORE-0700` (`0.7.0`), `CORE-0805` (`0.8.0`), and `CORE-1000` (`1.0.0`).
 - The control-plane task `CORE-0000` is the one-time exception that establishes this baseline with a `dev` -> `main` pull request. It must not create a version, tag, or npm publication.
 - A `main` pull request requires the uniquely named `CI / verify` check from `.github/workflows/ci.yml`, resolved conversations, and a completed Codex technical review record. CI runs on the source branch and the proposed pull request merge result. The repository maintainer merges only after those gates are satisfied.
 - Core 0.5 Release Gate uses two PRs: `task -> dev` prepares the version and proves the exact task artifact; only the verified `dev -> main` PR can enter the public branch. After that merge, the `main` push CI and an exact main tarball remote smoke must pass before the tag is created.
+- When `main` and `dev` have equal trees but non-linear histories, preserve both protected histories: prepare the release branch from verified `dev`, merge `main` into that branch locally, and use the repository's linear-history-compatible PR merge method. Never reset, force-push, weaken protection, or claim ancestry that does not exist.
 
 ## Technical Review Agent
 

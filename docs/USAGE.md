@@ -46,8 +46,9 @@ aiwiki setup --path "<replace-with-my-aiwiki-path>" --yes
 aiwiki agent sync --yes
 aiwiki agent check --json
 aiwiki agent check --path "<replace-with-my-aiwiki-path>" --json
-aiwiki doctor --path "<replace-with-my-aiwiki-path>"
-aiwiki status --path "<replace-with-my-aiwiki-path>"
+aiwiki doctor --json --path "<replace-with-my-aiwiki-path>"
+aiwiki status --json --path "<replace-with-my-aiwiki-path>"
+aiwiki next --json --path "<replace-with-my-aiwiki-path>"
 
 Then summarize what was installed, what was synced, whether workspace guidance exists, and whether I need to restart or reload the assistant.
 ```
@@ -65,10 +66,11 @@ Project test: ./aiwiki-test
 Expected result:
 
 - `aiwiki --version` works
-- `aiwiki doctor --path <workspace>` passes or reports actionable fixes
+- `aiwiki doctor --json --path <workspace>` passes or reports actionable fixes
 - `aiwiki agent check --json` reports supported targets as `installed`, `updated`, or `current`
 - `aiwiki agent check --path <workspace> --json` reports workspace guidance as current
-- `aiwiki status --path <workspace>` shows the workspace state and next action
+- `aiwiki status --json --path <workspace>` shows the machine-readable workspace state and next action
+- `aiwiki next --json --path <workspace>` lists suggested actions without running them
 
 ## 2. Agent Sync Layers
 
@@ -113,31 +115,72 @@ Do not write unknown host configuration as a fallback. Report that the host is u
 
 ## 3. Ingest a Source
 
-### 10-minute trial route
+### 5-10 minute first-use route
 
 For a first public trial, keep the loop deliberately small:
 
 ```text
 setup
-  -> first source ingest
-  -> inspect generated artifacts
+  -> agent check
+  -> doctor/status
+  -> first local source ingest
+  -> status/next
   -> query/context reuse
-  -> lint/doctor check
-  -> short feedback note
 ```
 
 Concrete command surface:
 
 ```bash
 aiwiki setup --path <workspace> --yes
-aiwiki doctor --path <workspace>
+aiwiki agent check --path <workspace> --json
+aiwiki doctor --json --path <workspace>
+aiwiki status --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
 aiwiki query "<topic>" --path <workspace>
 aiwiki context "<topic>" --path <workspace>
 aiwiki lint --json --path <workspace>
 ```
 
 When the source is a URL, the assistant reads it first and then calls `aiwiki ingest-agent`; AIWiki itself does not crawl the page.
+
+### Readiness diagnostics: read-only, machine-readable guidance
+
+`doctor`, `status`, and `next` answer different first-use questions from the same
+read-only readiness facts. Use JSON for Agent decisions; do not parse terminal
+prose:
+
+```bash
+aiwiki doctor --json --path <workspace>
+aiwiki status --json --path <workspace>
+aiwiki next --json --path <workspace>
+```
+
+All three envelopes have a stable schema (`aiwiki.doctor.v1`,
+`aiwiki.status.v1`, or `aiwiki.next.v1`) and `would_write: false`. `next` also
+returns `actions_executed: false`: it recommends work but never runs setup,
+ingest, lint fixes, repair, or query on the user's behalf. `doctor` exits `1`
+only for blocking checks while still writing parseable JSON; `status` and `next`
+exit `0` when they can generate their reports, even when readiness is not
+`ready`.
+
+| Command | Owns | Does not own |
+| --- | --- | --- |
+| `doctor --json` | workspace access and required-structure blockers | maintenance health or repair execution |
+| `status --json` | current first-use facts and readiness phase | host-Agent integration or content correctness |
+| `next --json` | ordered action IDs for the current phase | automatic action execution |
+| `agent check --json` | host-Agent installation and root-guidance state | workspace readiness summary |
+| `health --json` / `repair --plan --json` | deep maintenance domains and advisory repair evidence | the first-use state machine |
+
+The five stable readiness states are `repair_required`, `setup_required`,
+`first_ingest_required`, `review_required`, and `ready`. A `ready` workspace is
+ready to continue with retrieval; it does **not** certify that every knowledge
+claim is correct. Read `readiness.state` and stable action `id` values, not
+localized labels. The complete action set is `run_setup`,
+`restore_workspace_access`, `verify_workspace_access`, `review_schema`,
+`review_repair_plan`, `ingest_first_source`, `inspect_failed_run`,
+`review_low_quality_content`, and `query_knowledge`.
 
 ### Public-trial scenarios
 
