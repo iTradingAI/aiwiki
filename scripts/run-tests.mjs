@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -12,6 +12,7 @@ if (scope === undefined || !["all", "contracts", "compatibility"].includes(scope
 }
 
 const testFiles = readdirSync(testsDir, { recursive: true })
+  .filter((name) => statSync(join(testsDir, name)).isFile())
   .filter((name) => name.endsWith(".test.js"))
   .filter((name) => {
     const normalizedName = String(name).replace(/\\/g, "/");
