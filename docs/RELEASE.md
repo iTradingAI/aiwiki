@@ -7,8 +7,8 @@ This guide defines the delivery and release gates for AIWiki maintainers.
 - `main` is the public, protected branch. Direct pushes, force pushes, and branch deletion are prohibited.
 - `dev` is the Core integration branch. Start ordinary Core work from `dev`; use a `task/<id>-<slug>` branch when isolation is needed.
 - Ordinary Core tasks merge by pull request into `dev` only after branch CI and the task's remote tarball smoke test pass.
-- Only named Core release gates open a Core release pull request to `main`: `CORE-0408` (`0.4.0`), `CORE-0506` (`0.5.0`), `CORE-0601` (`0.6.0`), `CORE-0700` (`0.7.1`), `CORE-0805` (`0.8.0`), `CORE-0806` (`0.8.1`), and `CORE-1000` (`1.0.0`).
-- The control-plane task `CORE-0000` is the one-time exception that establishes this baseline with a `dev` -> `main` pull request. It must not create a version, tag, or npm publication.
+- Only named Core release gates open a Core release pull request to `main`: the `0.4.0`, `0.5.0`, `0.6.0`, `0.7.1`, `0.8.0`, `0.8.1`, and `1.0.0` release gates.
+- The control-plane baseline is the one-time exception that establishes this baseline with a `dev` -> `main` pull request. It must not create a version, tag, or npm publication.
 - A `main` pull request requires the uniquely named `CI / verify` check from `.github/workflows/ci.yml`, resolved conversations, and a completed Codex technical review record. CI runs on the source branch and the proposed pull request merge result. The repository maintainer merges only after those gates are satisfied.
 - A named release gate uses two PRs: `task -> dev` prepares the version and proves the exact task artifact; a release PR carrying the verified dev tree then enters the public branch. After that merge, the `main` push CI and an exact main tarball remote smoke must pass before the tag is created.
 - When `main` and `dev` have equal trees but non-linear histories, preserve both protected histories: prepare the release branch from verified `dev`, merge `main` into that branch locally, and use the repository's linear-history-compatible PR merge method. Never reset, force-push, weaken protection, or claim ancestry that does not exist.
@@ -56,17 +56,17 @@ When an exports entry, public type, or public API version changes, the task must
 - internal deep imports fail with `ERR_PACKAGE_PATH_NOT_EXPORTED`; and
 - the CLI bin and `createAiwikiCli().run()` preserve the required command behavior.
 
-Ordinary Core tasks still do not bump the package version, create tags, or publish npm packages. CORE-0404 defines and verifies the public Extension API path; it adds no Extension Host, plugin CLI, or automatic Skill match.
+Ordinary Core tasks still do not bump the package version, create tags, or publish npm packages. The public Extension API release defines and verifies the public path; it adds no Extension Host, plugin CLI, or automatic Skill match.
 
 ## Schema Compatibility Gate
 
-CORE-0403 keeps `aiwiki.context.v1` and `aiwiki.context.capsule.v1` stable, reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1`, and provides only an internal read-only migration plan. The task must prove that legacy config and unknown additive frontmatter are not rewritten, and that a future major becomes a manual-review result.
+The Schema compatibility release keeps `aiwiki.context.v1` and `aiwiki.context.capsule.v1` stable, reads legacy workspace `schema_version: 1` as `aiwiki.workspace.v1`, and provides only an internal read-only migration plan. The task must prove that legacy config and unknown additive frontmatter are not rewritten, and that a future major becomes a manual-review result.
 
-The packed tarball must include `docs/schema/`. CORE-0403 added no Schema CLI; CORE-0404 adds the declaration-only Extension API, and CORE-0407 owns future Skill matching behavior.
+The packed tarball must include `docs/schema/`. The Schema compatibility release added no Schema CLI; the public Extension API release adds the declaration-only Extension API, and subsequent Skill work owns future Skill matching behavior.
 
 ## Contract Test Matrix
 
-CORE-0406 establishes this reusable Core contract suite. Run it with `npm run test:contracts`. It runs only the compiled tests under `tests/contracts/`; `npm test` remains the full repository suite. The matrix protects these stable boundaries:
+The reusable Core contract suite is run with `npm run test:contracts`. It runs only the compiled tests under `tests/contracts/`; `npm test` remains the full repository suite. The matrix protects these stable boundaries:
 
 - `public-api.test.ts`: installed-package public imports, declarations, and blocked deep imports.
 - `cli-compatibility.test.ts`: installed-package CLI version, Core commands, context schema versions, and explicit plugin administration only.
@@ -76,7 +76,19 @@ CORE-0406 establishes this reusable Core contract suite. Run it with `npm run te
 - `extension-failure-isolation.test.ts`: manifest containment, explicit enablement, command ownership, and failed-extension isolation.
 - `release-gate.test.ts`: package version/lockfile, JSON pack manifest, applicable Health Report metrics contract, bilingual release path, and public delivery boundary.
 
-Extensions and future Pro integrations may depend only on the documented public package entries and explicit Core CLI surfaces above. This matrix locks full packaged Skill matching and forbids automatic extension discovery, enablement, and execution; it adds no Pro behavior. A real rebuildability contract requires the later rebuildable state model and is deferred to `CORE-0501`; do not claim that coverage before then.
+Extensions and future Pro integrations may depend only on the documented public package entries and explicit Core CLI surfaces above. This matrix locks full packaged Skill matching and forbids automatic extension discovery, enablement, and execution; it adds no Pro behavior. A real rebuildability contract requires the later rebuildable state model and is deferred to later Core work; do not claim that coverage before then.
+
+## Core 1.0 Contract Freeze Matrix
+
+The Core 1.0 contract freeze records the following release-readiness boundaries and formal deviations. These declarations describe package commitments; they do not add runtime behavior.
+
+| Area | D1 readiness | D2 formal deviation |
+| --- | --- | --- |
+| Schema catalog | The `docs/schema/` catalog is frozen as additive-only with exactly 24 keys. Existing keys are not renamed or removed. | None. |
+| Public API | The public barrel has exactly 30 exports, and the stable version marker is `aiwiki.public.v1`. | None. |
+| Legacy commands | `init`, `ingest-url`, `agent install`, and `next` are all keep-compatible; this release does not change their behavior. | None. |
+| Extension API | The package boundary remains explicit and declaration-only. | The planned 1.0 Extension API scope is formally reduced to declaration-only v0.1. Production invocation of `contextProviders` and `artifactGenerators` is deferred to the Pro-resumption decision track; Core 1.0 makes no production-invocation commitment. |
+
 
 ## Version and Tags
 

@@ -7,8 +7,8 @@
 - `main` 是对外公开且受保护的分支。禁止直接推送、强制推送和删除分支。
 - `dev` 是 Core 集成分支。普通 Core 开发从 `dev` 开始；需要隔离时，使用 `task/<id>-<slug>` 分支。
 - 普通 Core 任务只有在分支 CI 与该任务的远端 tarball smoke 测试通过后，才可通过 PR 合并到 `dev`。
-- 只有命名的 Core 发布门槛任务可以创建进入 `main` 的 Core 发布 PR：`CORE-0408`（`0.4.0`）、`CORE-0506`（`0.5.0`）、`CORE-0601`（`0.6.0`）、`CORE-0700`（`0.7.1`）、`CORE-0805`（`0.8.0`）、`CORE-0806`（`0.8.1`）和 `CORE-1000`（`1.0.0`）。
-- 控制面任务 `CORE-0000` 是一次性例外：它通过 `dev` -> `main` PR 建立本基线，但不得创建版本、标签或 npm 发布。
+- 只有命名的 Core 发布门槛可以创建进入 `main` 的 Core 发布 PR：`0.4.0`、`0.5.0`、`0.6.0`、`0.7.1`、`0.8.0`、`0.8.1` 和 `1.0.0` 发布门槛。
+- 控制面基线是一次性例外：它通过 `dev` -> `main` PR 建立本基线，但不得创建版本、标签或 npm 发布。
 - 每个 `main` PR 都必须通过 `.github/workflows/ci.yml` 中唯一命名的 `CI / verify`、解决全部讨论，并留下完成的 Codex 技术审查记录。CI 同时运行于源分支和拟合并结果；仓库维护者只在这些门禁满足后合并。
 - 命名发布门槛任务使用两个 PR：`task -> dev` 负责版本准备和精确 task 产物证明；随后由携带已验证 dev 文件树的发布 PR 进入公开分支。合并后还必须通过 `main push CI` 和精确 main tarball 远端 smoke，之后才可以创建 tag。
 - 当 `main` 与 `dev` 的文件树相同但历史并非线性时，必须保留两条受保护历史：从已验证的 `dev` 创建发布分支，在该分支本地合入 `main`，再使用兼容线性历史保护的 PR 合并方式。禁止 reset、force-push、降低分支保护或声称不存在的祖先关系。
@@ -56,17 +56,17 @@ Core 集成支持 `@itradingai/aiwiki`、`@itradingai/aiwiki/contracts` 和 `@it
 - 内部深层导入以 `ERR_PACKAGE_PATH_NOT_EXPORTED` 失败；以及
 - CLI bin 和 `createAiwikiCli().run()` 保持要求的命令行为。
 
-普通 Core 任务仍不得提升包版本、创建 tag 或发布 npm 包。CORE-0404 已定义并验证公开 Extension API 路径；它不增加 Extension Host、plugin CLI 或自动 Skill 匹配。
+普通 Core 任务仍不得提升包版本、创建 tag 或发布 npm 包。公开 Extension API 发布定义并验证公开路径；它不增加 Extension Host、plugin CLI 或自动 Skill 匹配。
 
 ## Schema Compatibility Gate
 
-CORE-0403 保持 `aiwiki.context.v1` 与 `aiwiki.context.capsule.v1` 稳定，将历史工作区 `schema_version: 1` 读取为 `aiwiki.workspace.v1`，并且只提供内部只读迁移预检。任务必须证明旧配置和未知新增 frontmatter 没有被回写，未来主版本会落入人工复核结果。
+Schema 兼容性发布保持 `aiwiki.context.v1` 与 `aiwiki.context.capsule.v1` 稳定，将历史工作区 `schema_version: 1` 读取为 `aiwiki.workspace.v1`，并且只提供内部只读迁移预检。任务必须证明旧配置和未知新增 frontmatter 没有被回写，未来主版本会落入人工复核结果。
 
-打包 tarball 必须包含 `docs/schema/`。CORE-0403 没有新增 Schema CLI；CORE-0404 新增仅声明的 Extension API，CORE-0407 负责后续 Skill 匹配行为。
+打包 tarball 必须包含 `docs/schema/`。Schema 兼容性发布没有新增 Schema CLI；公开 Extension API 发布新增仅声明的 Extension API，后续 Skill 工作负责未来 Skill 匹配行为。
 
 ## 合同测试矩阵
 
-CORE-0406 建立这套可复用的 Core 合同测试。使用 `npm run test:contracts` 执行；它只运行 `tests/contracts/` 下的已编译测试，`npm test` 仍运行完整仓库测试。矩阵锁定以下稳定边界：
+这套可复用的 Core 合同测试使用 `npm run test:contracts` 执行；它只运行 `tests/contracts/` 下的已编译测试，`npm test` 仍运行完整仓库测试。矩阵锁定以下稳定边界：
 
 - `public-api.test.ts`：已安装包的公开导入、声明文件和被禁止的深层导入。
 - `cli-compatibility.test.ts`：已安装包的 CLI 版本、Core 命令、context schema 版本，以及仅显式的 plugin 管理。
@@ -76,7 +76,18 @@ CORE-0406 建立这套可复用的 Core 合同测试。使用 `npm run test:cont
 - `extension-failure-isolation.test.ts`：manifest 边界、显式启用、命令所有权和失败 extension 隔离。
 - `release-gate.test.ts`：package/lockfile、JSON pack manifest、适用的 Health Report metrics 合同、双语发布路径和对外交付边界。
 
-extension 和未来 Pro 集成只能依赖上述已文档化的公开包入口与显式 Core CLI 命令面。该矩阵锁定完整打包 Skill 匹配，并禁止 extension 自动发现、自动启用和自动执行；不新增 Pro 行为。真实的可重建性合同需要后续的可重建状态模型，已延期至 `CORE-0501`；在此之前不得声称已有该覆盖。
+extension 和未来 Pro 集成只能依赖上述已文档化的公开包入口与显式 Core CLI 命令面。该矩阵锁定完整打包 Skill 匹配，并禁止 extension 自动发现、自动启用和自动执行；不新增 Pro 行为。真实的可重建性合同需要后续的可重建状态模型，已延期至后续 Core 工作；在此之前不得声称已有该覆盖。
+
+## Core 1.0 契约冻结矩阵
+
+Core 1.0 契约冻结记录以下发布就绪边界与正式偏差。这些声明描述包交付承诺，不增加运行时行为。
+
+| 范围 | D1 就绪性 | D2 正式偏差 |
+| --- | --- | --- |
+| Schema 目录 | `docs/schema/` 目录冻结为仅可新增，且恰有 24 个键。既有键不得重命名或删除。 | 无。 |
+| Public API | 公开 barrel 恰有 30 个导出，稳定版本标记为 `aiwiki.public.v1`。 | 无。 |
+| legacy 命令 | `init`、`ingest-url`、`agent install` 和 `next` 全部保持兼容；本发布不改变其行为。 | 无。 |
+| Extension API | 包边界保持显式且仅声明。 | 源计划的 1.0 Extension API 范围正式降级为仅声明的 v0.1。`contextProviders` 和 `artifactGenerators` 的生产调用延后至 Pro 恢复决策轨道；Core 1.0 不承诺生产调用。 |
 
 ## 版本与标签
 
