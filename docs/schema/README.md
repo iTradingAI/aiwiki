@@ -48,6 +48,26 @@ The Core 1.0 contract freeze locks these entries under an additive-only policy: 
 - Their shared readiness object has exactly five stable states: `repair_required`, `setup_required`, `first_ingest_required`, `review_required`, and `ready`. Machine consumers use action IDs rather than localized prose: `run_setup`, `restore_workspace_access`, `verify_workspace_access`, `review_schema`, `review_repair_plan`, `ingest_first_source`, `inspect_failed_run`, `review_low_quality_content`, and `query_knowledge`.
 - Readiness is deliberately narrower than `aiwiki.health.v1` / `aiwiki.repair_plan.v1` maintenance diagnostics and separate from `aiwiki.agent_check.v1` host-Agent and root-guidance checks. `ready` means the workspace can proceed to retrieval; it does not certify knowledge correctness.
 
+## Migration Guide
+
+Legacy workspaces with `schema_version: 1` remain read-only compatible: AIWiki identifies them as `aiwiki.workspace.v1` and does not rewrite their configuration.
+
+For a manual migration, prefer this review-first process:
+
+1. Back up the complete legacy workspace before making any changes.
+2. Initialize a new workspace with `aiwiki init --path "<new-workspace>" --yes --set-default`.
+3. Review each legacy page individually, including its content, frontmatter, and any schema markers.
+4. Manually ingest only the pages and source material you approve into the new workspace.
+
+The following legacy commands remain keep-compatible and have no behavior changes:
+
+- `aiwiki init --path "<workspace>" --yes --set-default` continues to initialize the specified workspace and set it as the default.
+- `aiwiki ingest-url --content-file "<file>" "<url>"` continues to use the URL as metadata only; it never fetches the URL.
+- `aiwiki agent install --agent "<agent>" --yes --force` continues to install the requested Agent integration.
+- `aiwiki next` remains a read-only readiness report and does not execute recommended actions.
+
+There is no migration CLI and no `--apply` automatic path. For a future major schema version, preserve the legacy workspace, review the migration design and affected content manually, then migrate only after that review; any automated migration would require separate design, review, and release.
+
 Optional frontmatter markers are available only when a producer needs to declare them:
 
 ```yaml

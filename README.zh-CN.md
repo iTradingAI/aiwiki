@@ -84,6 +84,9 @@ aiwiki next --json --path "<替换成我的 AIWiki 知识库路径>"
 
 如果 Agent 同步失败，可以提交 [Agent Integration issue](https://github.com/iTradingAI/aiwiki/issues/new?template=agent_integration.md)，并附上 `aiwiki agent check --json` 和 `aiwiki doctor --path "<workspace>"` 的输出。
 
+如果你要升级现有工作区，请先阅读[迁移指南](docs/schema/README.zh-CN.md#迁移指南)，再迁移其中的内容。
+
+
 ## 第一次使用
 
 第一次试用 AIWiki，建议按 [使用指南](docs/USAGE.zh-CN.md#3-入库资料) 的 5-10 分钟路径跑一遍：setup → agent check → `doctor/status` → 入库一份本地资料 → `status/next` → query/context。

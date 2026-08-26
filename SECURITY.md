@@ -38,3 +38,5 @@ Public, non-security bugs may be reported through [GitHub Issues](https://github
 ## Response Expectations
 
 Maintainers aim to acknowledge a private report within 3 business days and provide an initial assessment within 7 calendar days. Validation, remediation, and coordinated disclosure timing depend on severity and reproducibility. Please allow maintainers to investigate and prepare a fix before public disclosure.
+
+See [docs/SECURITY.md](docs/SECURITY.md) for the complete security guide.

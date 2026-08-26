@@ -48,6 +48,26 @@ Core 1.0 契约冻结以仅新增（additive-only）策略锁定这些记录：�
 - 它们共享的 readiness 对象只有五个稳定状态：`repair_required`、`setup_required`、`first_ingest_required`、`review_required`、`ready`。机器消费者读取 action ID，而不是本地化文本：`run_setup`、`restore_workspace_access`、`verify_workspace_access`、`review_schema`、`review_repair_plan`、`ingest_first_source`、`inspect_failed_run`、`review_low_quality_content`、`query_knowledge`。
 - Readiness 有意比 `aiwiki.health.v1` / `aiwiki.repair_plan.v1` 的维护诊断更窄，并与 `aiwiki.agent_check.v1` 的宿主 Agent 和根指导检查分离。`ready` 只表示工作区可以进入检索，不证明知识内容正确。
 
+## 迁移指南
+
+具有 `schema_version: 1` 的旧工作区继续保持只读兼容：AIWiki 将其识别为 `aiwiki.workspace.v1`，且不会回写其配置。
+
+人工迁移时，建议采用以下先审查后迁移的流程：
+
+1. 在进行任何更改前，完整备份旧工作区。
+2. 使用 `aiwiki init --path "<new-workspace>" --yes --set-default` 初始化一个新工作区。
+3. 逐页审查旧页面，包括内容、frontmatter 和所有 schema 标记。
+4. 仅将审查通过的页面和源资料手动入库到新工作区。
+
+以下旧命令保持兼容，行为没有变化：
+
+- `aiwiki init --path "<workspace>" --yes --set-default` 继续初始化指定工作区并将其设为默认工作区。
+- `aiwiki ingest-url --content-file "<file>" "<url>"` 继续仅将 URL 用作元数据；绝不抓取该 URL。
+- `aiwiki agent install --agent "<agent>" --yes --force` 继续安装指定的 Agent 接入。
+- `aiwiki next` 仍是只读的 readiness 报告，不会执行建议的 action。
+
+没有迁移 CLI，也没有 `--apply` 自动路径。面对未来的 schema 主版本，应保留旧工作区，人工审查迁移设计和受影响内容，再在审查后迁移；任何自动迁移都需要单独设计、审核和发布。
+
 仅在生产者需要显式声明时，才使用以下可选 frontmatter 标记：
 
 ```yaml
