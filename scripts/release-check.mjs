@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
   lstatSync,
@@ -102,6 +102,26 @@ function run(command, args, options = {}) {
     shell: options.shell ?? false,
     stdio: options.stdio ?? "pipe"
   });
+}
+
+function npmCommand() {
+  const npmExecPath = process.env.npm_execpath ?? path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
+  return existsSync(npmExecPath)
+    ? { command: process.execPath, prefix: [npmExecPath] }
+    : { command: process.platform === "win32" ? "npm.cmd" : "npm", prefix: [] };
+}
+
+function runCompatibilityGate() {
+  const npm = npmCommand();
+  const result = spawnSync(npm.command, [...npm.prefix, "run", "test:compat"], {
+    cwd: root,
+    encoding: "utf8",
+    shell: process.platform === "win32" && npm.command.endsWith(".cmd"),
+    stdio: "inherit"
+  });
+  if (result.error) throw new Error(`compatibility gate could not start: ${result.error.message}`);
+  if (result.status !== 0) throw new Error(`compatibility gate failed with exit status ${result.status ?? "unknown"}`);
+  console.log("compatibility gate: ok");
 }
 
 
@@ -337,6 +357,8 @@ export function runReleaseCheck() {
   if (versionOutput !== `aiwiki ${packageJson.version}`) {
     throw new Error(`version mismatch: ${versionOutput} != aiwiki ${packageJson.version}`);
   }
+
+  runCompatibilityGate();
 
   const skillFiles = regularFiles(path.join(root, "skill"));
   const packFiles = readPackManifest(packageJson.version);

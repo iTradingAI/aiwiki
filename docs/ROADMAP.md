@@ -4,40 +4,12 @@ AIWiki has one public base product: a local Markdown knowledge base for AI assis
 
 The roadmap keeps the base CLI focused. Advanced automation, crawling, multi-knowledge-base workflows, vector search, and team controls belong outside the base scope unless explicitly planned later.
 
-## Current Focus
+## Core 1.0 Stabilization
 
-### 1. First-use success
-
-- clearer assistant-first installation prompt
-- safer `agent sync` and workspace guidance
-- better `agent check` diagnostics
-- a 5-10 minute path from setup to first ingest to first query
-- read-only `doctor --json`, `status --json`, and `next --json` readiness guidance with stable states and action IDs
-
-### 2. Reusable local knowledge
-
-- Source Capsule as the default low-entropy human query view
-- explicit `aiwiki context --view capsule` for Agent object-level reuse
-- clearer Wiki Entry quality signals
-- better query/context explanations
-- more examples showing writing, research, decision, and review workflows
-- stronger distinction between external sources and user-authored output
-
-### 3. Workspace health
-
-- practical lint output for humans and assistants
-- opt-in capsule, lifecycle, and OKF-ready lint checks
-- safe automatic fixes only when the fix is narrow and reversible
-- clear ownership between first-use readiness, health/repair maintenance, and Agent checks
-- fewer empty optional artifacts in new workspaces
-
-### 4. Public trial assets
-
-- short use cases users can complete in 5-10 minutes
-- example vaults that match the current CLI behavior
-- WeChat group feedback templates
-- a queue policy that separates user pain from feature creep
-- weekly feedback classification and monthly roadmap review through [Operating Feedback Loop](OPERATING_FEEDBACK_LOOP.md)
+- The Core 1.0 contract freeze is complete: the freeze matrix and contract tests are locked.
+- Documentation and migration guides are in progress.
+- Compatibility testing is planned.
+- Release gates are planned.
 
 ## Not in the Base Queue
 
@@ -59,7 +31,7 @@ These may become separate service-layer, integration, or Pro-adjacent projects, 
 
 ## Operating Principle
 
-AIWiki should stay boring in the right places:
+AIWiki follows a stability-first operating principle:
 
 ```text
 assistant reads

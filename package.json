@@ -1,6 +1,6 @@
 {
   "name": "@itradingai/aiwiki",
-  "version": "0.8.1",
+  "version": "1.0.0",
   "type": "module",
   "types": "./dist/src/public/index.d.ts",
   "exports": {
@@ -74,6 +74,8 @@
     "docs/OPERATING_FEEDBACK_LOOP.zh-CN.md",
     "docs/ROADMAP.md",
     "docs/ROADMAP.zh-CN.md",
+    "docs/SECURITY.md",
+    "docs/SECURITY.zh-CN.md",
     "docs/SHOWCASE.md",
     "docs/SHOWCASE.zh-CN.md",
     "docs/USAGE.md",
@@ -94,6 +96,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node scripts/run-tests.mjs",
     "test:contracts": "npm run build && node scripts/run-tests.mjs --scope contracts",
+    "test:compat": "npm run build && node scripts/run-tests.mjs --scope compatibility",
     "check": "npm run test",
     "package:dry-run": "npm run build && node scripts/package-stage.mjs dry-run",
     "release:check": "npm test && node scripts/release-check.mjs",

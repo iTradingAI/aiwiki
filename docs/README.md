@@ -2,7 +2,7 @@
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 
-Current release: **0.8.1**
+Current release: **1.0.0**
 
 This docs folder keeps the public guides short and task-oriented. The main README is the product entry point; these files explain daily use, assistant handoff, examples, release checks, and roadmap boundaries.
 
@@ -75,7 +75,7 @@ Introduced in 0.3.0, the human `aiwiki query` output defaults to Source Capsules
 
 ## Schema Compatibility
 
-The [Schema Compatibility catalog](schema/README.md) defines active v1 contracts, the `schema_version: 1` workspace alias, and the read-only manual-review rule for future major versions. Schema compatibility does not change Skill matching; extension commands remain explicit and keep their documented precedence and fallback boundaries.
+The [Schema Compatibility catalog](schema/README.md) defines active v1 contracts, the `schema_version: 1` workspace alias, and the read-only manual-review rule for future major versions. For review-first upgrade guidance, see the [Migration Guide](./schema/README.md#migration-guide). Schema compatibility does not change Skill matching; extension commands remain explicit and keep their documented precedence and fallback boundaries.
 
 For public trials, keep the first loop to one source and one question: setup, ingest, inspect the run artifacts, query/context reuse, lint/doctor, and a short feedback note.
 

@@ -6,6 +6,14 @@ The public authoring entry is <code>@itradingai/aiwiki/extension-api</code>. Its
 
 The current explicit Host is documented in [Extension Host v0.1](EXTENSION_HOST.md). Permission declarations and their trust boundary are documented in [permission declarations](../plugins/PERMISSIONS.md).
 
+## Core 1.0 contract freeze
+
+### Formal declaration-only v0.1 deviation
+
+Core 1.0 formally records a deviation from the source plan's Extension API 1.0: Extension API v0.1 freezes declarations only. The compatibility marker remains <code>aiwiki.extension.v1</code>, and author-facing types, interfaces, and documentation remain stable. Core does not implement production invocation of <code>contextProviders</code> or <code>artifactGenerators</code>; reopening that decision requires restoration of the Pro track.
+
+Plugin signing is a proposal requirement transferred to the follow-up Core documentation and migration task. This Core 1.0 work implements no signing behavior, signature format, verification, key handling, or signing CLI surface.
+
 ## Manifest compatibility
 
 A local `aiwiki-extension.json` requires these legacy fields:

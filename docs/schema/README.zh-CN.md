@@ -29,6 +29,14 @@ AIWiki Core 通过统一目录记录当前数据合同。该目录是内部兼�
 
 `aiwiki.context.v2` 已启用，作为显式的关系图 Context view；默认 Context 仍是 `aiwiki.context.v1`，且 Context v2 不会自动构建关系图 state。`aiwiki.extension.v1` 作为 [Extension API v0.1](EXTENSION_SCHEMA.zh-CN.md) 已启用。[Extension Host v0.1](EXTENSION_HOST.zh-CN.md) 只增加显式的 `plugin add` 与 `plugin enable` 管理，用于启用 local 或 bundled extension；没有自动发现。
 
+## Schema Compatibility
+
+`AIWIKI_SCHEMAS` 是权威的内部目录。其冻结的 24 个键为：`workspace`、`artifact`、`capsule`、`lifecycle`、`relationships`、`stateArtifacts`、`stateCapsules`、`stateRelationships`、`stateLifecycle`、`stateIndex`、`stateGraph`、`context`、`capsuleContext`、`agentPayload`、`agentSync`、`agentCheck`、`contextV2`、`health`、`healthReport`、`repairPlan`、`doctor`、`status`、`next` 和 `extension`。
+
+每一项目录记录均完整包含 `{ id, status, aliases, storage, compatibility }`。`id` 是规范版本；`status` 表明记录为 active 还是 reserved；`aliases` 收录可接受的旧版本；`storage` 标识持久化或交换边界；`compatibility` 则声明消费者如何处理该版本。
+
+Core 1.0 契约冻结以仅新增（additive-only）策略锁定这些记录：未来目录变更可以新增一个键和规范版本，但不得重命名、删除或修改既有键的五个字段。对于 `additive_fields_only` 合同，生产者可以新增字段，但不得删除、重命名或重新解释既有字段。`aiwiki.agent_payload.v1` 仍为 `strict_input_version`；其输入版本不是可新增字段合同。这些保证只记录既有的内部兼容性边界，不新增 CLI、SDK 或 Extension API 表面。
+
 ## 兼容与迁移
 
 - 已有 `schema_version: 1` 的工作区会按 `aiwiki.workspace.v1` 读取；AIWiki 不会回写该配置。
@@ -39,6 +47,26 @@ AIWiki Core 通过统一目录记录当前数据合同。该目录是内部兼�
 - `aiwiki doctor --json`、`aiwiki status --json` 和 `aiwiki next --json` 是三个独立的首次使用 JSON envelope；每一个都包含 `would_write: false`，兼容策略为仅新增字段。`next` 还返回 `actions_executed: false`；建议绝不自动执行。`doctor` 有 blocking check 时可退出 `1`，但仍返回可解析 JSON；`status` 和 `next` 生成报告后退出 `0`。
 - 它们共享的 readiness 对象只有五个稳定状态：`repair_required`、`setup_required`、`first_ingest_required`、`review_required`、`ready`。机器消费者读取 action ID，而不是本地化文本：`run_setup`、`restore_workspace_access`、`verify_workspace_access`、`review_schema`、`review_repair_plan`、`ingest_first_source`、`inspect_failed_run`、`review_low_quality_content`、`query_knowledge`。
 - Readiness 有意比 `aiwiki.health.v1` / `aiwiki.repair_plan.v1` 的维护诊断更窄，并与 `aiwiki.agent_check.v1` 的宿主 Agent 和根指导检查分离。`ready` 只表示工作区可以进入检索，不证明知识内容正确。
+
+## 迁移指南
+
+具有 `schema_version: 1` 的旧工作区继续保持只读兼容：AIWiki 将其识别为 `aiwiki.workspace.v1`，且不会回写其配置。
+
+人工迁移时，建议采用以下先审查后迁移的流程：
+
+1. 在进行任何更改前，完整备份旧工作区。
+2. 使用 `aiwiki init --path "<new-workspace>" --yes --set-default` 初始化一个新工作区。
+3. 逐页审查旧页面，包括内容、frontmatter 和所有 schema 标记。
+4. 仅将审查通过的页面和源资料手动入库到新工作区。
+
+以下旧命令保持兼容，行为没有变化：
+
+- `aiwiki init --path "<workspace>" --yes --set-default` 继续初始化指定工作区并将其设为默认工作区。
+- `aiwiki ingest-url --content-file "<file>" "<url>"` 继续仅将 URL 用作元数据；绝不抓取该 URL。
+- `aiwiki agent install --agent "<agent>" --yes --force` 继续安装指定的 Agent 接入。
+- `aiwiki next` 仍是只读的 readiness 报告，不会执行建议的 action。
+
+没有迁移 CLI，也没有 `--apply` 自动路径。面对未来的 schema 主版本，应保留旧工作区，人工审查迁移设计和受影响内容，再在审查后迁移；任何自动迁移都需要单独设计、审核和发布。
 
 仅在生产者需要显式声明时，才使用以下可选 frontmatter 标记：
 

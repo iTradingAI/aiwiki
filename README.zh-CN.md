@@ -28,7 +28,7 @@ Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、再到只读 JSON `doc
 
 **把 AI 助手读过的资料，变成以后可以查询、复用、整理的本地知识库。**
 
-当前版本：**0.8.1**
+当前版本：**1.0.0**
 
 AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 
@@ -83,6 +83,9 @@ aiwiki next --json --path "<替换成我的 AIWiki 知识库路径>"
 3. 如有需要，重启或重新加载你的 AI 助手。
 
 如果 Agent 同步失败，可以提交 [Agent Integration issue](https://github.com/iTradingAI/aiwiki/issues/new?template=agent_integration.md)，并附上 `aiwiki agent check --json` 和 `aiwiki doctor --path "<workspace>"` 的输出。
+
+如果你要升级现有工作区，请先阅读[迁移指南](docs/schema/README.zh-CN.md#迁移指南)，再迁移其中的内容。
+
 
 ## 第一次使用
 

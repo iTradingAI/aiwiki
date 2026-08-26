@@ -18,7 +18,7 @@
 
 **Save what your AI reads. Ask it later. Keep everything local.**
 
-Current release: **0.8.1**
+Current release: **1.0.0**
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 
@@ -85,6 +85,9 @@ Then tell me:
 3. Restart or reload your assistant if needed.
 
 If assistant sync fails, open an [Agent Integration issue](https://github.com/iTradingAI/aiwiki/issues/new?template=agent_integration.md) and include the output of `aiwiki agent check --json` and `aiwiki doctor --path "<workspace>"`.
+
+If you are upgrading an existing workspace, read the [Migration Guide](docs/schema/README.md#migration-guide) before moving its content.
+
 
 ## First Use
 

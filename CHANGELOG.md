@@ -2,6 +2,14 @@
 
 This changelog records public, consumer-visible release history. Repository tags and npm artifacts are cited only where both mappings were verified; registry-only history is labeled separately.
 
+## Unreleased
+
+## [1.0.0] - 2026-08-26
+
+- Froze the Core 1.0 contract matrix and its contract-test coverage.
+- Added review-first migration guidance for existing workspaces, a complete security guide, and a plugin signing proposal; signing remains a proposal and does not provide signature verification.
+- Added the Core 1.0 compatibility matrix to `npm run test:compat`.
+
 ## [0.8.1] - 2026-08-12
 
 - Corrected the published 0.8.0 release record and made the bilingual maintainer release runbook version-neutral.

@@ -1,6 +1,6 @@
 # AIWiki 中文文档
 
-当前版本：**0.8.1**
+当前版本：**1.0.0**
 
 ## Core Intent Matrix
 
@@ -57,7 +57,7 @@ AI 助手读取资料
 
 ## Schema Compatibility
 
-[Schema Compatibility 目录](schema/README.zh-CN.md)记录 v1 数据合同、`schema_version: 1` 的工作区兼容别名，以及未来主版本只能人工复核的规则。Schema 兼容性不会改变 Skill 匹配；extension 命令保持显式触发，并保留文档定义的优先级和 fallback 边界。
+[Schema Compatibility 目录](schema/README.zh-CN.md)记录 v1 数据合同、`schema_version: 1` 的工作区兼容别名，以及未来主版本只能人工复核的规则。需要按人工复核优先的升级指引时，请参阅[迁移指南](./schema/README.zh-CN.md#迁移指南)。Schema 兼容性不会改变 Skill 匹配；extension 命令保持显式触发，并保留文档定义的优先级和 fallback 边界。
 
 ## 公开集成 API
 

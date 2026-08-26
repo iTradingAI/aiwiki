@@ -111,9 +111,11 @@ test("release documentation records verified facts and keeps the runbook reusabl
   const releaseGuideZh = readFileSync(path.join("docs", "RELEASE.zh-CN.md"), "utf8");
   const upgradeNotes = readFileSync(path.join("skill", "UPGRADE_NOTES.md"), "utf8");
 
+  assert.match(changelog, /^## \[1\.0\.0\] - 2026-08-26$/m);
   assert.match(changelog, /## \[0\.8\.1\] - 2026-08-12/);
   assert.match(changelog, /## \[0\.8\.0\][\s\S]*Verified publication:/);
   assert.doesNotMatch(changelog, /This entry describes the current source release\./);
+  assert.match(changelogZh, /^## \[1\.0\.0\] - 2026-08-26$/m);
   assert.match(changelogZh, /## \[0\.8\.1\] - 2026-08-12/);
   assert.match(changelogZh, /## \[0\.8\.0\][\s\S]*已验证发布：/);
   assert.doesNotMatch(changelogZh, /本条目描述当前源码版本。/);
@@ -126,7 +128,7 @@ test("release documentation records verified facts and keeps the runbook reusabl
   }
   assert.match(releaseGuide, /maintainer-only release and Agent handoff guides/);
   assert.match(releaseGuideZh, /仅维护者使用的发布与 Agent handoff 指南/);
-  for (const version of ["0.8.1", "0.8.0", "0.7.1", "0.7.0"]) {
+  for (const version of ["1.0.0", "0.8.1", "0.8.0", "0.7.1", "0.7.0"]) {
     assert.match(upgradeNotes, new RegExp(`^## ${version.split(".").join("\\.")}$`, "m"));
   }
 });

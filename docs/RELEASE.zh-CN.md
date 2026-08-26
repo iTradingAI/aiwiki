@@ -78,6 +78,17 @@ CORE-0406 建立这套可复用的 Core 合同测试。使用 `npm run test:cont
 
 extension 和未来 Pro 集成只能依赖上述已文档化的公开包入口与显式 Core CLI 命令面。该矩阵锁定完整打包 Skill 匹配，并禁止 extension 自动发现、自动启用和自动执行；不新增 Pro 行为。真实的可重建性合同需要后续的可重建状态模型，已延期至 `CORE-0501`；在此之前不得声称已有该覆盖。
 
+## Core 1.0 契约冻结矩阵
+
+Core 1.0 契约冻结记录以下发布就绪边界与正式偏差。这些声明描述包交付承诺，不增加运行时行为。
+
+| 范围 | D1 就绪性 | D2 正式偏差 |
+| --- | --- | --- |
+| Schema 目录 | `docs/schema/` 目录冻结为仅可新增，且恰有 24 个键。既有键不得重命名或删除。 | 无。 |
+| Public API | 公开 barrel 恰有 30 个导出，稳定版本标记为 `aiwiki.public.v1`。 | 无。 |
+| legacy 命令 | `init`、`ingest-url`、`agent install` 和 `next` 全部保持兼容；本发布不改变其行为。 | 无。 |
+| Extension API | 包边界保持显式且仅声明。 | 源计划的 1.0 Extension API 范围正式降级为仅声明的 v0.1。`contextProviders` 和 `artifactGenerators` 的生产调用延后至 Pro 恢复决策轨道；Core 1.0 不承诺生产调用。 |
+
 ## 版本与标签
 
 `package.json` 是版本来源，`aiwiki --version` 在运行时读取它。
