@@ -1,0 +1,7 @@
+# CORE-1003 Task 2 Handoff Checklist
+- Task ID: CORE-1003-2-compat-gate
+- Completed Files: [`scripts/run-tests.mjs`, `package.json`, `scripts/release-check.mjs`, `docs/dev/core-1003-handoff-2.md`]
+- Test Coverage: [`npm run test:compat` passed 9/9; `npm run release:check` passed its 226-test suite, the 9-test compatibility subgate, and `release-check: ok`; normalized-scope fixture selected only `contracts/*-compatibility.test.js`; isolated empty `dist/tests/contracts` exited 1 with `No compiled compatibility test files found`; a temporary npm CLI exiting 7 made release-check exit 1 with the explicit compatibility failure; an invalid `npm_execpath` exercised the Windows `npm.cmd` fallback and passed.]
+- Pending Integrations: [Critical change review and security review are required before this slice can be integrated with the remaining CORE-1003 work.]
+- Handoff Notes: [The runner selects only normalized `contracts/*-compatibility.test.js` artifacts. `test:compat` mirrors `test:contracts`. Release-check runs the blocking compatibility gate after the caller's existing `npm test` contracts gate, resolves npm through `npm_execpath` plus `process.execPath` when available, otherwise uses `npm.cmd` with shell support on Windows or `npm`, and turns spawn/nonzero failures into release-check failure.]
+- Sign-off: @Worker-1003-2 2026-08-26
