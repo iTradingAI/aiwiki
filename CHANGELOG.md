@@ -2,6 +2,12 @@
 
 This changelog records public, consumer-visible release history. Repository tags and npm artifacts are cited only where both mappings were verified; registry-only history is labeled separately.
 
+## Unreleased
+
+### Added
+
+- Core 1.0 migration guide, complete security guide, and plugin signing proposal.
+
 ## [0.8.1] - 2026-08-12
 
 - Corrected the published 0.8.0 release record and made the bilingual maintainer release runbook version-neutral.

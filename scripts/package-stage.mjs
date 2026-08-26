@@ -49,6 +49,7 @@ const chinesePackageLinkRewrites = new Map([
   ["docs/MCP.zh-CN.md", "./MCP.zh-CN.md"],
   ["docs/AGENT_CONTRACT.zh-CN.md", "./AGENT_CONTRACT.zh-CN.md"],
   ["docs/schema/README.zh-CN.md", "./schema/README.zh-CN.md"],
+  ["docs/schema/README.zh-CN.md#迁移指南", "./schema/README.zh-CN.md#迁移指南"],
   ["docs/schema/STATE.zh-CN.md", "./schema/STATE.zh-CN.md"],
   ["examples/demo-run/", `${repositoryTreeRoot}examples/demo-run`],
   ["examples/obsidian-vault-sample/", `${repositoryTreeRoot}examples/obsidian-vault-sample`]

@@ -86,6 +86,9 @@ Then tell me:
 
 If assistant sync fails, open an [Agent Integration issue](https://github.com/iTradingAI/aiwiki/issues/new?template=agent_integration.md) and include the output of `aiwiki agent check --json` and `aiwiki doctor --path "<workspace>"`.
 
+If you are upgrading an existing workspace, read the [Migration Guide](docs/schema/README.md#migration-guide) before moving its content.
+
+
 ## First Use
 
 Trying AIWiki for the first time? Use the 5-10 minute trial route in the [Usage Guide](docs/USAGE.md#3-ingest-a-source): setup → agent check → `doctor/status` → one local ingest → `status/next` → query/context.
