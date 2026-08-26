@@ -78,6 +78,18 @@ CORE-0406 establishes this reusable Core contract suite. Run it with `npm run te
 
 Extensions and future Pro integrations may depend only on the documented public package entries and explicit Core CLI surfaces above. This matrix locks full packaged Skill matching and forbids automatic extension discovery, enablement, and execution; it adds no Pro behavior. A real rebuildability contract requires the later rebuildable state model and is deferred to `CORE-0501`; do not claim that coverage before then.
 
+## Core 1.0 Contract Freeze Matrix
+
+The Core 1.0 contract freeze records the following release-readiness boundaries and formal deviations. These declarations describe package commitments; they do not add runtime behavior.
+
+| Area | D1 readiness | D2 formal deviation |
+| --- | --- | --- |
+| Schema catalog | The `docs/schema/` catalog is frozen as additive-only with exactly 24 keys. Existing keys are not renamed or removed. | None. |
+| Public API | The public barrel has exactly 30 exports, and the stable version marker is `aiwiki.public.v1`. | None. |
+| Legacy commands | `init`, `ingest-url`, `agent install`, and `next` are all keep-compatible; this release does not change their behavior. | None. |
+| Extension API | The package boundary remains explicit and declaration-only. | The planned 1.0 Extension API scope is formally reduced to declaration-only v0.1. Production invocation of `contextProviders` and `artifactGenerators` is deferred to the Pro-resumption decision track; Core 1.0 makes no production-invocation commitment. |
+
+
 ## Version and Tags
 
 `package.json` is the version source. `aiwiki --version` reads it at runtime.

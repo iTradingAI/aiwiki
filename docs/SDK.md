@@ -10,7 +10,7 @@ if (aiwiki.AIWIKI_PUBLIC_API_VERSION !== "aiwiki.public.v1") {
 }
 ```
 
-`aiwiki.public.v1` is additive and stable from AIWiki 0.7.0. A compatible release may add exports, optional fields, enum values, or result fields, but will not remove or change the meaning of existing public exports within this version. Consumers must ignore result fields they do not understand and should preserve unknown frontmatter fields.
+`aiwiki.public.v1` is additive and stable from AIWiki 0.7.0. A compatible release may add exports, optional fields, enum values, or result fields, but will not remove or change the meaning of existing public exports within this version. Consumers must ignore result fields they do not understand and should preserve unknown frontmatter fields. Breaking changes require a future v2 public API.
 
 All path arguments identify a workspace root unless otherwise noted. Operations that read a workspace are asynchronous because they traverse local Markdown artifacts.
 

@@ -29,6 +29,14 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 
 `aiwiki.context.v2` is active as the explicit graph-aware Context view; default Context remains `aiwiki.context.v1`, and Context v2 never builds graph state automatically. `aiwiki.extension.v1` is active as the [Extension API v0.1](EXTENSION_SCHEMA.md). The [Extension Host v0.1](EXTENSION_HOST.md) adds only explicit `plugin add` and `plugin enable` administration for local or bundled extensions; there is no automatic discovery.
 
+## Schema Compatibility
+
+`AIWIKI_SCHEMAS` is the authoritative internal directory. Its 24 frozen keys are `workspace`, `artifact`, `capsule`, `lifecycle`, `relationships`, `stateArtifacts`, `stateCapsules`, `stateRelationships`, `stateLifecycle`, `stateIndex`, `stateGraph`, `context`, `capsuleContext`, `agentPayload`, `agentSync`, `agentCheck`, `contextV2`, `health`, `healthReport`, `repairPlan`, `doctor`, `status`, `next`, and `extension`.
+
+Every directory entry is a complete `{ id, status, aliases, storage, compatibility }` record. `id` is the canonical version, `status` says whether the record is active or reserved, `aliases` contains accepted legacy versions, `storage` identifies its persistence or interchange boundary, and `compatibility` declares how consumers treat the version.
+
+The Core 1.0 contract freeze locks these entries under an additive-only policy: a future catalog change MAY add a new key and canonical version, but MUST NOT rename, remove, or alter the five fields of an existing key. For `additive_fields_only` contracts, producers MAY add fields but MUST NOT remove, rename, or reinterpret existing fields. `aiwiki.agent_payload.v1` remains `strict_input_version`; its input version is not an additive field contract. These guarantees document the existing internal compatibility boundary and do not introduce a CLI, SDK, or Extension API surface.
+
 ## Compatibility And Migration
 
 - Existing `schema_version: 1` workspaces are read as `aiwiki.workspace.v1`; AIWiki does not rewrite that config.

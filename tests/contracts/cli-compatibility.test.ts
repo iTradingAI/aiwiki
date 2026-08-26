@@ -8,7 +8,7 @@ import test from "node:test";
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const npmExecPath = process.env.npm_execpath ?? path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
 
-type RunOptions = Readonly<{ shell?: boolean }>;
+type RunOptions = Readonly<{ shell?: boolean; env?: NodeJS.ProcessEnv }>;
 type RunResult = Readonly<{ status: number | null; stdout: string; stderr: string }>;
 
 function runResult(command: string, args: string[], cwd: string, options: RunOptions = {}): RunResult {
@@ -16,7 +16,7 @@ function runResult(command: string, args: string[], cwd: string, options: RunOpt
     cwd,
     encoding: "utf8",
     shell: options.shell ?? false,
-    env: { ...process.env, npm_config_fund: "false", npm_config_audit: "false" }
+    env: { ...process.env, npm_config_fund: "false", npm_config_audit: "false", ...options.env }
   });
   if (result.error) throw result.error;
   return { status: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
@@ -40,14 +40,14 @@ function installedCliPath(consumerRoot: string): string {
   return path.join(binRoot, process.platform === "win32" ? "aiwiki.cmd" : "aiwiki");
 }
 
-function runInstalledCli(consumerRoot: string, args: string[]): string {
-  if (process.platform !== "win32") return run(installedCliPath(consumerRoot), args, consumerRoot);
-  return run(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", ["node_modules\\.bin\\aiwiki.cmd", ...args].join(" ")], consumerRoot);
+function runInstalledCli(consumerRoot: string, args: string[], options: RunOptions = {}): string {
+  if (process.platform !== "win32") return run(installedCliPath(consumerRoot), args, consumerRoot, options);
+  return run(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", ["node_modules\\.bin\\aiwiki.cmd", ...args].join(" ")], consumerRoot, options);
 }
 
-function runInstalledCliResult(consumerRoot: string, args: string[]): RunResult {
-  if (process.platform !== "win32") return runResult(installedCliPath(consumerRoot), args, consumerRoot);
-  return runResult(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", ["node_modules\\.bin\\aiwiki.cmd", ...args].join(" ")], consumerRoot);
+function runInstalledCliResult(consumerRoot: string, args: string[], options: RunOptions = {}): RunResult {
+  if (process.platform !== "win32") return runResult(installedCliPath(consumerRoot), args, consumerRoot, options);
+  return runResult(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", ["node_modules\\.bin\\aiwiki.cmd", ...args].join(" ")], consumerRoot, options);
 }
 
 function fileSnapshot(root: string): string[] {
@@ -67,6 +67,15 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
   const repositoryRoot = process.cwd();
   const consumerRoot = mkdtempSync(path.join(os.tmpdir(), "aiwiki-cli-contract-"));
   const vaultPath = "vault";
+  const isolatedHome = path.join(consumerRoot, "isolated-home");
+  const isolatedCliOptions: RunOptions = {
+    env: {
+      AIWIKI_HOME: isolatedHome,
+      HOME: isolatedHome,
+      USERPROFILE: isolatedHome,
+      CODEX_HOME: path.join(isolatedHome, "codex")
+    }
+  };
   try {
     const packageVersion = (JSON.parse(readFileSync(path.join(repositoryRoot, "package.json"), "utf8")) as { version: string }).version;
     writeFileSync(path.join(consumerRoot, "package.json"), JSON.stringify({ private: true }, null, 2), "utf8");
@@ -78,9 +87,17 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
     const cliPath = installedCliPath(consumerRoot);
     assert.equal(existsSync(cliPath), true, "installed package did not create the aiwiki bin");
     assert.equal(runInstalledCli(consumerRoot, ["--version"]).trim(), `aiwiki ${packageVersion}`);
-    runInstalledCli(consumerRoot, ["init", "--path", vaultPath, "--yes"]);
+    const initOutput = runInstalledCli(consumerRoot, ["init", "--path", vaultPath, "--yes", "--set-default"], isolatedCliOptions);
 
     const vaultRoot = path.join(consumerRoot, vaultPath);
+    assert.match(initOutput, /AIWiki 已初始化:/);
+    const defaultConfig = JSON.parse(readFileSync(path.join(isolatedHome, "config.json"), "utf8")) as { defaultPath: string };
+    assert.equal(defaultConfig.defaultPath, path.resolve(consumerRoot, vaultPath));
+    const initPathFile = path.join(consumerRoot, "not-a-directory");
+    writeFileSync(initPathFile, "not a workspace directory\n", "utf8");
+    const initBlockedPath = runInstalledCliResult(consumerRoot, ["init", "--path", initPathFile, "--yes"], isolatedCliOptions);
+    assert.notEqual(initBlockedPath.status, 0);
+    assert.match(initBlockedPath.stderr, /EEXIST/);
     const beforeDiagnostics = fileSnapshot(vaultRoot);
     const diagnosticReadiness: unknown[] = [];
     for (const [command, schema] of [
@@ -102,6 +119,11 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
     assert.deepEqual(diagnosticReadiness[1], diagnosticReadiness[2]);
     assert.deepEqual(fileSnapshot(vaultRoot), beforeDiagnostics);
     assert.equal(existsSync(path.join(vaultRoot, "_system", "logs", ".doctor-write-test")), false);
+    const nextText = runInstalledCli(consumerRoot, ["next", "--path", vaultPath]);
+    assert.match(nextText, /No ingest records yet/);
+    const nextMissingWorkspace = runInstalledCliResult(consumerRoot, ["next", "--path", "missing-workspace"], isolatedCliOptions);
+    assert.equal(nextMissingWorkspace.status, 1);
+    assert.match(nextMissingWorkspace.stderr, /未找到配置文件/);
     const graphPath = path.join(vaultRoot, ".aiwiki", "state", "graph.json");
     mkdirSync(path.join(vaultRoot, "02-raw", "articles"), { recursive: true });
     mkdirSync(path.join(vaultRoot, "05-wiki", "source-knowledge"), { recursive: true });
@@ -259,6 +281,38 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
     for (const unsupported of ["aiwiki pro"]) {
       assert.doesNotMatch(help, new RegExp(unsupported.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
     }
+    const codexTarget = path.join(isolatedHome, "codex", "skills", "aiwiki", "SKILL.md");
+    mkdirSync(path.dirname(codexTarget), { recursive: true });
+    writeFileSync(codexTarget, "legacy skill\n", "utf8");
+    const agentInstallWithoutForce = runInstalledCliResult(consumerRoot, ["agent", "install", "--agent", "codex", "--yes"], isolatedCliOptions);
+    assert.equal(agentInstallWithoutForce.status, 1);
+    assert.match(agentInstallWithoutForce.stderr, /目标文件已存在/);
+    const agentInstallWithForce = runInstalledCli(consumerRoot, ["agent", "install", "--agent", "codex", "--yes", "--force"], isolatedCliOptions);
+    assert.match(agentInstallWithForce, /已安装: Codex/);
+    assert.match(readFileSync(codexTarget, "utf8"), /name: aiwiki/);
+
+    const contentFile = path.join(consumerRoot, "offline-source.md");
+    const sourceContent = "# Offline source\n\nLocal content must be ingested without fetching.\n";
+    const offlineUrl = "http://127.0.0.1:9/never-fetched";
+    writeFileSync(contentFile, sourceContent, "utf8");
+    const ingestUrl = runInstalledCli(consumerRoot, ["ingest-url", offlineUrl, "--content-file", contentFile, "--path", vaultPath]);
+    assert.match(ingestUrl, /fetch_status: ok/);
+    assert.match(ingestUrl, new RegExp(`source_url: ${offlineUrl}`));
+    const runId = /run_id: (.+)/.exec(ingestUrl)?.[1]?.trim();
+    assert.ok(runId);
+    const ingestPayload = JSON.parse(readFileSync(path.join(vaultRoot, "09-runs", runId, "payload.json"), "utf8")) as {
+      source: { url: string; content: string; fetcher: string; fetch_status: string };
+    };
+    assert.equal(ingestPayload.source.url, offlineUrl);
+    assert.equal(ingestPayload.source.content, sourceContent);
+    assert.equal(ingestPayload.source.fetcher, "content-file");
+    assert.equal(ingestPayload.source.fetch_status, "ok");
+    const ingestUrlWithoutContent = runInstalledCliResult(consumerRoot, ["ingest-url", offlineUrl, "--path", vaultPath]);
+    assert.equal(ingestUrlWithoutContent.status, 1);
+    assert.match(ingestUrlWithoutContent.stderr, /不抓取网页。请提供 --content-file/);
+    const ingestUrlWithoutUrl = runInstalledCliResult(consumerRoot, ["ingest-url", "--content-file", contentFile, "--path", vaultPath]);
+    assert.equal(ingestUrlWithoutUrl.status, 1);
+    assert.match(ingestUrlWithoutUrl.stderr, /请提供 URL/);
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
   }

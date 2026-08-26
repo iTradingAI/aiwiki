@@ -29,6 +29,14 @@ AIWiki Core 通过统一目录记录当前数据合同。该目录是内部兼�
 
 `aiwiki.context.v2` 已启用，作为显式的关系图 Context view；默认 Context 仍是 `aiwiki.context.v1`，且 Context v2 不会自动构建关系图 state。`aiwiki.extension.v1` 作为 [Extension API v0.1](EXTENSION_SCHEMA.zh-CN.md) 已启用。[Extension Host v0.1](EXTENSION_HOST.zh-CN.md) 只增加显式的 `plugin add` 与 `plugin enable` 管理，用于启用 local 或 bundled extension；没有自动发现。
 
+## Schema Compatibility
+
+`AIWIKI_SCHEMAS` 是权威的内部目录。其冻结的 24 个键为：`workspace`、`artifact`、`capsule`、`lifecycle`、`relationships`、`stateArtifacts`、`stateCapsules`、`stateRelationships`、`stateLifecycle`、`stateIndex`、`stateGraph`、`context`、`capsuleContext`、`agentPayload`、`agentSync`、`agentCheck`、`contextV2`、`health`、`healthReport`、`repairPlan`、`doctor`、`status`、`next` 和 `extension`。
+
+每一项目录记录均完整包含 `{ id, status, aliases, storage, compatibility }`。`id` 是规范版本；`status` 表明记录为 active 还是 reserved；`aliases` 收录可接受的旧版本；`storage` 标识持久化或交换边界；`compatibility` 则声明消费者如何处理该版本。
+
+Core 1.0 契约冻结以仅新增（additive-only）策略锁定这些记录：未来目录变更可以新增一个键和规范版本，但不得重命名、删除或修改既有键的五个字段。对于 `additive_fields_only` 合同，生产者可以新增字段，但不得删除、重命名或重新解释既有字段。`aiwiki.agent_payload.v1` 仍为 `strict_input_version`；其输入版本不是可新增字段合同。这些保证只记录既有的内部兼容性边界，不新增 CLI、SDK 或 Extension API 表面。
+
 ## 兼容与迁移
 
 - 已有 `schema_version: 1` 的工作区会按 `aiwiki.workspace.v1` 读取；AIWiki 不会回写该配置。
