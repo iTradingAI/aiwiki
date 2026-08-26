@@ -2,6 +2,12 @@
 
 Use this note when an Agent finishes `aiwiki agent sync`.
 
+## 1.0.0
+
+- Core 1.0 freezes the contract matrix and adds compatibility-matrix coverage through `npm run test:compat`.
+- Before upgrading an existing workspace, follow the review-first [Migration Guide](../docs/schema/README.md#migration-guide); legacy `schema_version: 1` workspaces remain readable and are not rewritten automatically.
+- The release also includes the complete security guide and a plugin signing proposal. The proposal does not enable signature verification.
+
 ## 0.8.1
 
 - Corrected the verified 0.8.0 publication record and made the maintainer release instructions reusable across release gates.

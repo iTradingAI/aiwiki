@@ -4,9 +4,11 @@ This changelog records public, consumer-visible release history. Repository tags
 
 ## Unreleased
 
-### Added
+## [1.0.0] - 2026-08-26
 
-- Core 1.0 migration guide, complete security guide, and plugin signing proposal.
+- Froze the Core 1.0 contract matrix and its contract-test coverage.
+- Added review-first migration guidance for existing workspaces, a complete security guide, and a plugin signing proposal; signing remains a proposal and does not provide signature verification.
+- Added the Core 1.0 compatibility matrix to `npm run test:compat`.
 
 ## [0.8.1] - 2026-08-12
 
