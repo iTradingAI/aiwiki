@@ -6,6 +6,14 @@
 
 当前的显式 Host 见 [Extension Host v0.1](EXTENSION_HOST.zh-CN.md)。permission 声明及其信任边界见 [permission 声明](../plugins/PERMISSIONS.zh-CN.md)。
 
+## Core 1.0 合同冻结
+
+### declaration-only v0.1 的正式偏差
+
+Core 1.0 正式记录相对于源计划 Extension API 1.0 的偏差：Extension API v0.1 只冻结声明。兼容标记保持 <code>aiwiki.extension.v1</code> 不变，面向作者的类型、接口和文档保持稳定。Core 范围内不实现 <code>contextProviders</code> 或 <code>artifactGenerators</code> 的生产调用；只有 Pro 赛道恢复后才能重新开放该决策。
+
+Plugin signing 是移交给后续 Core 文档与迁移任务的提案需求。本 Core 1.0 工作不实现任何签名行为、签名格式、验证、密钥处理或 signing CLI 接口。
+
 ## Manifest 兼容性
 
 本地 `aiwiki-extension.json` 需要以下旧版字段：

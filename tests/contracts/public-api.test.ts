@@ -8,6 +8,41 @@ import test from "node:test";
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const npmExecPath = process.env.npm_execpath ?? path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
 
+const publicApiValueExports = [
+  "AIWIKI_PUBLIC_API_VERSION",
+  "buildCapsuleContext",
+  "buildCapsules",
+  "buildContext",
+  "buildGraphContext",
+  "buildHealthReport",
+  "buildRelationshipGraph",
+  "createAiwikiCli",
+  "defaultLifecycle",
+  "discoverArtifacts",
+  "ingestFile",
+  "ingestPayload",
+  "inspectRelationshipGraph",
+  "isAnswerSafeByDefault",
+  "isRelationshipType",
+  "lifecycleFromFrontmatter",
+  "lifecyclePenalty",
+  "lifecycleToFrontmatter",
+  "lifecycleWarnings",
+  "lintWorkspace",
+  "readArtifact",
+  "readRelationshipGraph",
+  "relationshipsFromFrontmatter",
+  "relationshipsToFrontmatter",
+  "renderCapsule",
+  "renderCapsuleQuery",
+  "resolveCapsule",
+  "resolveWorkspace",
+  "showCapsule",
+  "validateRelationships"
+] as const;
+
+const internalPublicApiSymbols = ["runCli", "resolveRoot", "extensionArgv", "createCoreCommandRegistry"] as const;
+
 function run(command: string, args: string[], cwd: string, options: { shell?: boolean } = {}): string {
   const result = spawnSync(command, args, {
     cwd,
@@ -58,17 +93,14 @@ import * as contracts from "@itradingai/aiwiki/contracts";
 
 assert.equal(api.AIWIKI_PUBLIC_API_VERSION, "aiwiki.public.v1");
 assert.equal(contracts.AIWIKI_PUBLIC_API_VERSION, "aiwiki.public.v1");
-for (const name of [
-  "createAiwikiCli", "ingestPayload", "ingestFile", "discoverArtifacts",
-  "readArtifact", "buildCapsules", "buildCapsuleContext", "buildContext",
-  "lintWorkspace", "resolveWorkspace", "renderCapsuleQuery", "showCapsule",
-  "resolveCapsule", "renderCapsule", "buildHealthReport", "defaultLifecycle",
-  "lifecycleFromFrontmatter", "lifecycleToFrontmatter", "lifecyclePenalty",
-  "lifecycleWarnings", "isAnswerSafeByDefault", "relationshipsFromFrontmatter",
-  "relationshipsToFrontmatter", "validateRelationships", "isRelationshipType",
-  "buildRelationshipGraph", "inspectRelationshipGraph", "readRelationshipGraph",
-  "buildGraphContext"
-]) assert.equal(typeof api[name], "function", name);
+const expectedPublicApiValueExports = ${JSON.stringify(publicApiValueExports)};
+assert.deepEqual(Object.keys(api).sort(), [...expectedPublicApiValueExports].sort());
+for (const name of expectedPublicApiValueExports) {
+  if (name !== "AIWIKI_PUBLIC_API_VERSION") assert.equal(typeof api[name], "function", name);
+}
+for (const name of ${JSON.stringify(internalPublicApiSymbols)}) {
+  assert.equal(Object.hasOwn(api, name), false, name + " must remain internal");
+}
 
 const chunks = [];
 const sink = new Writable({ write(chunk, _encoding, done) { chunks.push(String(chunk)); done(); } });

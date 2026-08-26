@@ -231,6 +231,104 @@ test("packed package exposes a self-contained extension author API", () => {
   }
 });
 
+test("Extension API v0.1 never invokes declaration-only callbacks through Core host paths", () => {
+  const repositoryRoot = process.cwd();
+  const workspaceRoot = mkdtempSync(path.join(os.tmpdir(), "aiwiki-extension-declaration-host-"));
+  const extensionRoot = mkdtempSync(path.join(os.tmpdir(), "aiwiki-extension-declaration-fixture-"));
+  const cliPath = path.join(repositoryRoot, "dist", "src", "cli.js");
+  const callbackCountPath = path.join(extensionRoot, "callback-counts.json");
+  const readCallbackCounts = () => JSON.parse(readFileSync(callbackCountPath, "utf8")) as {
+    command: number;
+    lint: number;
+    provider: number;
+    generator: number;
+  };
+  const assertDeclarationOnlyCallbacksWereNotInvoked = () => {
+    const counts = readCallbackCounts();
+    assert.equal(counts.provider, 0, "context provider callback must remain declaration-only");
+    assert.equal(counts.generator, 0, "artifact generator callback must remain declaration-only");
+    return counts;
+  };
+
+  try {
+    writeFileSync(path.join(extensionRoot, "aiwiki-extension.json"), JSON.stringify({
+      schema_version: "aiwiki.extension.v1",
+      id: "example.declaration-host",
+      name: "Declaration Host Fixture",
+      version: "0.1.0",
+      api_version: "aiwiki.extension.v1",
+      entry: "index.mjs"
+    }, null, 2), "utf8");
+    writeFileSync(callbackCountPath, JSON.stringify({ command: 0, lint: 0, provider: 0, generator: 0 }), "utf8");
+    writeFileSync(path.join(extensionRoot, "index.mjs"), [
+      'import { readFileSync, writeFileSync } from "node:fs";',
+      'const callbackCountPath = new URL("./callback-counts.json", import.meta.url);',
+      "function count(name) {",
+      '  const counts = JSON.parse(readFileSync(callbackCountPath, "utf8"));',
+      "  counts[name] += 1;",
+      '  writeFileSync(callbackCountPath, JSON.stringify(counts), "utf8");',
+      "}",
+      "export default {",
+      '  id: "example.declaration-host",',
+      '  name: "Declaration Host Fixture",',
+      '  version: "0.1.0",',
+      '  apiVersion: "aiwiki.extension.v1",',
+      "  commands: [{",
+      '    kind: "command",',
+      '    id: "example.declaration-host.command",',
+      '    path: ["fixture", "callbacks"],',
+      '    summary: "Exercise the command callback",',
+      '    async run() { count("command"); return { exitCode: 0, stdout: "command callback ran" }; }',
+      "  }],",
+      "  lintRules: [{",
+      '    kind: "lint_rule",',
+      '    id: "example.declaration-host.lint",',
+      '    defaultSeverity: "info",',
+      '    async evaluate() { count("lint"); return []; }',
+      "  }],",
+      "  contextProviders: [{",
+      '    kind: "context_provider",',
+      '    id: "example.declaration-host.context",',
+      '    namespace: "fixture",',
+      '    async provide() { count("provider"); return { namespace: "fixture", items: [] }; }',
+      "  }],",
+      "  artifactGenerators: [{",
+      '    kind: "artifact_generator",',
+      '    id: "example.declaration-host.generator",',
+      '    generates: ["wiki_entry"],',
+      '    async generate() { count("generator"); return []; }',
+      "  }]",
+      "};",
+      ""
+    ].join("\n"), "utf8");
+
+    run(process.execPath, [cliPath, "init", "--path", workspaceRoot, "--yes"], repositoryRoot);
+    run(process.execPath, [cliPath, "plugin", "add", extensionRoot, "--path", workspaceRoot], repositoryRoot);
+    run(process.execPath, [cliPath, "plugin", "enable", "example.declaration-host", "--path", workspaceRoot], repositoryRoot);
+
+    const inspection = run(process.execPath, [
+      cliPath, "plugin", "inspect", "example.declaration-host", "--json", "--path", workspaceRoot
+    ], repositoryRoot);
+    assert.match(inspection, /example\.declaration-host/);
+
+    const doctor = run(process.execPath, [
+      cliPath, "plugin", "doctor", "--json", "--path", workspaceRoot
+    ], repositoryRoot);
+    assert.match(doctor, /example\.declaration-host/);
+
+    assert.match(run(process.execPath, [
+      cliPath, "fixture", "callbacks", "--path", workspaceRoot
+    ], repositoryRoot), /command callback ran/);
+    assert.deepEqual(assertDeclarationOnlyCallbacksWereNotInvoked(), { command: 1, lint: 0, provider: 0, generator: 0 });
+
+    JSON.parse(run(process.execPath, [cliPath, "lint", "--json", "--path", workspaceRoot], repositoryRoot));
+    assert.deepEqual(assertDeclarationOnlyCallbacksWereNotInvoked(), { command: 1, lint: 1, provider: 0, generator: 0 });
+  } finally {
+    rmSync(workspaceRoot, { recursive: true, force: true });
+    rmSync(extensionRoot, { recursive: true, force: true });
+  }
+});
+
 test("extension API documentation keeps host and Skill matching boundaries explicit", () => {
   const read = (relativePath: string) => readFileSync(path.join(process.cwd(), relativePath), "utf8");
   const schema = read("docs/schema/EXTENSION_SCHEMA.md");
@@ -261,6 +359,8 @@ test("extension API documentation keeps host and Skill matching boundaries expli
       assert.match(text, new RegExp(command));
     }
     assert.match(text, /aiwiki\.extension\.v1/);
+  }
+  for (const text of [host, hostChinese]) {
     assert.doesNotMatch(text, /CORE-[0-9]+/);
   }
   for (const text of [schema, schemaChinese]) {
@@ -272,9 +372,20 @@ test("extension API documentation keeps host and Skill matching boundaries expli
   assert.match(hostChinese, /不是.*sandbox/);
   assert.match(schema, /not a sandbox/i);
   assert.match(schemaChinese, /不是.*sandbox/);
+  assert.match(schema, /formal.*deviation.*Extension API 1\.0/is);
+  assert.match(schema, /declarations only/i);
+  assert.match(schema, /transferred to the follow-up Core documentation and migration task/i);
+  assert.match(schema, /implements no signing behavior/i);
+  assert.match(schemaChinese, /正式记录相对于源计划 Extension API 1\.0 的偏差/);
+  assert.match(schema, /types, interfaces, and documentation remain stable/i);
+  assert.match(schema, /requires restoration of the Pro track/i);
+  assert.match(schemaChinese, /类型、接口和文档保持稳定/);
+  assert.match(schemaChinese, /Pro 赛道恢复后才能重新开放/);
+  assert.match(schemaChinese, /只冻结声明/);
+  assert.match(schemaChinese, /移交给后续 Core 文档与迁移任务/);
+  assert.match(schemaChinese, /不实现任何签名行为/);
   for (const text of [schemaIndex, schemaIndexChinese]) {
     assert.match(text, /aiwiki\.extension\.v1/);
-    assert.doesNotMatch(text, /CORE-[0-9]+/);
   }
   assert.doesNotMatch(schemaIndex, /does not provide an Extension API/i);
   assert.doesNotMatch(schemaIndexChinese, /不提供 Extension API/);
