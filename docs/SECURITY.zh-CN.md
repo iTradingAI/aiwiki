@@ -10,11 +10,11 @@ AIWiki 仅处理工作区或调用方显式提供的其他路径中的本地文�
 
 ### Agent 同步
 
-Agent 同步是显式的本地操作。只有调用方执行相应的 Agent-sync 命令时，AIWiki 才会更新受支持的本地 Agent 接入文件；它不会自动发现、连接或同步 Agent。运行前请审查命令、目标工作区和将要修改的文件。
+Agent 同步是显式的本地操作。受支持的 Agent 集成文件在你运行 Agent-sync 命令或 `aiwiki setup`（会刷新工作区 AGENTS.md 指导块并先备份既有文件）时创建或更新。它不会自动发现、连接或同步 Agent。运行前请审查命令、目标工作区和将要修改的文件。
 
 ### Extension
 
-Extension 在被显式 enable 前保持不活动状态。enable 是约束边界：它是唯一会 import 已声明 extension module 的管理操作。inspect、add、disable、remove 和 doctor 仅处理 metadata 或静态声明，不会 import 该 entry。若 extension 无法加载或其声明无效，应将失败限制在该 extension 内；保持其 disable，并在再次显式 enable 前完成调查。
+Extension 在被显式 enable 前保持不活动状态。enable 是约束边界：它是唯一会 import 已声明 extension module 的管理操作。inspect、add、disable、remove 和 doctor 仅处理 metadata 或静态声明，不会 import 该 entry。加载或声明失败仅会使该扩展的 Host 生命周期记录被禁用或保持禁用。扩展模块在 AIWiki 主进程内以你的权限执行：在抛出失败之前发生的副作用不会被隔离或回滚。AIWiki 不是沙箱；只启用你信任的扩展。
 
 ## 零遥测政策
 

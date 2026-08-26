@@ -10,11 +10,11 @@ AIWiki operates on local files within the workspace or another path explicitly s
 
 ### Agent synchronization
 
-Agent synchronization is an explicit local operation. AIWiki updates supported local Agent integration files only when the caller invokes the corresponding Agent-sync command; it does not discover, connect to, or synchronize with Agents automatically. Review the command, target workspace, and files to be changed before running it.
+Agent synchronization is an explicit local operation. Supported Agent integration files are created or updated when you run an Agent-sync command or `aiwiki setup` (which refreshes the workspace AGENTS.md guidance block with a backup of any existing file). It does not discover, connect to, or synchronize with Agents automatically. Review the command, target workspace, and files to be changed before running it.
 
 ### Extensions
 
-Extensions remain inactive until explicitly enabled. Enablement is the containment boundary: it is the only administration operation that imports a declared extension module. Inspect, add, disable, remove, and doctor operate on metadata or static declarations without importing that entry. If an extension cannot be loaded or its declaration is invalid, treat the failure as isolated to that extension; keep it disabled and investigate it before another explicit enablement attempt.
+Extensions remain inactive until explicitly enabled. Enablement is the containment boundary: it is the only administration operation that imports a declared extension module. Inspect, add, disable, remove, and doctor operate on metadata or static declarations without importing that entry. A load or declaration failure disables or leaves disabled only that extension's Host lifecycle record. Extension module evaluation runs in the main AIWiki process with your permissions: effects that occur before a thrown failure are not isolated or rolled back. AIWiki is not a sandbox; only enable extensions you trust.
 
 ## No-telemetry policy
 

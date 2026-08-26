@@ -1,7 +1,7 @@
 # Security Guide Handoff Checklist
 - Task ID: task-1002-2-security
 - Completed Files: [`SECURITY.md`, `SECURITY.zh-CN.md`, `docs/SECURITY.md`, `docs/SECURITY.zh-CN.md`, `package.json`, `docs/dev/core-1002-handoff-2.md`]
-- Test Coverage: [`npm run release:check`: 223/223 tests passed and `release-check: ok`; `npm pack --dry-run`: root and docs English/Chinese SECURITY files are present in the package list; scoped identifier scan found no match in the four security documents.]
+- Test Coverage: [`npm run release:check`: 223/223 tests passed and `release-check: ok`; `npm pack --dry-run`: root and docs English/Chinese SECURITY files are present in the package list; scoped identifier scan found no match in the four security documents; security-review remediation: SEC-001 corrects the extension failure boundary to the Host lifecycle record and documents that pre-throw module effects are neither isolated nor rolled back, and SEC-002 records that supported Agent integration files are created or updated by Agent-sync commands or `aiwiki setup`, including the AGENTS.md guidance-block backup behavior.]
 - Pending Integrations: [Critical change review and security review are required before the dependent roadmap task proceeds.]
 - Handoff Notes: [Root policies retain private GitHub reporting and their existing baseline boundary, then point to matching complete guides. The complete guides define local workspace, explicit Agent-sync, and explicit extension-enablement containment boundaries; zero telemetry; npm integrity and publication checks; and the proposal-only plugin-signing future path. The package whitelist adds only `docs/SECURITY.md` and `docs/SECURITY.zh-CN.md`.]
 - Sign-off: @Worker-1002-security 2026-08-26
