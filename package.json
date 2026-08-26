@@ -96,6 +96,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node scripts/run-tests.mjs",
     "test:contracts": "npm run build && node scripts/run-tests.mjs --scope contracts",
+    "test:compat": "npm run build && node scripts/run-tests.mjs --scope compatibility",
     "check": "npm run test",
     "package:dry-run": "npm run build && node scripts/package-stage.mjs dry-run",
     "release:check": "npm test && node scripts/release-check.mjs",

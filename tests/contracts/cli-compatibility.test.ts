@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -40,14 +41,18 @@ function installedCliPath(consumerRoot: string): string {
   return path.join(binRoot, process.platform === "win32" ? "aiwiki.cmd" : "aiwiki");
 }
 
+function windowsCommand(args: readonly string[]): string {
+  return args.map((arg) => /\s/.test(arg) ? `"${arg.replace(/"/g, '""')}"` : arg).join(" ");
+}
+
 function runInstalledCli(consumerRoot: string, args: string[], options: RunOptions = {}): string {
   if (process.platform !== "win32") return run(installedCliPath(consumerRoot), args, consumerRoot, options);
-  return run(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", ["node_modules\\.bin\\aiwiki.cmd", ...args].join(" ")], consumerRoot, options);
+  return run(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", windowsCommand(["node_modules\\.bin\\aiwiki.cmd", ...args])], consumerRoot, options);
 }
 
 function runInstalledCliResult(consumerRoot: string, args: string[], options: RunOptions = {}): RunResult {
   if (process.platform !== "win32") return runResult(installedCliPath(consumerRoot), args, consumerRoot, options);
-  return runResult(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", ["node_modules\\.bin\\aiwiki.cmd", ...args].join(" ")], consumerRoot, options);
+  return runResult(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", windowsCommand(["node_modules\\.bin\\aiwiki.cmd", ...args])], consumerRoot, options);
 }
 
 function fileSnapshot(root: string): string[] {
@@ -61,6 +66,60 @@ function fileSnapshot(root: string): string[] {
     });
   };
   return visit(root).sort();
+}
+
+type FileSnapshotWithMeta = Readonly<{ path: string; mtime: number; sha256: string }>;
+
+function fileSnapshotWithMeta(root: string): FileSnapshotWithMeta[] {
+  const visit = (directory: string): FileSnapshotWithMeta[] => {
+    if (!existsSync(directory)) return [];
+    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) return visit(absolute);
+      if (!entry.isFile()) return [];
+      const stat = statSync(absolute);
+      return [{
+        path: path.relative(root, absolute).replace(/\\/g, "/"),
+        mtime: stat.mtimeMs,
+        sha256: createHash("sha256").update(readFileSync(absolute)).digest("hex")
+      }];
+    });
+  };
+  return visit(root).sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function frontmatterSnapshot(root: string): Array<Readonly<{ path: string; raw: string }>> {
+  return fileSnapshot(root)
+    .filter((relativePath) => relativePath.endsWith(".md"))
+    .map((relativePath) => {
+      const text = readFileSync(path.join(root, relativePath), "utf8");
+      const match = /^(---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$))/.exec(text);
+      assert.ok(match, `expected frontmatter in ${relativePath}`);
+      return { path: relativePath, raw: match[1] };
+    });
+}
+
+function assertWorkspaceUnchanged(
+  label: string,
+  root: string,
+  beforeFiles: readonly FileSnapshotWithMeta[],
+  beforeFrontmatter: ReadonlyArray<Readonly<{ path: string; raw: string }>>
+): void {
+  assert.deepEqual(fileSnapshotWithMeta(root), beforeFiles, `${label} rewrote the v1 workspace; changed paths and metadata are shown above`);
+  assert.deepEqual(frontmatterSnapshot(root), beforeFrontmatter, `${label} rewrote v1 frontmatter`);
+}
+
+function copyFixture(source: string, destination: string): void {
+  mkdirSync(destination, { recursive: true });
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    const sourcePath = path.join(source, entry.name);
+    const destinationPath = path.join(destination, entry.name);
+    if (entry.isDirectory()) {
+      copyFixture(sourcePath, destinationPath);
+    } else if (entry.isFile()) {
+      writeFileSync(destinationPath, readFileSync(sourcePath));
+    }
+  }
 }
 
 test("packed CLI preserves Core command and Context view compatibility", () => {
@@ -315,5 +374,99 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
     assert.match(ingestUrlWithoutUrl.stderr, /请提供 URL/);
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
+  }
+});
+
+function runLegacyV1ReadOnlyMatrix(parentDirectory: string): void {
+  const repositoryRoot = process.cwd();
+  const fixtureRoot = path.join(repositoryRoot, "tests", "fixtures", "workspaces", "legacy-v1-minimal");
+  const consumerRoot = mkdtempSync(path.join(os.tmpdir(), "aiwiki-v1-compat-"));
+  try {
+    writeFileSync(path.join(consumerRoot, "package.json"), JSON.stringify({ private: true }, null, 2), "utf8");
+    const packed = JSON.parse(runNpm(["pack", repositoryRoot, "--json", "--ignore-scripts"], consumerRoot)) as Array<{ filename?: string }>;
+    const tarballName = packed[0]?.filename;
+    assert.ok(tarballName, "npm pack did not report a tarball filename");
+    runNpm(["install", "--ignore-scripts", "--no-package-lock", tarballName], consumerRoot);
+
+    const workspaceRoot = path.join(consumerRoot, parentDirectory, "legacy-v1-minimal");
+    copyFixture(fixtureRoot, workspaceRoot);
+    const initialFiles = fileSnapshotWithMeta(workspaceRoot);
+    const initialFrontmatter = frontmatterSnapshot(workspaceRoot);
+    const installedCliEntry = path.join(consumerRoot, "node_modules", "@itradingai", "aiwiki", "dist", "src", "cli.js");
+    const runV1Cli = (args: string[]): string => run(process.execPath, [installedCliEntry, ...args], consumerRoot);
+    const runV1CliResult = (args: string[]): RunResult => runResult(process.execPath, [installedCliEntry, ...args], consumerRoot);
+    const runReadOnlyCommand = (label: string, args: string[]): string => {
+      const beforeFiles = fileSnapshotWithMeta(workspaceRoot);
+      const beforeFrontmatter = frontmatterSnapshot(workspaceRoot);
+      const output = runV1Cli(args);
+      assertWorkspaceUnchanged(label, workspaceRoot, beforeFiles, beforeFrontmatter);
+      return output;
+    };
+
+    const status = JSON.parse(runReadOnlyCommand("status --json", ["status", "--json", "--path", workspaceRoot])) as { schema_version: string };
+    assert.equal(status.schema_version, "aiwiki.status.v1");
+    assert.match(runReadOnlyCommand("query", ["query", "Legacy V1", "--path", workspaceRoot]), /AIWiki 查询: Legacy V1/);
+    const context = JSON.parse(runReadOnlyCommand("context", ["context", "Legacy V1", "--path", workspaceRoot])) as { schema_version: string };
+    assert.equal(context.schema_version, "aiwiki.context.v1");
+    const next = JSON.parse(runReadOnlyCommand("next", ["next", "--json", "--path", workspaceRoot])) as { schema_version: string };
+    assert.equal(next.schema_version, "aiwiki.next.v1");
+
+    for (const subcommand of ["list", "doctor"] as const) {
+      const beforeFiles = fileSnapshotWithMeta(workspaceRoot);
+      const beforeFrontmatter = frontmatterSnapshot(workspaceRoot);
+      const result = runV1CliResult(["plugin", subcommand, "--json", "--path", workspaceRoot]);
+      assert.equal(result.status, 0, `plugin ${subcommand} must be read-only and succeed: ${result.stderr}`);
+      assert.doesNotThrow(() => JSON.parse(result.stdout), `plugin ${subcommand} must emit JSON: ${result.stdout}`);
+      assertWorkspaceUnchanged(`plugin ${subcommand} --json`, workspaceRoot, beforeFiles, beforeFrontmatter);
+    }
+
+    assertWorkspaceUnchanged("complete v1 read-only matrix", workspaceRoot, initialFiles, initialFrontmatter);
+  } finally {
+    rmSync(consumerRoot, { recursive: true, force: true });
+  }
+}
+
+for (const [name, parentDirectory] of [
+  ["default path", "legacy-v1"],
+  ["CJK path", "AI知识库-测试"],
+  ["space path", "test vault"]
+] as const) {
+  test(`packed CLI keeps legacy v1 ${name} workspace read-only`, () => {
+    runLegacyV1ReadOnlyMatrix(parentDirectory);
+  });
+}
+
+test("Pro fixture validation", { skip: process.env.AIWIKI_RUN_PRO_TESTS !== "1" }, () => {
+  let consumerRoot: string | undefined;
+  try {
+    const repositoryRoot = process.cwd();
+    const fixtureRoot = path.join(repositoryRoot, "tests", "fixtures", "workspaces", "pro-trial");
+    consumerRoot = mkdtempSync(path.join(os.tmpdir(), "aiwiki-pro-trial-"));
+    writeFileSync(path.join(consumerRoot, "package.json"), JSON.stringify({ private: true }, null, 2), "utf8");
+    const packed = JSON.parse(runNpm(["pack", repositoryRoot, "--json", "--ignore-scripts"], consumerRoot)) as Array<{ filename?: string }>;
+    const tarballName = packed[0]?.filename;
+    assert.ok(tarballName, "npm pack did not report a tarball filename");
+    runNpm(["install", "--ignore-scripts", "--no-package-lock", tarballName], consumerRoot);
+
+    const workspaceRoot = path.join(consumerRoot, "pro-trial");
+    copyFixture(fixtureRoot, workspaceRoot);
+    const initialFiles = fileSnapshotWithMeta(workspaceRoot);
+    const initialFrontmatter = frontmatterSnapshot(workspaceRoot);
+    const installedCliEntry = path.join(consumerRoot, "node_modules", "@itradingai", "aiwiki", "dist", "src", "cli.js");
+
+    for (const args of [
+      ["status", "--json", "--path", workspaceRoot],
+      ["plugin", "list", "--json", "--path", workspaceRoot],
+      ["plugin", "doctor", "--json", "--path", workspaceRoot]
+    ]) {
+      const result = runResult(process.execPath, [installedCliEntry, ...args], consumerRoot);
+      assert.equal(result.status, 0, `${args.join(" ")} must succeed: ${result.stderr}`);
+      assert.doesNotThrow(() => JSON.parse(result.stdout), `${args.join(" ")} must emit JSON: ${result.stdout}`);
+      assertWorkspaceUnchanged(args.join(" "), workspaceRoot, initialFiles, initialFrontmatter);
+    }
+  } catch (error) {
+    console.error("[ADVISORY] Pro fixture validation failed:", error);
+  } finally {
+    if (consumerRoot) rmSync(consumerRoot, { recursive: true, force: true });
   }
 });
