@@ -18,7 +18,7 @@
 
 **Save what your AI reads. Ask it later. Keep everything local.**
 
-Current release: **1.0.0**
+Current release: **1.0.1**
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 

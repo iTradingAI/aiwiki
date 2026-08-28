@@ -7,9 +7,10 @@ The roadmap keeps the base CLI focused. Advanced automation, crawling, multi-kno
 ## Core 1.0 Stabilization
 
 - The Core 1.0 contract freeze is complete: the freeze matrix and contract tests are locked.
-- Documentation and migration guides are in progress.
-- Compatibility testing is planned.
-- Release gates are planned.
+- Documentation and migration guides are complete.
+- Compatibility testing is complete.
+- Release gates are complete.
+- These stabilization items were delivered with 1.0.0.
 
 ## Not in the Base Queue
 
@@ -27,7 +28,7 @@ The base AIWiki CLI is not currently planning:
 - default manual review workflow
 - automatic Dataview or Obsidian plugin installation
 
-These may become separate service-layer, integration, or Pro-adjacent projects, but they should not blur the base README promise.
+These remain outside the base queue. They may be considered only if separately scoped as service-layer, integration, or Pro-adjacent projects; that condition has not been met, and no timeline is committed.
 
 ## Operating Principle
 

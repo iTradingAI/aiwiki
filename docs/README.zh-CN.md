@@ -1,6 +1,6 @@
 # AIWiki 中文文档
 
-当前版本：**1.0.0**
+当前版本：**1.0.1**
 
 ## Core Intent Matrix
 
