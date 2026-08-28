@@ -2,7 +2,7 @@
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 
-Current release: **1.0.0**
+Current release: **1.0.1**
 
 This docs folder keeps the public guides short and task-oriented. The main README is the product entry point; these files explain daily use, assistant handoff, examples, release checks, and roadmap boundaries.
 

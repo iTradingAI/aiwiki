@@ -4,6 +4,11 @@ This changelog records public, consumer-visible release history. Repository tags
 
 ## Unreleased
 
+## [1.0.1] - 2026-08-28
+
+- Refreshed the Core 1.0 ROADMAP delivery state to record the work delivered with 1.0.0 and synchronized public version declarations to 1.0.1.
+- This is a docs-only release with no behavioral changes.
+
 ## [1.0.0] - 2026-08-26
 
 - Froze the Core 1.0 contract matrix and its contract-test coverage.

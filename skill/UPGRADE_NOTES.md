@@ -2,6 +2,11 @@
 
 Use this note when an Agent finishes `aiwiki agent sync`.
 
+## 1.0.1
+
+- This docs-only upgrade refreshes the Core 1.0 ROADMAP delivery state and synchronizes public version declarations to 1.0.1.
+- CLI, MCP, API, schema, extension, and Pro behavior remain unchanged.
+
 ## 1.0.0
 
 - Core 1.0 freezes the contract matrix and adds compatibility-matrix coverage through `npm run test:compat`.
