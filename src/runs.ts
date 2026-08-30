@@ -48,6 +48,7 @@ export type RunRecord = {
   manifest?: ManifestV2;
   hasPayloadJson: boolean;
   hasManifestJson: boolean;
+  payloadSourceError?: "invalid_payload_source";
   legacyDuplicates: LegacyDuplicate[];
   compactAction: "safe_delete" | "manual_review_required" | "already_v2" | "health_never_compact";
 };
@@ -94,8 +95,7 @@ export async function scanRuns(rootPath: string): Promise<RunRecord[]> {
   }
   return Promise.all(entries.filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name)).map(async (entry) => {
     const dirPath = path.join(runsPath, entry.name);
-    const classification = await classifyRunDirectory(dirPath, entry.name);
-    const hasPayloadJson = await exists(path.join(dirPath, "payload.json"));
+    const { classification, hasPayloadJson, payloadSourceError } = await classifyRunDirectoryDetails(dirPath, entry.name);
     const hasManifestJson = await exists(path.join(dirPath, "manifest.json"));
     const manifest = hasManifestJson ? await readManifestOrUndefined(path.join(dirPath, "manifest.json")) : undefined;
     const legacyDuplicates = await discoverLegacyDuplicates(rootPath, dirPath);
@@ -108,6 +108,7 @@ export async function scanRuns(rootPath: string): Promise<RunRecord[]> {
       ...(manifest ? { status: manifest.status, manifest } : {}),
       hasPayloadJson,
       hasManifestJson,
+      ...(payloadSourceError ? { payloadSourceError } : {}),
       legacyDuplicates,
       compactAction
     };
@@ -115,20 +116,43 @@ export async function scanRuns(rootPath: string): Promise<RunRecord[]> {
 }
 
 export async function classifyRunDirectory(dirPath: string, dirName: string): Promise<RunClassification> {
-  if (dirName.startsWith("health-") && await isValidJson(path.join(dirPath, "health-report.json"))) return "health";
+  return (await classifyRunDirectoryDetails(dirPath, dirName)).classification;
+}
+
+async function classifyRunDirectoryDetails(dirPath: string, dirName: string): Promise<{
+  classification: RunClassification;
+  hasPayloadJson: boolean;
+  payloadSourceError?: "invalid_payload_source";
+}> {
+  if (dirName.startsWith("health-") && await isValidJson(path.join(dirPath, "health-report.json"))) {
+    return { classification: "health", hasPayloadJson: false };
+  }
   const manifestPath = path.join(dirPath, "manifest.json");
   const manifest = await readManifestOrUndefined(manifestPath);
-  const payload = await exists(path.join(dirPath, "payload.json"));
-  // A present but invalid manifest is authoritative evidence of an interrupted or corrupted migration.
-  // It must never fall through to legacy classification and a destructive compact path.
-  if (manifest === null) return "unknown";
+  const payloadPath = path.join(dirPath, "payload.json");
+  const hasPayloadJson = await exists(payloadPath);
+  let payloadSourceError: "invalid_payload_source" | undefined;
+  if (hasPayloadJson) {
+    try {
+      await readJsonStreaming(payloadPath);
+    } catch {
+      payloadSourceError = "invalid_payload_source";
+    }
+  }
+  // A present but invalid manifest or payload is authoritative evidence of an interrupted or corrupted migration.
+  // Neither may fall through to a destructive compact path.
+  if (manifest === null || payloadSourceError) return { classification: "unknown", hasPayloadJson, ...(payloadSourceError ? { payloadSourceError } : {}) };
   if (manifest) {
     const names = await fs.readdir(dirPath);
-    if (names.length === Object.keys(TERMINAL_FILES).length && names.every((name) => TERMINAL_FILES[name])) return "v2_ingest";
-    if (payload || names.some((name) => LEGACY_ARTIFACTS.some((artifact) => artifact.file === name))) return "v2_partial_compact";
-    return "unknown";
+    if (names.length === Object.keys(TERMINAL_FILES).length && names.every((name) => TERMINAL_FILES[name])) {
+      return { classification: "v2_ingest", hasPayloadJson };
+    }
+    if (hasPayloadJson || names.some((name) => LEGACY_ARTIFACTS.some((artifact) => artifact.file === name))) {
+      return { classification: "v2_partial_compact", hasPayloadJson };
+    }
+    return { classification: "unknown", hasPayloadJson };
   }
-  return payload ? "legacy_ingest" : "unknown";
+  return { classification: hasPayloadJson ? "legacy_ingest" : "unknown", hasPayloadJson };
 }
 
 export async function readRunManifest(manifestPath: string): Promise<ManifestV2> {
@@ -305,7 +329,7 @@ async function readFrontmatterPrefix(filePath: string) {
 async function readJsonStreaming(filePath: string): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of createReadStream(filePath)) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)));
 }
 
 function parseExplicitReference(value: string | undefined): string | null {

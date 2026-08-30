@@ -78,6 +78,10 @@ export async function compactRuns(root: string, execute: boolean): Promise<Compa
   let safeRecords = 0;
 
   for (const record of records) {
+    if (record.payloadSourceError) {
+      warnings.push(`${record.runId}: manual_review_required (${record.payloadSourceError})`);
+      continue;
+    }
     if (record.compactAction !== "safe_delete") continue;
     const verified = await verifyDuplicates(record, warnings);
     if (!verified) continue;

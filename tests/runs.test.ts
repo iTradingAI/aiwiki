@@ -93,6 +93,13 @@ async function createLegacyRun(root: string, content = "Legacy content that has 
   ]);
   return legacyDir;
 }
+function payloadWithInvalidUtf8(content = "canonical \uFFFD body"): Buffer {
+  const encoded = Buffer.from(JSON.stringify(payload(content), null, 2), "utf8");
+  const replacement = Buffer.from("\uFFFD", "utf8");
+  const index = encoded.indexOf(replacement);
+  if (index < 0) throw new Error("expected replacement character in legacy payload");
+  return Buffer.concat([encoded.subarray(0, index), Buffer.from([0xff]), encoded.subarray(index + replacement.length)]);
+}
 
 test("compact dry-run is byte-preserving and --yes atomically reaches v2 terminal layout", async () => {
   const root = await tempRoot("aiwiki-run-compact");
@@ -289,6 +296,57 @@ test("C9: compact fails closed when a success payload cannot losslessly prove it
       assert.equal(result.warnings.some((warning) => warning.includes("manual_review_required (invalid_payload_content)")), true, JSON.stringify(result));
       assert.deepEqual((await readdir(legacyDir)).sort(), ["payload.json", "processing-summary.md", "raw.md", "source-card.md", "wiki-entry.md"]);
     }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+test("C9: compact preserves a legacy run with an invalid UTF-8 payload source", async () => {
+  const root = await tempRoot("aiwiki-run-invalid-utf8-legacy");
+  try {
+    const legacyDir = await createLegacyRun(root, "canonical \uFFFD body");
+    await writeFile(path.join(legacyDir, "payload.json"), payloadWithInvalidUtf8());
+
+    const result = await compactRuns(root, true);
+
+    assert.equal(result.executed_actions, 0, JSON.stringify(result));
+    assert.equal(result.warnings.some((warning) => warning.includes("manual_review_required (invalid_payload_source)")), true, JSON.stringify(result));
+    assert.equal((await scanRuns(root)).find((record) => record.dirName === "legacy-run")?.compactAction, "manual_review_required");
+    assert.deepEqual((await readdir(legacyDir)).sort(), ["payload.json", "processing-summary.md", "raw.md", "source-card.md", "wiki-entry.md"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("C9: compact preserves a v2 partial run with an invalid UTF-8 payload source", async () => {
+  const root = await tempRoot("aiwiki-run-invalid-utf8-partial");
+  try {
+    const legacyDir = await createLegacyRun(root, "canonical \uFFFD body");
+    const legacyRecord = (await scanRuns(root)).find((record) => record.dirName === "legacy-run");
+    assert.ok(legacyRecord);
+    await writeFile(path.join(legacyDir, "manifest.json"), `${JSON.stringify(await createManifestFromLegacy(legacyRecord), null, 2)}\n`, "utf8");
+    await writeFile(path.join(legacyDir, "payload.json"), payloadWithInvalidUtf8());
+
+    const result = await compactRuns(root, true);
+
+    assert.equal(result.executed_actions, 0, JSON.stringify(result));
+    assert.equal(result.warnings.some((warning) => warning.includes("manual_review_required (invalid_payload_source)")), true, JSON.stringify(result));
+    assert.equal((await scanRuns(root)).find((record) => record.dirName === "legacy-run")?.compactAction, "manual_review_required");
+    assert.deepEqual((await readdir(legacyDir)).sort(), ["manifest.json", "payload.json", "processing-summary.md", "raw.md", "source-card.md", "wiki-entry.md"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("C9: compact accepts a valid multibyte UTF-8 payload source", async () => {
+  const root = await tempRoot("aiwiki-run-valid-utf8");
+  try {
+    const legacyDir = await createLegacyRun(root, "中文正文与 emoji 🚀");
+
+    const result = await compactRuns(root, true);
+
+    assert.equal(result.warnings.length, 0, JSON.stringify(result));
+    assert.equal(result.executed_actions, 5, JSON.stringify(result));
+    assert.deepEqual((await readdir(legacyDir)).sort(), ["manifest.json", "processing-summary.md"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
