@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import fsModule from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
-import { copyFile, mkdir, readFile, readdir, rm, truncate, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rm, stat, truncate, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 
 import { compactRuns, inspectRuns } from "../src/cli/commands/runs.js";
+import { runCli } from "../src/app.js";
 import { ingestPayload } from "../src/ingest.js";
 import { createManifestFromLegacy, scanRuns } from "../src/runs.js";
-import { tempRoot } from "./helpers.js";
+import { MemoryWritable, tempRoot } from "./helpers.js";
 
 function payload(content: string) {
   return {
@@ -26,6 +27,29 @@ function payload(content: string) {
   };
 }
 
+async function directoryBytes(directory: string): Promise<number> {
+  let total = 0;
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    total += entry.isDirectory() ? await directoryBytes(file) : (await stat(file)).size;
+  }
+  return total;
+}
+
+
+test("B2/D8: a 5MiB source ingest keeps its run below 1MiB and below ten percent of source size", async () => {
+  const root = await tempRoot("aiwiki-run-size-invariant");
+  try {
+    const source = "x".repeat(5 * 1024 * 1024);
+    const result = await ingestPayload(root, payload(source));
+    const runBytes = await directoryBytes(result.runDir);
+
+    assert.ok(runBytes < 1024 * 1024, `run size ${runBytes} must be below 1MiB`);
+    assert.ok(runBytes < Buffer.byteLength(source, "utf8") * 0.1, `run size ${runBytes} must be below ten percent of source`);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 test("run v2 canonical Raw present and body complete", async () => {
   const root = await tempRoot("aiwiki-run-v2");
   try {
@@ -52,7 +76,10 @@ test("direct ingestPayload rejects oversized input before workspace seed", async
   try {
     await assert.rejects(
       ingestPayload(root, payload("x".repeat(11 * 1024 * 1024))),
-      (error: unknown) => error instanceof Error && error.message.includes("maximum size")
+      (error: unknown) => error instanceof Error && "code" in error && "workspaceWritten" in error &&
+        error.message.includes("maximum size") &&
+        error.code === "AIWIKI_INGEST_PAYLOAD_TOO_LARGE" &&
+        error.workspaceWritten === false
     );
     await assert.rejects(readdir(root));
   } finally {
@@ -93,6 +120,80 @@ async function createLegacyRun(root: string, content = "Legacy content that has 
   ]);
   return legacyDir;
 }
+
+test("C6: compact --yes preserves query/context/show hits and lint core results", async () => {
+  const root = await tempRoot("aiwiki-run-compact-retrieval");
+  try {
+    await createLegacyRun(root);
+    const cliText = async (args: string[]): Promise<string> => {
+      const stdout = new MemoryWritable();
+      const stderr = new MemoryWritable();
+      assert.equal(await runCli(args, { stdout, stderr }), 0, stderr.text());
+      return stdout.text();
+    };
+    const before = {
+      query: await cliText(["query", "Run V2", "--path", root]),
+      context: await cliText(["context", "Run V2", "--path", root]),
+      show: await cliText(["show", "Run V2", "--json", "--path", root]),
+      lint: await cliText(["lint", "--json", "--path", root])
+    };
+    assert.match(before.query, /Source Capsules: [1-9]/);
+    assert.match(before.query, /primary=05-wiki\/source-knowledge\/run-v2-provenance\.md/);
+    assert.match(before.context, /"total_matches":\s*[1-9]/);
+    assert.match(before.context, /05-wiki\/source-knowledge\/run-v2-provenance\.md/);
+    assert.match(before.show, /"path": "05-wiki\/source-knowledge\/run-v2-provenance\.md"/);
+    assert.doesNotMatch(before.lint, /broken_link/);
+
+    const compacted = await compactRuns(root, true);
+    assert.ok(compacted.executed_actions > 0, JSON.stringify(compacted));
+    const after = {
+      query: await cliText(["query", "Run V2", "--path", root]),
+      context: await cliText(["context", "Run V2", "--path", root]),
+      show: await cliText(["show", "Run V2", "--json", "--path", root]),
+      lint: await cliText(["lint", "--json", "--path", root])
+    };
+
+    assert.match(after.query, /Source Capsules: [1-9]/);
+    assert.match(after.query, /primary=05-wiki\/source-knowledge\/run-v2-provenance\.md/);
+    assert.match(after.context, /"total_matches":\s*[1-9]/);
+    assert.match(after.context, /05-wiki\/source-knowledge\/run-v2-provenance\.md/);
+    assert.match(after.show, /"path": "05-wiki\/source-knowledge\/run-v2-provenance\.md"/);
+    assert.doesNotMatch(after.lint, /broken_link/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("C10: compact reports derived state changes without rebuilding index or graph state", async () => {
+  const root = await tempRoot("aiwiki-run-compact-derived-state");
+  try {
+    await createLegacyRun(root);
+    for (const command of [["index", "build"], ["graph", "build"]]) {
+      assert.equal(
+        await runCli([...command, "--json", "--path", root], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }),
+        0
+      );
+    }
+    const indexPath = path.join(root, ".aiwiki", "state", "index.json");
+    const graphPath = path.join(root, ".aiwiki", "state", "graph.json");
+    const before = await Promise.all([indexPath, graphPath].map(async (file) => ({
+      content: await readFile(file, "utf8"),
+      mtimeMs: (await stat(file)).mtimeMs
+    })));
+
+    const compacted = await compactRuns(root, true);
+
+    assert.equal(compacted.derived_state_changed, true);
+    assert.match(compacted.recommended_next_action, /rebuild --check/);
+    const after = await Promise.all([indexPath, graphPath].map(async (file) => ({
+      content: await readFile(file, "utf8"),
+      mtimeMs: (await stat(file)).mtimeMs
+    })));
+    assert.deepEqual(after, before);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 function payloadWithInvalidUtf8(content = "canonical \uFFFD body"): Buffer {
   const encoded = Buffer.from(JSON.stringify(payload(content), null, 2), "utf8");
   const replacement = Buffer.from("\uFFFD", "utf8");
@@ -354,7 +455,7 @@ test("C9: compact accepts a valid multibyte UTF-8 payload source", async () => {
 
 
 
-test("C11: compact streams a 100MiB canonical raw duplicate without full read helpers", async () => {
+test("C11: compact streams a 12MiB canonical raw duplicate without full read helpers", async () => {
   const root = await tempRoot("aiwiki-run-streaming-compact");
   const originalReadFile = fsModule.promises.readFile;
   const originalReadFileSync = fsModule.readFileSync;
@@ -367,8 +468,8 @@ test("C11: compact streams a 100MiB canonical raw duplicate without full read he
     if (!rawDuplicate?.canonicalPath) throw new Error("expected canonical raw duplicate");
     const largePaths = new Set([path.resolve(rawDuplicate.runPath), path.resolve(rawDuplicate.canonicalPath)]);
     await Promise.all([
-      truncate(rawDuplicate.runPath, 100 * 1024 * 1024),
-      truncate(rawDuplicate.canonicalPath, 100 * 1024 * 1024)
+      truncate(rawDuplicate.runPath, 12 * 1024 * 1024),
+      truncate(rawDuplicate.canonicalPath, 12 * 1024 * 1024)
     ]);
 
     fsModule.promises.readFile = ((...args: Parameters<typeof originalReadFile>) => {

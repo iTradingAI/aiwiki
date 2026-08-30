@@ -45,6 +45,38 @@ test("ingests agent payload into run and long-term files", async () => {
   }
 });
 
+test("A7: ingestPayload rejects a 2MiB source plus 9MiB wiki_entry as one oversized serialized payload", async () => {
+  const root = await tempRoot("aiwiki-ingest-combined-limit");
+  try {
+    const oversized = {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "Combined payload limit",
+        content_format: "markdown",
+        content: "s".repeat(2 * 1024 * 1024),
+        fetcher: "test",
+        fetch_status: "ok",
+        captured_at: "2026-08-30T00:00:00.000Z"
+      },
+      wiki_entry: {
+        sections: [],
+        markdown: "w".repeat(9 * 1024 * 1024)
+      },
+      request: { mode: "ingest", outputs: ["source_card", "wiki_entry", "processing_summary"], language: "zh-CN" }
+    };
+    assert.ok(Buffer.byteLength(JSON.stringify(oversized), "utf8") > 10 * 1024 * 1024);
+
+    await assert.rejects(
+      ingestPayload(root, oversized),
+      (error: unknown) => error !== null && typeof error === "object" && "code" in error &&
+        error.code === "AIWIKI_INGEST_PAYLOAD_TOO_LARGE"
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("fetch failure writes only manifest and summary", async () => {
   const root = await tempRoot("aiwiki-fetch-failed");
   try {
