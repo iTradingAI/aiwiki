@@ -3,7 +3,7 @@ name: aiwiki
 description: Local Markdown knowledge base workflow for AI assistants.
 ---
 
-<!-- aiwiki-skill-version: 1.0.1 -->
+<!-- aiwiki-skill-version: 1.0.2 -->
 
 # AIWiki Skill
 
@@ -71,6 +71,9 @@ aiwiki lint --json --path <workspace>
 aiwiki lint --fix-empty-dirs --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
 aiwiki ingest-agent --stdin --path <workspace>
+aiwiki runs inspect --path <workspace> --json
+aiwiki runs compact --dry-run --path <workspace> --json
+aiwiki runs compact --yes --path <workspace> --json
 aiwiki status --path <workspace>
 aiwiki query <topic> --path <workspace>
 aiwiki context <topic> --path <workspace>
@@ -100,6 +103,7 @@ Match user requests to this command contract before using generic file tools:
 | query or reuse knowledge | `aiwiki query <topic>` or `aiwiki context <topic>`; use `aiwiki show <topic>` for a source package | read result quality, recommended next action, provenance, and gaps | try the relevant AIWiki command before file search and explain any fallback |
 | check or organize a workspace | `aiwiki lint --json`, then `aiwiki lint --fix-empty-dirs --json` only when allowed and safe | explain errors, warnings, safe fixes, and report path | leave non-safe issues for review; do not default to ad hoc Markdown edits |
 | explicitly review workspace health or request a maintenance plan | run `aiwiki health --json`; only when the user asks for a plan, run `aiwiki repair --plan --json` | read `aiwiki.health.v1` across all eight maintenance domains, then read `aiwiki.repair_plan.v1` issue evidence, risk, affected files, and suggested commands | both commands are read-only; never infer Markdown changes, derived-state writes, or dashboard creation from a generic maintenance request |
+| explicitly inspect or safely reduce run storage | run `aiwiki runs inspect --path <workspace> --json`, preview with `aiwiki runs compact --dry-run --path <workspace> --json`, then run `aiwiki runs compact --yes --path <workspace> --json` only after the user confirms | report health runs, oversized files, legacy duplicates, compactable runs, and the recommended next action | never compact automatically or outside an explicit reviewed request |
 | explicitly generate or save a health report | run `aiwiki health --write --json` | read `aiwiki.health_report.v1` metrics, dashboard path, and immutable JSON run path | refresh only the marker-bounded managed section of `dashboards/Knowledge Health.md`; never modify knowledge Markdown or derived state |
 | explicitly inspect or rebuild derived state | preview with `aiwiki rebuild --dry-run --json`; use `--check` to classify state and default rebuild only when the user asks to write it | explain `would_rebuild`, `current`, `missing`, `stale`, or `invalid`; retrieval remains Markdown-backed | do not infer rebuild from generic maintenance; report a lock conflict and do not delete another process's lock |
 | explicitly inspect, build, or rebuild the structured index | inspect with `aiwiki index status --path <workspace> --json`; build or rebuild only when the user asks to write metadata | explain `fresh`, `missing`, `stale`, or `invalid`, category counts, duplicate-source URLs, and resolved local links | Do not automatically build or rebuild the index; Markdown-backed retrieval remains available when the index is missing, stale, or invalid |

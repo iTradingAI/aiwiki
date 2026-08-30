@@ -51,6 +51,8 @@ aiwiki agent check --path "<替换成我的 AIWiki 知识库路径>" --json
 aiwiki doctor --json --path "<替换成我的 AIWiki 知识库路径>"
 aiwiki status --json --path "<替换成我的 AIWiki 知识库路径>"
 aiwiki next --json --path "<替换成我的 AIWiki 知识库路径>"
+aiwiki runs inspect --path "<替换成我的 AIWiki 知识库路径>" --json
+aiwiki runs compact --dry-run --path "<替换成我的 AIWiki 知识库路径>" --json
 
 最后总结安装是否成功、同步了哪些助手目标、知识库根指导是否存在，以及我是否需要重启或重新加载助手。
 ```
@@ -446,6 +448,10 @@ aiwiki agent check --path <workspace> --json
 必要时重启或重新加载助手。
 
 助手应该先使用 `aiwiki lint`、`aiwiki status`、`aiwiki query`、`aiwiki context`、`aiwiki ingest-file` 或 `aiwiki ingest-agent`，再考虑通用文件搜索。
+
+### 检查和收缩 run 存储
+
+用户明确要求检查或收缩 run 存储时，先运行 `aiwiki runs inspect --path <workspace> --json`，阅读 `health_runs`、超限文件、legacy duplicate 和 compact 计划。再用 `aiwiki runs compact --dry-run --path <workspace> --json` 预览；只有用户确认已经审阅该计划后，才运行 `aiwiki runs compact --yes --path <workspace> --json`。compact 不会自动重建派生 state。
 
 ### 助手读不到网页
 

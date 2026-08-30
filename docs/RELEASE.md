@@ -86,7 +86,7 @@ The Core 1.0 contract freeze records the following release-readiness boundaries 
 | --- | --- | --- |
 | Schema catalog | The `docs/schema/` catalog is frozen as additive-only with exactly 24 keys. Existing keys are not renamed or removed. | None. |
 | Public API | The public barrel has exactly 30 exports, and the stable version marker is `aiwiki.public.v1`. | None. |
-| Legacy commands | `init`, `ingest-url`, `agent install`, and `next` are all keep-compatible; this release does not change their behavior. | None. |
+| Legacy commands | `init`, `agent install`, and `next` remain keep-compatible. `ingest-url` still uses a supplied body as metadata-only input and never fetches. | **1.0.2 safety-hotfix deviation:** `ingest-url` now rejects input larger than 10 MiB before workspace writes; newly generated runs use `aiwiki.run.v2` (`manifest.json` plus `processing-summary.md`) instead of duplicate run artifacts. Legacy workspaces remain readable. |
 | Extension API | The package boundary remains explicit and declaration-only. | The planned 1.0 Extension API scope is formally reduced to declaration-only v0.1. Production invocation of `contextProviders` and `artifactGenerators` is deferred to the Pro-resumption decision track; Core 1.0 makes no production-invocation commitment. |
 
 

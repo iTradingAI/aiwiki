@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import { buildContext } from "../src/context.js";
 import { buildStructuredIndex, inspectStructuredIndex } from "../src/indexing.js";
+import { ingestPayload } from "../src/ingest.js";
 import { tempRoot } from "./helpers.js";
 
 const FIXED_NOW = "2026-07-20T08:00:00.000Z";
@@ -50,6 +51,22 @@ test("structured index stores deterministic relative metadata and local wikilink
 
     const persisted = JSON.parse(await readFile(path.join(root, ".aiwiki", "state", "index.json"), "utf8")) as typeof first;
     assert.deepEqual(persisted, second);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("index duplicate primary absent run debug not pollute", async () => {
+  const root = await tempRoot("aiwiki-index-v2-run");
+  try {
+    await ingestPayload(root, v2Payload());
+    const index = await buildStructuredIndex(root, FIXED_NOW);
+
+    assert.equal(index.summary.total, 4);
+    assert.equal(index.summary.primary, 1);
+    assert.equal(index.summary.supporting, 2);
+    assert.equal(index.summary.debug, 1);
+    assert.equal(index.records.filter((record) => record.path.startsWith("09-runs/")).length, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -202,5 +219,21 @@ function emptySummary() {
     duplicate_source_urls: 0,
     outbound_links: 0,
     inbound_links: 0
+  };
+}
+
+function v2Payload() {
+  return {
+    schema_version: "aiwiki.agent_payload.v1",
+    source: {
+      kind: "text",
+      title: "V2 index source",
+      content_format: "markdown",
+      content: "V2 index source content.",
+      fetcher: "test",
+      fetch_status: "ok",
+      captured_at: FIXED_NOW
+    },
+    request: { mode: "ingest", outputs: ["source_card", "wiki_entry", "processing_summary"], language: "zh-CN" }
   };
 }

@@ -556,7 +556,7 @@ test("state rebuild remains optional because markdown readers work after state r
     assert.ok(capsules.capsules.some((item) => item.id === "src_projection_demo"));
     assert.match(shown, /src_projection_demo/);
     assert.ok(Array.isArray(lint.issues));
-    assert.equal(status.runCount, 1);
+    assert.equal(status.runCount, 0);
     await assert.rejects(access(path.join(root, ".aiwiki", "state")));
   } finally {
     await rm(root, { recursive: true, force: true });

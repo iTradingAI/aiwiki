@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiwiki.local/schema/aiwiki.run.v2.schema.json",
+  "title": "AIWiki Run v2 manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "status", "created_at", "source", "artifacts", "warnings"],
+  "properties": {
+    "schema_version": { "const": "aiwiki.run.v2" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["success", "fetch_failed"] },
+    "created_at": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "title", "content_format", "content_bytes", "content_fingerprint", "fetcher", "fetch_status"],
+      "properties": {
+        "kind": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "content_format": { "type": "string" },
+        "content_bytes": { "type": "integer", "minimum": 0 },
+        "content_fingerprint": { "type": "string" },
+        "fetcher": { "type": "string" },
+        "fetch_status": { "enum": ["ok", "failed"] }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["processing_summary"],
+      "properties": {
+        "processing_summary": { "type": "string" },
+        "raw": { "type": "string" },
+        "source_card": { "type": "string" },
+        "wiki_entry": { "type": "string" },
+        "claims": { "type": "string" },
+        "assets": { "type": "string" },
+        "topics": { "type": "string" },
+        "outline": { "type": "string" }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wiki_entry_mode", "wiki_entry_quality"],
+      "properties": {
+        "wiki_entry_mode": { "enum": ["agent_enriched", "deterministic_fallback"] },
+        "wiki_entry_quality": { "enum": ["enriched", "scaffold"] }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "success" } }, "required": ["status"] },
+      "then": {
+        "required": ["generation"],
+        "properties": { "artifacts": { "required": ["raw", "source_card", "wiki_entry"] } }
+      },
+      "else": {
+        "not": { "required": ["generation"] },
+        "properties": {
+          "artifacts": {
+            "allOf": [
+              { "not": { "required": ["raw"] } },
+              { "not": { "required": ["source_card"] } },
+              { "not": { "required": ["wiki_entry"] } }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

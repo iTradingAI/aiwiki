@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -51,6 +53,42 @@ test("readiness command schemas are additive JSON output contracts", () => {
       compatibility: "additive_fields_only"
     }))
   );
+});
+
+test("packed aiwiki.run.v2 schema validates both states and rejects prohibited storage fields", async () => {
+  const consumerRoot = await mkdtemp(path.join(os.tmpdir(), "aiwiki-run-schema-"));
+  try {
+    await writeFile(path.join(consumerRoot, "package.json"), JSON.stringify({ private: true }), "utf8");
+    const packed = JSON.parse(runNpm(["pack", process.cwd(), "--json", "--ignore-scripts", "--pack-destination", consumerRoot], consumerRoot)) as Array<{ filename?: string }>;
+    const tarball = packed[0]?.filename;
+    assert.ok(tarball, "npm pack did not report a tarball filename");
+    runNpm(["install", "--ignore-scripts", "--no-package-lock", path.join(consumerRoot, tarball)], consumerRoot);
+    const packageRoot = path.join(consumerRoot, "node_modules", "@itradingai", "aiwiki");
+    const schema = JSON.parse(await readFile(path.join(packageRoot, "docs", "schema", "aiwiki.run.v2.schema.json"), "utf8")) as Record<string, unknown>;
+    const [english, chinese] = await Promise.all([
+      readFile(path.join(packageRoot, "docs", "schema", "README.md"), "utf8"),
+      readFile(path.join(packageRoot, "docs", "schema", "README.zh-CN.md"), "utf8")
+    ]);
+    assert.match(english, /aiwiki\.run\.v2\.schema\.json/);
+    assert.match(chinese, /aiwiki\.run\.v2\.schema\.json/);
+
+    const success = runManifestSample("success");
+    const fetchFailed = runManifestSample("fetch_failed");
+    assert.equal(matchesSchema(schema, success), true);
+    assert.equal(matchesSchema(schema, fetchFailed), true);
+    for (const invalid of [
+      { ...success, fit_score: 0.9 },
+      { ...success, fit_level: "high" },
+      { ...success, mode: "agent_enriched" },
+      { ...success, quality: "enriched" },
+      { ...success, source: { ...success.source, content: "full text" } },
+      { ...success, artifacts: { ...success.artifacts, wiki_entry: { markdown: "full entry" } } },
+      { ...fetchFailed, generation: { wiki_entry_mode: "agent_enriched", wiki_entry_quality: "enriched" } },
+      { ...fetchFailed, artifacts: { ...fetchFailed.artifacts, raw: "02-raw/articles/source.md" } }
+    ]) assert.equal(matchesSchema(schema, invalid), false);
+  } finally {
+    await rm(consumerRoot, { recursive: true, force: true });
+  }
 });
 
 test("schema catalog freezes all 24 directory entries and their semantics", () => {
@@ -167,3 +205,66 @@ test("schema compatibility sends future majors to manual review without writes",
     await rm(root, { recursive: true, force: true });
   }
 });
+
+function runNpm(args: string[], cwd: string): string {
+  const npmExecPath = process.env.npm_execpath ?? path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
+  const result = spawnSync(process.execPath, [npmExecPath, ...args], {
+    cwd,
+    encoding: "utf8",
+    env: { ...process.env, npm_config_fund: "false", npm_config_audit: "false" }
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`npm ${args.join(" ")} failed: ${result.stderr}`);
+  return result.stdout;
+}
+
+function runManifestSample(status: "success" | "fetch_failed") {
+  return {
+    schema_version: "aiwiki.run.v2",
+    run_id: `run-${status}`,
+    status,
+    created_at: "2026-08-30T00:00:00.000Z",
+    source: {
+      kind: "url",
+      title: "Schema fixture",
+      url: "https://example.test/source",
+      content_format: "markdown",
+      content_bytes: 12,
+      content_fingerprint: "sha256:test",
+      fetcher: "test",
+      fetch_status: status === "success" ? "ok" : "failed"
+    },
+    artifacts: status === "success"
+      ? { processing_summary: "09-runs/run-success/processing-summary.md", raw: "02-raw/articles/source.md", source_card: "03-sources/article-cards/source.md", wiki_entry: "05-wiki/source-knowledge/source.md" }
+      : { processing_summary: "09-runs/run-fetch-failed/processing-summary.md" },
+    ...(status === "success" ? { generation: { wiki_entry_mode: "agent_enriched", wiki_entry_quality: "enriched" } } : {}),
+    warnings: []
+  };
+}
+
+function matchesSchema(schema: unknown, value: unknown): boolean {
+  if (typeof schema !== "object" || schema === null || Array.isArray(schema)) return true;
+  const definition = schema as Record<string, unknown>;
+  if ("const" in definition && value !== definition.const) return false;
+  if (Array.isArray(definition.enum) && !definition.enum.includes(value)) return false;
+  if (definition.type === "string" && typeof value !== "string") return false;
+  if (definition.type === "integer" && (typeof value !== "number" || !Number.isInteger(value) || (typeof definition.minimum === "number" && value < definition.minimum))) return false;
+  if (definition.type === "array" && (!Array.isArray(value) || (definition.items !== undefined && !value.every((item) => matchesSchema(definition.items, item))))) return false;
+  if (definition.type === "object" || definition.properties !== undefined || definition.required !== undefined || definition.additionalProperties !== undefined) {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+    const object = value as Record<string, unknown>;
+    const properties = typeof definition.properties === "object" && definition.properties !== null && !Array.isArray(definition.properties)
+      ? definition.properties as Record<string, unknown>
+      : {};
+    if (Array.isArray(definition.required) && definition.required.some((key) => typeof key !== "string" || !Object.hasOwn(object, key))) return false;
+    if (definition.additionalProperties === false && Object.keys(object).some((key) => !Object.hasOwn(properties, key))) return false;
+    if (Object.entries(properties).some(([key, child]) => Object.hasOwn(object, key) && !matchesSchema(child, object[key]))) return false;
+  }
+  if (Array.isArray(definition.allOf) && !definition.allOf.every((item) => matchesSchema(item, value))) return false;
+  if (definition.if !== undefined) {
+    const branch = matchesSchema(definition.if, value) ? definition.then : definition.else;
+    if (branch !== undefined && !matchesSchema(branch, value)) return false;
+  }
+  if (definition.not !== undefined && matchesSchema(definition.not, value)) return false;
+  return true;
+}

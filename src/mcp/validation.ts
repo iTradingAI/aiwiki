@@ -2,8 +2,9 @@ import { promises as fs } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { safeJoin } from "../paths.js";
+import { assertPayloadWithinLimit, MAX_PAYLOAD_SIZE } from "../ingest-limits.js";
 
-export const MAX_PAYLOAD_SIZE = 10 * 1024 * 1024;
+export { MAX_PAYLOAD_SIZE };
 
 const MANAGED_DIRECTORIES = [
   "01-purpose",
@@ -24,10 +25,7 @@ const MANAGED_DIRECTORIES = [
 ] as const;
 
 export function validatePayloadSize(payload: unknown): void {
-  const serialized = JSON.stringify(payload);
-  if (Buffer.byteLength(serialized, "utf8") > MAX_PAYLOAD_SIZE) {
-    throw new Error(`payload exceeds maximum size of ${MAX_PAYLOAD_SIZE} bytes`);
-  }
+  assertPayloadWithinLimit(payload);
 }
 
 export async function confineWorkspaceRoot(rootPath: string): Promise<string> {

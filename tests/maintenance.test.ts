@@ -12,7 +12,7 @@ import { initWorkspace } from "../src/workspace.js";
 import { tempRoot } from "./helpers.js";
 
 const FIXED_NOW = "2026-07-20T09:00:00.000Z";
-const MAINTENANCE_DOMAINS = ["structure", "capsule", "evidence", "lifecycle", "relationship", "index", "user_view", "quality"] as const;
+const MAINTENANCE_DOMAINS = ["structure", "capsule", "evidence", "lifecycle", "relationship", "index", "user_view", "quality", "run_storage"] as const;
 
 test("maintenance facts classify evidence relationship lifecycle and index risks without writes", async () => {
   const root = await createMaintenanceFixture("aiwiki-maintenance-facts");
@@ -145,6 +145,14 @@ test("health reports deterministic Core 0.5 knowledge metrics", async () => {
         stale_count: 1,
         contradiction_count: 1,
         scaffold_count: 1
+      },
+      run_storage: {
+        runs: 0,
+        health_runs: 0,
+        total_bytes: 0,
+        oversized_files: 0,
+        legacy_duplicate_artifacts: 0,
+        compactable_runs: 0
       },
       index_freshness: "stale",
       recent_growth_topics: [
