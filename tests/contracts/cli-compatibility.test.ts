@@ -359,13 +359,32 @@ test("packed CLI preserves Core command and Context view compatibility", () => {
     assert.match(ingestUrl, new RegExp(`source_url: ${offlineUrl}`));
     const runId = /run_id: (.+)/.exec(ingestUrl)?.[1]?.trim();
     assert.ok(runId);
-    const ingestPayload = JSON.parse(readFileSync(path.join(vaultRoot, "09-runs", runId, "payload.json"), "utf8")) as {
-      source: { url: string; content: string; fetcher: string; fetch_status: string };
+    const manifest = JSON.parse(readFileSync(path.join(vaultRoot, "09-runs", runId, "manifest.json"), "utf8")) as {
+      schema_version: string;
+      run_id: string;
+      status: string;
+      source: { url: string; content?: string; fetcher: string; fetch_status: string; content_bytes: number; content_fingerprint: string };
+      artifacts: { processing_summary: string; raw: string; source_card: string; wiki_entry: string };
+      generation: { wiki_entry_mode: string; wiki_entry_quality: string };
     };
-    assert.equal(ingestPayload.source.url, offlineUrl);
-    assert.equal(ingestPayload.source.content, sourceContent);
-    assert.equal(ingestPayload.source.fetcher, "content-file");
-    assert.equal(ingestPayload.source.fetch_status, "ok");
+    const raw = readFileSync(path.join(vaultRoot, manifest.artifacts.raw), "utf8").replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+    assert.match(raw.trimStart(), /^# offline-source\r?\n\r?\n## AIWiki 链接\r?\n/);
+    assert.equal(raw.trimEnd().endsWith(sourceContent.trimEnd()), true);
+    assert.equal(manifest.schema_version, "aiwiki.run.v2");
+    assert.equal(manifest.run_id, runId);
+    assert.equal(manifest.status, "success");
+    assert.equal(manifest.source.url, offlineUrl);
+    assert.equal(manifest.source.content, undefined);
+    assert.equal(manifest.source.fetcher, "content-file");
+    assert.equal(manifest.source.fetch_status, "ok");
+    assert.equal(manifest.source.content_bytes, Buffer.byteLength(sourceContent));
+    assert.match(manifest.source.content_fingerprint, /^sha256:[0-9a-f]{64}$/);
+    assert.equal(manifest.source.content_fingerprint, `sha256:${createHash("sha256").update(sourceContent.replace(/\r\n/g, "\n"), "utf8").digest("hex")}`);
+    assert.equal(manifest.artifacts.raw, "02-raw/articles/offline-source.md");
+    assert.equal(manifest.artifacts.source_card, "03-sources/article-cards/offline-source.md");
+    assert.equal(manifest.artifacts.wiki_entry, "05-wiki/source-knowledge/offline-source.md");
+    assert.deepEqual(manifest.generation, { wiki_entry_mode: "deterministic_fallback", wiki_entry_quality: "scaffold" });
+    assert.deepEqual(readdirSync(path.join(vaultRoot, "09-runs", runId)).sort(), ["manifest.json", "processing-summary.md"]);
     const ingestUrlWithoutContent = runInstalledCliResult(consumerRoot, ["ingest-url", offlineUrl, "--path", vaultPath]);
     assert.equal(ingestUrlWithoutContent.status, 1);
     assert.match(ingestUrlWithoutContent.stderr, /不抓取网页。请提供 --content-file/);

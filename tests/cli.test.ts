@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import { createWriteStream } from "node:fs";
 import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
 
 import { runCli } from "../src/app.js";
@@ -15,6 +18,44 @@ type BundleFileStatus = { path: string; state: string };
 type AgentBundleStatus = { complete: boolean; files: BundleFileStatus[] };
 type AgentSyncJson = { results: Array<{ id: string; action: string; bundle?: AgentBundleStatus; backup_paths?: string[] }> };
 type AgentCheckJson = { targets: Array<{ id: string; installed?: boolean; state: string; suggested_action?: string; bundle?: AgentBundleStatus }> };
+
+async function runDistCli(args: string[], stdin?: string): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  const child = spawn(process.execPath, [path.join(process.cwd(), "dist", "src", "cli.js"), ...args], {
+    stdio: [stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"]
+  });
+  const stdoutStream = child.stdout;
+  const stderrStream = child.stderr;
+  if (!stdoutStream || !stderrStream) throw new Error("dist CLI did not expose output streams");
+  let stdout = "";
+  let stderr = "";
+  stdoutStream.setEncoding("utf8");
+  stderrStream.setEncoding("utf8");
+  stdoutStream.on("data", (chunk: string) => { stdout += chunk; });
+  stderrStream.on("data", (chunk: string) => { stderr += chunk; });
+  if (stdin !== undefined) {
+    const stdinStream = child.stdin;
+    if (!stdinStream) throw new Error("dist CLI did not expose stdin");
+    stdinStream.on("error", () => {});
+    stdinStream.end(stdin);
+  }
+  const [code] = await once(child, "close") as [number | null];
+  return { code, stdout, stderr };
+}
+
+async function writeRepeatedFile(file: string, bytes: number, prefix = "", suffix = ""): Promise<void> {
+  const prefixBytes = Buffer.byteLength(prefix, "utf8");
+  const suffixBytes = Buffer.byteLength(suffix, "utf8");
+  if (prefixBytes + suffixBytes > bytes) throw new Error("fixture envelope exceeds requested size");
+  const stream = createWriteStream(file);
+  const bodyBytes = bytes - prefixBytes - suffixBytes;
+  const chunk = Buffer.alloc(Math.min(bodyBytes, 1024 * 1024), 0x61);
+  if (!stream.write(prefix)) await once(stream, "drain");
+  for (let remaining = bodyBytes; remaining > 0; remaining -= chunk.length) {
+    if (!stream.write(chunk.subarray(0, Math.min(remaining, chunk.length)))) await once(stream, "drain");
+  }
+  stream.end(suffix);
+  await once(stream, "finish");
+}
 
 test("help exposes core commands and only the implemented plugin commands", async () => {
   const stdout = new MemoryWritable();
@@ -66,6 +107,154 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.match(pluginHelp.text(), /declared-permission audit \+ no-injection default; NOT a runtime OS sandbox/i);
   assert.match(pluginHelp.text(), /local modules retain direct Node authority.*no write mediation/i);
   assert.doesNotMatch(pluginHelp.text(), /mediated writes/i);
+});
+
+test("A2: 15MiB stdin rejects in chunks before workspace initialization", async () => {
+  const root = await tempRoot("aiwiki-cli-stdin-limit");
+  await rm(root, { recursive: true, force: true });
+    assert.equal(await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+  try {
+    const child = spawn(process.execPath, [path.join(process.cwd(), "dist", "src", "cli.js"), "ingest-agent", "--stdin", "--path", root], {
+      stdio: ["pipe", "ignore", "pipe"]
+    });
+    child.stdin.on("error", () => {});
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => { stderr += chunk; });
+    for (let remaining = 15 * 1024 * 1024; remaining > 0; remaining -= 64 * 1024) {
+      child.stdin.write(Buffer.alloc(Math.min(remaining, 64 * 1024), 0x61));
+    }
+    child.stdin.end();
+    const [code] = await once(child, "close") as [number | null];
+    assert.equal(code, 1);
+    assert.match(stderr, /错误:.*maximum size/);
+    assert.deepEqual(await readdir(path.join(root, "09-runs")), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("A1: 9MiB stdin payload succeeds through the dist CLI pipe", async () => {
+  const root = await tempRoot("aiwiki-cli-stdin-success");
+  try {
+    assert.equal(await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    const stdinPayload = JSON.stringify({
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "Nine MiB stdin",
+        content_format: "markdown",
+        content: "x".repeat(9 * 1024 * 1024),
+        fetcher: "test",
+        fetch_status: "ok",
+        captured_at: "2026-08-30T00:00:00.000Z"
+      },
+      request: { mode: "ingest", outputs: ["source_card", "wiki_entry", "processing_summary"], language: "zh-CN" }
+    });
+    const result = await runDistCli(["ingest-agent", "--stdin", "--path", root], stdinPayload);
+
+    assert.equal(result.code, 0, result.stderr);
+    const [runId] = await readdir(path.join(root, "09-runs"));
+    assert.ok(runId);
+    assert.deepEqual((await readdir(path.join(root, "09-runs", runId))).sort(), ["manifest.json", "processing-summary.md"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("A3: ingest-agent --payload rejects an 11MiB file before workspace writes", async () => {
+  const root = await tempRoot("aiwiki-cli-payload-limit");
+  const inputRoot = await tempRoot("aiwiki-cli-payload-input");
+  try {
+    assert.equal(await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    const input = path.join(inputRoot, "oversized-payload.json");
+    await writeRepeatedFile(
+      input,
+      11 * 1024 * 1024,
+      "{\"schema_version\":\"aiwiki.agent_payload.v1\",\"source\":{\"kind\":\"text\",\"title\":\"Oversized payload\",\"content_format\":\"markdown\",\"content\":\"",
+      "\",\"fetcher\":\"test\",\"fetch_status\":\"ok\",\"captured_at\":\"2026-08-30T00:00:00.000Z\"},\"request\":{\"mode\":\"ingest\",\"outputs\":[\"source_card\",\"wiki_entry\",\"processing_summary\"],\"language\":\"zh-CN\"}}"
+    );
+
+    const trace = path.join(inputRoot, "payload-read-trace.json");
+    const instrumentation = path.join(inputRoot, "instrument-fs.mjs");
+    await writeFile(instrumentation, `
+import { promises as fs, writeFileSync } from "node:fs";
+import path from "node:path";
+
+const input = path.resolve(${JSON.stringify(input)});
+const trace = ${JSON.stringify(trace)};
+const readFile = fs.readFile;
+const stat = fs.stat;
+let inputReadFileCalls = 0;
+let inputStatCalls = 0;
+
+fs.readFile = async function (file, ...args) {
+  if (path.resolve(String(file)) === input) inputReadFileCalls += 1;
+  return readFile.call(this, file, ...args);
+};
+fs.stat = async function (file, ...args) {
+  if (path.resolve(String(file)) === input) inputStatCalls += 1;
+  return stat.call(this, file, ...args);
+};
+process.on("exit", () => writeFileSync(trace, JSON.stringify({ inputReadFileCalls, inputStatCalls })));
+`);
+
+    const child = spawn(process.execPath, [
+      "--import", pathToFileURL(instrumentation).href,
+      path.join(process.cwd(), "dist", "src", "cli.js"),
+      "ingest-agent", "--payload", input, "--path", root
+    ], { stdio: ["ignore", "ignore", "pipe"] });
+    if (!child.stderr) throw new Error("dist CLI did not expose stderr");
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => { stderr += chunk; });
+    const [code] = await once(child, "close") as [number | null];
+    const calls = JSON.parse(await readFile(trace, "utf8")) as { inputReadFileCalls: number; inputStatCalls: number };
+
+    assert.equal(code, 1);
+    assert.match(stderr, /^错误:.*maximum size/m);
+    assert.equal(calls.inputReadFileCalls, 0);
+    assert.ok(calls.inputStatCalls > 0);
+    assert.deepEqual(await readdir(path.join(root, "09-runs")), []);
+  } finally {
+    await Promise.all([rm(root, { recursive: true, force: true }), rm(inputRoot, { recursive: true, force: true })]);
+  }
+});
+
+test("A4: ingest-file rejects an 11MiB file through the CLI route", async () => {
+  const root = await tempRoot("aiwiki-cli-file-limit");
+  const inputRoot = await tempRoot("aiwiki-cli-file-input");
+  try {
+    assert.equal(await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    const input = path.join(inputRoot, "oversized-source.md");
+    await writeRepeatedFile(input, 11 * 1024 * 1024);
+
+    const result = await runDistCli(["ingest-file", "--file", input, "--path", root]);
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /^错误:/m);
+    assert.deepEqual(await readdir(path.join(root, "09-runs")), []);
+  } finally {
+    await Promise.all([rm(root, { recursive: true, force: true }), rm(inputRoot, { recursive: true, force: true })]);
+  }
+});
+
+test("A5: ingest-url --content-file rejects an 11MiB file before workspace writes", async () => {
+  const root = await tempRoot("aiwiki-cli-url-limit");
+  const inputRoot = await tempRoot("aiwiki-cli-url-input");
+  try {
+    assert.equal(await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+    const input = path.join(inputRoot, "oversized-content.md");
+    await writeRepeatedFile(input, 11 * 1024 * 1024);
+
+    const result = await runDistCli(["ingest-url", "https://example.com/oversized", "--content-file", input, "--path", root]);
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /^错误:/m);
+    assert.deepEqual(await readdir(path.join(root, "09-runs")), []);
+  } finally {
+    await Promise.all([rm(root, { recursive: true, force: true }), rm(inputRoot, { recursive: true, force: true })]);
+  }
 });
 
 test("CLI rebuild exposes stable modes, exit codes, and state-only side effects", async () => {
@@ -871,6 +1060,7 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     "graph",
     "health",
     "repair",
+    "runs",
     "context",
     "query",
     "show",
@@ -907,6 +1097,7 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     [["graph", "status"], "graph"],
     [["health"], "health"],
     [["repair", "--plan"], "repair"],
+    [["runs", "inspect"], "runs"],
     [["context", "topic"], "context"],
     [["query", "topic"], "query"],
     [["show", "topic"], "show"],
@@ -1515,7 +1706,7 @@ test("CLI ingest-agent payload and ingest-url boundary", async () => {
     assert.match(out.text(), /grounding_markers: none/);
     assert.match(out.text(), /source_card:/);
     assert.match(out.text(), /source_card: 03-sources\/article-cards\/ai-agent-workflow-notes\.md/);
-    assert.match(out.text(), /draft_outline:/);
+    assert.doesNotMatch(out.text(), /draft_outline:/);
     assert.match(out.text(), /dashboard: dashboards\/AIWiki Home\.md/);
     assert.match(out.text(), /review_queue: dashboards\/Review Queue\.md/);
     assert.equal(err.text(), "");
@@ -2032,8 +2223,8 @@ test("CLI ingest-url with content file reuses ingest", async () => {
     assert.equal(code, 0);
     const runId = /run_id: (.+)/.exec(out.text())?.[1]?.trim();
     assert.ok(runId);
-    const payload = await readFile(path.join(root, "09-runs", runId, "payload.json"), "utf8");
-    assert.match(payload, /https:\/\/example.com\/article/);
+    const manifest = await readFile(path.join(root, "09-runs", runId, "manifest.json"), "utf8");
+    assert.match(manifest, /https:\/\/example.com\/article/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

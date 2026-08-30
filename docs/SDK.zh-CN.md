@@ -39,6 +39,10 @@ function ingestFile(rootPath: string, filePath: string): Promise<IngestResult>
 
 `ingestPayload` 校验并保存内联的、兼容 `aiwiki.agent_payload.v1` 的 payload。`ingestFile` 从非空 UTF-8 文件创建 payload，适合 SDK/CLI 调用方；它有意不通过 MCP 暴露。二者都返回 `IngestResult`，其中含有 `runId`、`runDir`、`generatedFiles`、`warnings` 和 `agentReport`。
 
+### 1.0.2 safety hotfix deviation
+
+`ingestPayload` 和 `ingestFile` 现在会在任何工作区写入前拒绝超过 10 MiB 的 payload。公开函数签名和 `IngestResult` 字段不变，但新的成功 run 仅保留 `manifest.json` 与 `processing-summary.md`；因此 `generatedFiles` 不再包含 Raw、Source Card 或 Wiki Entry 的重复 run 副本。旧工作区继续可读。捕获该拒绝后，缩小或拆分输入再重试。
+
 ```ts
 const result = await ingestPayload("./knowledge", {
   schema_version: "aiwiki.agent_payload.v1",

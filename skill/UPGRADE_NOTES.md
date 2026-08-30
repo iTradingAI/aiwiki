@@ -2,6 +2,11 @@
 
 Use this note when an Agent finishes `aiwiki agent sync`.
 
+## 1.0.2
+
+- This safety hotfix rejects payloads larger than 10 MiB before any workspace write and stores new runs as `aiwiki.run.v2` manifests plus processing summaries.
+- Before compacting legacy storage, run `aiwiki runs inspect --json`, review `aiwiki runs compact --dry-run --json`, and run `aiwiki runs compact --yes --json` only after approval. Existing workspaces remain readable and are never compacted automatically.
+
 ## 1.0.1
 
 - This docs-only upgrade refreshes the Core 1.0 ROADMAP delivery state and synchronizes public version declarations to 1.0.1.

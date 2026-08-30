@@ -51,6 +51,9 @@ aiwiki health --json --path <workspace>
 aiwiki repair --plan --json --path <workspace>
 aiwiki ingest-file --file <file> --path <workspace>
 aiwiki ingest-agent --stdin --path <workspace>
+aiwiki runs inspect --path <workspace> --json
+aiwiki runs compact --dry-run --path <workspace> --json
+aiwiki runs compact --yes --path <workspace> --json
 aiwiki status --json --path <workspace>
 aiwiki next --json --path <workspace>
 aiwiki query <topic> --path <workspace>
@@ -72,6 +75,7 @@ aiwiki show <topic> --path <workspace>
 | 查询、引用或复用本地知识 | 人类可读结果用 `aiwiki query <topic>`，Agent JSON 用 `aiwiki context <topic>`；单个来源包用 `aiwiki show <topic>` 或 capsule view | 回答前读取 `result_quality`、`recommended_next_action`、来源和已知缺口 | 先尝试对应 AIWiki 命令；仅在命令不足时使用文件搜索，并说明原因 |
 | 检查、整理或安全修复工作区 | `aiwiki lint --json`；仅在允许且只有安全修复时执行 `aiwiki lint --fix-empty-dirs --json`，再运行 `aiwiki lint --json` | 解释 error、warning、安全修复范围和 lint 报告路径 | 非安全问题保留为可追踪复核项；不要默认手工修改 Markdown |
 | 只有用户明确要求健康检查、维护风险或修复建议清单时 | 先运行 `aiwiki health --json` 获得 `aiwiki.health.v1`；要求计划时再运行 `aiwiki repair --plan --json` 获得 `aiwiki.repair_plan.v1` | 读取八个维护域、派生 state、问题证据、风险、受影响文件和建议命令 | 两个命令均为只读；不能从泛化维护请求推断 Markdown 修改、rebuild/index/graph 写入或 dashboard 创建 |
+| 明确要求检查或安全收缩 run 存储 | `aiwiki runs inspect --path <workspace> --json`，再运行 `aiwiki runs compact --dry-run --path <workspace> --json`；只在审阅确认后运行 `aiwiki runs compact --yes --path <workspace> --json` | 汇报 health run、超限文件、重复 artifact、compact 计划和派生 state 后续动作 | 不得自动 compact，也不能从泛化维护请求推断确认 |
 | 只有用户明确要求生成或保存健康报告时 | 运行 `aiwiki health --write --json` 获得 `aiwiki.health_report.v1` | 汇报指标、dashboard 路径和不可变 JSON 运行记录路径 | 它只刷新 `dashboards/Knowledge Health.md` 中 marker 限定的受控区块，并在 `09-runs/` 写入一份 JSON 报告；不会修改知识 Markdown 或派生 state |
 | 只有用户明确要求检查或重建派生状态时 | 先用 `aiwiki rebuild --dry-run --json` 预览；用 `--check` 分类 state；只有用户要求写入时才执行默认 rebuild | 解释 `would_rebuild`、`current`、`missing`、`stale` 或 `invalid`；日常读取仍以 Markdown 为准 | 不要从泛化维护请求推断 rebuild；报告锁冲突，不要删除其他进程的 lock |
 | 只有用户明确要求确认结构化索引是否最新、构建索引或重建索引时 | 先用 `aiwiki index status --path <workspace> --json` 检查；只有用户要求写入时才执行 `aiwiki index build --path <workspace> --json` 或 `aiwiki index rebuild --path <workspace> --json` | 汇报 `fresh`、`missing`、`stale` 或 `invalid`、分类计数和重复来源 URL 数 | 不要自动构建或重建索引；索引缺失、过期或损坏时仍可直接从 Markdown 检索 |

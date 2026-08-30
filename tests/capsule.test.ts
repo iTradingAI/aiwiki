@@ -4,6 +4,8 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { buildCapsules, buildCapsulesFromArtifacts, capsuleMetrics, capsuleToJson, searchCapsules } from "../src/capsule.js";
+import { discoverArtifacts } from "../src/artifact.js";
+import { ingestPayload } from "../src/ingest.js";
 import type { AiwikiArtifact } from "../src/artifact.js";
 import { tempRoot } from "./helpers.js";
 
@@ -61,6 +63,32 @@ test("capsules infer legacy grouping from content fingerprint", async () => {
     assert.equal(capsules[0]?.groupingReason, "content_fingerprint");
     assert.equal(capsules[0]?.artifacts.length, 2);
     assert.equal(capsuleToJson(capsules[0]!).primary?.path, "05-wiki/source-knowledge/source.md");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("capsule count wiki_entry primary unchanged", async () => {
+  const root = await tempRoot("aiwiki-capsule-v2-run");
+  try {
+    await ingestPayload(root, {
+      schema_version: "aiwiki.agent_payload.v1",
+      source: {
+        kind: "text",
+        title: "V2 capsule source",
+        content_format: "markdown",
+        content: "V2 capsule source content.",
+        fetcher: "test",
+        fetch_status: "ok",
+        captured_at: "2026-08-30T00:00:00.000Z"
+      },
+      request: { mode: "ingest", outputs: ["source_card", "wiki_entry", "processing_summary"], language: "zh-CN" }
+    });
+    const capsules = buildCapsulesFromArtifacts(await discoverArtifacts(root));
+
+    assert.equal(capsules.length, 1);
+    assert.equal(capsules[0]?.primary?.kind, "wiki_entry");
+    assert.equal(capsules[0]?.artifacts.filter((item) => item.kind === "processing_summary").length, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -41,8 +41,8 @@ test("bilingual Core 1.0 freeze matrices lock every declared readiness boundary"
   assert.match(releaseZh, /^\| Schema 目录 \| `docs\/schema\/` 目录冻结为仅可新增，且恰有 24 个键。既有键不得重命名或删除。 \| 无。 \|$/m);
   assert.match(release, /^\| Public API \| The public barrel has exactly 30 exports, and the stable version marker is `aiwiki\.public\.v1`\. \| None\. \|$/m);
   assert.match(releaseZh, /^\| Public API \| 公开 barrel 恰有 30 个导出，稳定版本标记为 `aiwiki\.public\.v1`。 \| 无。 \|$/m);
-  assert.match(release, /^\| Legacy commands \| `init`, `ingest-url`, `agent install`, and `next` are all keep-compatible; this release does not change their behavior\. \| None\. \|$/m);
-  assert.match(releaseZh, /^\| legacy 命令 \| `init`、`ingest-url`、`agent install` 和 `next` 全部保持兼容；本发布不改变其行为。 \| 无。 \|$/m);
+  assert.match(release, /^\| Legacy commands \| `init`, `agent install`, and `next` remain keep-compatible\. `ingest-url` still uses a supplied body as metadata-only input and never fetches\. \| \*\*1\.0\.2 safety-hotfix deviation:\*\* `ingest-url` now rejects input larger than 10 MiB before workspace writes; newly generated runs use `aiwiki\.run\.v2` \(`manifest\.json` plus `processing-summary\.md`\) instead of duplicate run artifacts\. Legacy workspaces remain readable\. \|$/m);
+  assert.match(releaseZh, /^\| legacy 命令 \| `init`、`agent install` 和 `next` 保持兼容。`ingest-url` 继续将提供的正文仅作元数据输入，绝不抓取。 \| \*\*1\.0\.2 safety hotfix deviation：\*\*`ingest-url` 现在会在工作区写入前拒绝超过 10 MiB 的输入；新生成的 run 使用 `aiwiki\.run\.v2`（`manifest\.json` 加 `processing-summary\.md`），不再写入重复的 run artifact。旧工作区继续可读。 \|$/m);
   assert.match(release, /^\| Extension API \| The package boundary remains explicit and declaration-only\. \| The planned 1\.0 Extension API scope is formally reduced to declaration-only v0\.1\. Production invocation of `contextProviders` and `artifactGenerators` is deferred to the Pro-resumption decision track; Core 1\.0 makes no production-invocation commitment\. \|$/m);
   assert.match(releaseZh, /^\| Extension API \| 包边界保持显式且仅声明。 \| 源计划的 1\.0 Extension API 范围正式降级为仅声明的 v0\.1。`contextProviders` 和 `artifactGenerators` 的生产调用延后至 Pro 恢复决策轨道；Core 1\.0 不承诺生产调用。 \|$/m);
 });

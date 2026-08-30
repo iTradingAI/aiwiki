@@ -9,11 +9,13 @@ import { inspectStructuredIndex } from "./indexing.js";
 import { lifecycleFromFrontmatter } from "./lifecycle.js";
 import { relativePath, safeJoin } from "./paths.js";
 import { relationshipsFromFrontmatter } from "./relationships.js";
+import { MAX_PAYLOAD_SIZE } from "./ingest-limits.js";
+import { scanRuns, type RunRecord } from "./runs.js";
 import { exists, OPTIONAL_DIRS, OPTIONAL_PARENT_DIRS } from "./workspace.js";
 
 export type LintSeverity = "error" | "warning" | "info";
 export type LintAction = "enrich" | "fix_link" | "archive" | "reingest" | "mark_reviewed" | "repair_structure" | "remove_empty_optional_dir";
-export type MaintenanceDomain = "structure" | "capsule" | "evidence" | "lifecycle" | "relationship" | "index" | "user_view" | "quality";
+export type MaintenanceDomain = "structure" | "capsule" | "evidence" | "lifecycle" | "relationship" | "index" | "user_view" | "quality" | "run_storage";
 
 export type LintSafeFix = {
   action: "remove_empty_optional_dir";
@@ -64,7 +66,7 @@ export async function lintWorkspace(rootPath: string, now = new Date().toISOStri
   const wikiEntries = await readNotes(root, "05-wiki/source-knowledge");
   const sourceCards = await readNotes(root, "03-sources/article-cards");
   const rawFiles = await readNotes(root, "02-raw/articles");
-  const runs = await runDirs(root);
+  const runs = await scanRuns(root);
   const allNotes = [
     ...wikiEntries,
     ...sourceCards,
@@ -78,6 +80,7 @@ export async function lintWorkspace(rootPath: string, now = new Date().toISOStri
 
   issues.push(...await systemFileIssues(root));
   issues.push(...await emptyOptionalDirectoryIssues(root));
+  issues.push(...await runStorageIssues(root, runs));
 
   const wikiSourceCards = new Set(wikiEntries.map((note) => frontmatterString(note.frontmatter, "source_card")).filter(Boolean));
   for (const card of sourceCards) {
@@ -405,12 +408,36 @@ async function readNotes(root: string, dir: string): Promise<Note[]> {
   }));
 }
 
-async function runDirs(root: string): Promise<string[]> {
-  const dir = path.join(root, "09-runs");
-  if (!(await exists(dir))) {
-    return [];
+async function runStorageIssues(root: string, records: readonly RunRecord[]): Promise<LintIssue[]> {
+  const issues: LintIssue[] = [];
+  for (const record of records) {
+    if (record.legacyDuplicates.length) {
+      issues.push({
+        severity: "warning",
+        path: relativePath(root, record.dirPath),
+        category: "legacy_run_artifact",
+        domain: "run_storage",
+        action: "reingest",
+        message: `Run storage contains ${record.legacyDuplicates.length} legacy duplicate artifact${record.legacyDuplicates.length === 1 ? "" : "s"}.`,
+        suggestion: "Review aiwiki runs inspect --json, then use aiwiki runs compact --dry-run --json."
+      });
+    }
+    for (const entry of await fs.readdir(record.dirPath, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const filePath = path.join(record.dirPath, entry.name);
+      if ((await fs.stat(filePath)).size <= MAX_PAYLOAD_SIZE) continue;
+      issues.push({
+        severity: "warning",
+        path: relativePath(root, filePath),
+        category: "oversized_run_artifact",
+        domain: "run_storage",
+        action: "reingest",
+        message: `Run artifact exceeds the ${MAX_PAYLOAD_SIZE}-byte storage limit.`,
+        suggestion: "Review aiwiki runs inspect --json, then use aiwiki runs compact --dry-run --json."
+      });
+    }
   }
-  return (await fs.readdir(dir, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  return issues;
 }
 
 async function listMarkdownFiles(dir: string): Promise<string[]> {
@@ -629,6 +656,7 @@ function maintenanceDomainFor(issue: LintIssue): MaintenanceDomain {
   if (category === "index_state") return "index";
   if (category === "metadata_boundary") return "user_view";
   if (category === "isolated_source_card" || category === "missing_source" || category === "duplicate" || category === "duplicate_content_fingerprint" || category === "grounding_review") return "evidence";
+  if (category === "legacy_run_artifact" || category === "oversized_run_artifact") return "run_storage";
   return "quality";
 }
 

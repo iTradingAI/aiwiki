@@ -72,7 +72,7 @@ function assertPackagedReadmeLinks(packageRoot: string, readmePath: string): voi
   }
 }
 
-test("packed Skill bundle installs every protocol and locks explicit extension intent", () => {
+test("five surfaces runs commands present", () => {
   const repositoryRoot = process.cwd();
   const consumerRoot = mkdtempSync(path.join(os.tmpdir(), "aiwiki-skill-contract-"));
   const codexHome = path.join(consumerRoot, "codex-home");
@@ -121,10 +121,18 @@ test("packed Skill bundle installs every protocol and locks explicit extension i
     assert.deepEqual(workspaceSync.results.map((result) => result.id), ["workspace"]);
     assert.equal(workspaceSync.results[0]?.action, "current");
 
+    const agentHelp = runInstalledCli(consumerRoot, ["agent", "--help"], env);
     const prompt = runInstalledCli(consumerRoot, ["prompt", "agent"], env);
     const usage = readFileSync(path.join(packageRoot, "docs", "USAGE.md"), "utf8");
     const skill = readFileSync(path.join(packagedSkillRoot, "SKILL.md"), "utf8");
+    const workspaceGuidance = readFileSync(path.join(vaultRoot, "AGENTS.md"), "utf8");
+    const handoff = readFileSync(path.join(repositoryRoot, "docs", "AGENT_HANDOFF.md"), "utf8");
     const extensionProtocol = readFileSync(path.join(packagedSkillRoot, "EXTENSION_PROTOCOL.md"), "utf8");
+    for (const text of [agentHelp, skill, workspaceGuidance, prompt, `${usage}\n${handoff}`]) {
+      assert.match(text, /aiwiki runs inspect/);
+      assert.match(text, /aiwiki runs compact --dry-run/);
+      assert.match(text, /aiwiki runs compact --yes/);
+    }
     for (const [text, requiredCommands] of [
       [prompt, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki index status", "aiwiki agent check", "aiwiki agent sync"]],
       [usage, ["aiwiki setup", "aiwiki doctor", "aiwiki status", "aiwiki ingest-file", "aiwiki ingest-agent", "aiwiki context", "aiwiki show", "aiwiki lint", "aiwiki index status", "aiwiki agent check", "aiwiki agent sync"]],

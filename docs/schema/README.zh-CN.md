@@ -26,8 +26,11 @@ AIWiki Core 通过统一目录记录当前数据合同。该目录是内部兼�
 | 修复计划 | `aiwiki.repair_plan.v1` | JSON 输出 | 包含证据、风险、受影响文件和建议命令的只读建议清单。 |
 | Extension 作者合同 | `aiwiki.extension.v1` | 公开包合同 | 声明 API 保持稳定；显式 Host 另有独立文档。 |
 | Extension Host | `aiwiki.extension-host.v1` | 本地 Host 状态 | 显式 local/bundled 加载、状态和失败隔离；见 [Extension Host v0.1](EXTENSION_HOST.zh-CN.md)。 |
+| Run manifest | `aiwiki.run.v2` | `09-runs/<run-id>/manifest.json` | [形式化 schema](aiwiki.run.v2.schema.json)；成功 run 记录 canonical artifact 路径，fetch failure 仅保留处理摘要。 |
 
 `aiwiki.context.v2` 已启用，作为显式的关系图 Context view；默认 Context 仍是 `aiwiki.context.v1`，且 Context v2 不会自动构建关系图 state。`aiwiki.extension.v1` 作为 [Extension API v0.1](EXTENSION_SCHEMA.zh-CN.md) 已启用。[Extension Host v0.1](EXTENSION_HOST.zh-CN.md) 只增加显式的 `plugin add` 与 `plugin enable` 管理，用于启用 local 或 bundled extension；没有自动发现。
+
+`aiwiki.run.v2` 是存储 manifest，不属于 `AIWIKI_SCHEMAS` 目录键。其形式化 schema 位于 [aiwiki.run.v2.schema.json](aiwiki.run.v2.schema.json)：`processing_summary` 始终必填；成功 run 还必须包含 `generation` 以及 canonical `raw`、`source_card`、`wiki_entry` 路径。fetch-failed run 省略这些仅成功态字段。两种状态都不存 source 全文或渲染后的 Wiki Entry 正文。
 
 ## Schema Compatibility
 
@@ -59,10 +62,10 @@ Core 1.0 契约冻结以仅新增（additive-only）策略锁定这些记录：�
 3. 逐页审查旧页面，包括内容、frontmatter 和所有 schema 标记。
 4. 仅将审查通过的页面和源资料手动入库到新工作区。
 
-以下旧命令保持兼容，行为没有变化：
+以下旧命令保持已文档化的行为，但 1.0.2 safety hotfix deviation 除外：
 
 - `aiwiki init --path "<workspace>" --yes --set-default` 继续初始化指定工作区并将其设为默认工作区。
-- `aiwiki ingest-url --content-file "<file>" "<url>"` 继续仅将 URL 用作元数据；绝不抓取该 URL。
+- `aiwiki ingest-url --content-file "<file>" "<url>"` 继续仅将 URL 用作元数据，绝不抓取 URL；但大于 10 MiB 的输入会在工作区写入前被拒绝。
 - `aiwiki agent install --agent "<agent>" --yes --force` 继续安装指定的 Agent 接入。
 - `aiwiki next` 仍是只读的 readiness 报告，不会执行建议的 action。
 

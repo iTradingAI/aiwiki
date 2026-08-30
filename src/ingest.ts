@@ -2,12 +2,12 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 
+import { assertFileWithinLimit, assertPayloadWithinLimit } from "./ingest-limits.js";
 import { NormalizedPayload, normalizePayload } from "./payload.js";
 import { buildGroundingReport, groundingFrontmatterLines, groundingWarnings, GroundingReport } from "./grounding.js";
 import { appendRunIdBeforeExt, relativePath, safeJoin, slugify } from "./paths.js";
 import { initWorkspace } from "./workspace.js";
 import { renderWikiEntry, WikiEntryMode, WikiEntryQuality } from "./wiki-entry.js";
-
 export type IngestResult = {
   runId: string;
   runDir: string;
@@ -72,25 +72,38 @@ type OptionalOutputPlan = {
 };
 
 export async function ingestPayload(rootPath: string, rawPayload: unknown) {
+  assertPayloadWithinLimit(rawPayload);
+  const runStartedAt = new Date().toISOString();
+  const payload = normalizePayload(rawPayload, runStartedAt);
+  assertPayloadWithinLimit(payload);
+
   await initWorkspace(rootPath);
   const root = path.resolve(rootPath);
-  const runStartedAt = new Date().toISOString();
   const runId = createRunId(runStartedAt);
-  const payload = normalizePayload(rawPayload, runStartedAt);
   const runDirName = payload.source.fetch_status === "failed" ? `${runId}-fetch-failed` : runId;
   const runDir = safeJoin(root, "09-runs", runDirName);
   await fs.mkdir(runDir, { recursive: false });
 
   const generatedFiles: string[] = [];
   try {
-    await writeFile(path.join(runDir, "payload.json"), `${JSON.stringify(payload, null, 2)}\n`, generatedFiles);
-
     if (payload.source.fetch_status === "failed") {
       const grounding = buildGroundingReport(payload);
-      await writeSummary(root, runDir, payload, generatedFiles, [
+      const warnings = [
         ...payload.warnings,
         "宿主 Agent 未能提供正文，AIWiki CLI 没有自行抓取网页。"
-      ], undefined, grounding);
+      ];
+      await writeSummary(root, runDir, payload, generatedFiles, warnings, undefined, grounding);
+      await writeRunManifest(path.join(runDir, "manifest.json"), {
+        schema_version: "aiwiki.run.v2",
+        run_id: runDirName,
+        status: "fetch_failed",
+        created_at: runStartedAt,
+        source: runManifestSource(payload, ""),
+        artifacts: {
+          processing_summary: relativePath(root, path.join(runDir, "processing-summary.md"))
+        },
+        warnings
+      }, generatedFiles);
       return { runId: runDirName, runDir, generatedFiles, warnings: payload.warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
     }
 
@@ -103,20 +116,7 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
     const longTermTargets = await chooseLongTermTargets(root, slug, runId, collisionWarnings, optionalOutputs);
     const links = buildArtifactLinks(root, slug, runDirName, runStartedAt, contentFingerprint, longTermTargets);
     const grounding = buildGroundingReport(payload);
-
-    await writeFile(path.join(runDir, "raw.md"), contentFile(payload, content, links), generatedFiles);
-    await writeFile(path.join(runDir, "source-card.md"), sourceCard(payload, runDirName, links, grounding), generatedFiles);
     const wikiEntryResult = renderWikiEntry(payload, links);
-    await writeFile(path.join(runDir, "wiki-entry.md"), wikiEntryResult.markdown, generatedFiles);
-    if (optionalOutputs.assets && links.assets) {
-      await writeFile(path.join(runDir, "creative-assets.md"), creativeAssets(payload, links), generatedFiles);
-    }
-    if (optionalOutputs.topics && links.topics) {
-      await writeFile(path.join(runDir, "topics.md"), topics(payload, links), generatedFiles);
-    }
-    if (optionalOutputs.outline && links.outline) {
-      await writeFile(path.join(runDir, "draft-outline.md"), outline(payload, links), generatedFiles);
-    }
 
     await writeFile(longTermTargets.raw, contentFile(payload, content, links), generatedFiles);
     await writeFile(longTermTargets.sourceCard, sourceCard(payload, runDirName, links, grounding), generatedFiles);
@@ -136,6 +136,28 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
 
     const warnings = [...payload.warnings, ...groundingWarnings(grounding), ...collisionWarnings];
     await writeSummary(root, runDir, payload, generatedFiles, warnings, links, grounding);
+    await writeRunManifest(path.join(runDir, "manifest.json"), {
+      schema_version: "aiwiki.run.v2",
+      run_id: runDirName,
+      status: "success",
+      created_at: runStartedAt,
+      source: runManifestSource(payload, contentFingerprint),
+      artifacts: {
+        processing_summary: relativePath(root, path.join(runDir, "processing-summary.md")),
+        raw: links.raw,
+        source_card: links.sourceCard,
+        wiki_entry: links.wikiEntry,
+        ...(links.claims ? { claims: links.claims } : {}),
+        ...(links.assets ? { assets: links.assets } : {}),
+        ...(links.topics ? { topics: links.topics } : {}),
+        ...(links.outline ? { outline: links.outline } : {})
+      },
+      generation: {
+        wiki_entry_mode: wikiEntryResult.mode,
+        wiki_entry_quality: wikiEntryResult.quality
+      },
+      warnings
+    }, generatedFiles);
     return { runId, runDir, generatedFiles, warnings, agentReport: buildAgentReport(root, runDir, payload, generatedFiles) };
   } catch (error) {
     await Promise.all(generatedFiles.map(async (file) => {
@@ -155,6 +177,7 @@ export async function ingestPayload(rootPath: string, rawPayload: unknown) {
 }
 
 export async function ingestFile(rootPath: string, filePath: string) {
+  await assertFileWithinLimit(filePath);
   const content = await fs.readFile(filePath, "utf8");
   if (!content.trim()) {
     throw new Error("input file is empty");
@@ -178,6 +201,46 @@ export async function ingestFile(rootPath: string, filePath: string) {
   });
 }
 
+type RunManifest = {
+  schema_version: "aiwiki.run.v2";
+  run_id: string;
+  status: "success" | "fetch_failed";
+  created_at: string;
+  source: {
+    kind: string;
+    title: string;
+    url?: string;
+    content_format: string;
+    content_bytes: number;
+    content_fingerprint: string;
+    fetcher: string;
+    fetch_status: "ok" | "failed";
+  };
+  artifacts: Record<string, string>;
+  generation?: {
+    wiki_entry_mode: WikiEntryMode;
+    wiki_entry_quality: WikiEntryQuality;
+  };
+  warnings: string[];
+};
+
+function runManifestSource(payload: NormalizedPayload, contentFingerprint: string): RunManifest["source"] {
+  const content = payload.source.content ?? "";
+  return {
+    kind: payload.source.kind,
+    title: payload.source.title ?? "Untitled",
+    ...(payload.source.url ? { url: payload.source.url } : {}),
+    content_format: payload.source.content_format ?? "markdown",
+    content_bytes: Buffer.byteLength(content, "utf8"),
+    content_fingerprint: contentFingerprint,
+    fetcher: payload.source.fetcher ?? "unknown",
+    fetch_status: payload.source.fetch_status
+  };
+}
+
+async function writeRunManifest(target: string, manifest: RunManifest, generatedFiles: string[]): Promise<void> {
+  await writeFile(target, `${JSON.stringify(manifest, null, 2)}\n`, generatedFiles);
+}
 export function deriveFileTitle(filePath: string): string {
   return path.basename(filePath, path.extname(filePath));
 }

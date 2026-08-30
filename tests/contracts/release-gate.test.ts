@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   mkdirSync,
   mkdtempSync,
@@ -23,14 +25,17 @@ type ReleaseCheckModule = {
 
 type ReleaseArtifactModule = {
   buildArtifact: (directory: string) => {
+    name: string;
+    version: string;
     filename: string;
     sha256: string;
     integrity: string;
+    npm_integrity: string;
     readme_strategy: string;
     transformations: Array<{ operation: string; source: string; destination: string }>;
     manifest: Array<{ path: string }>;
   };
-  verifyArtifact: (directory: string) => { artifactPath: string; evidence: { filename: string; sha256: string } };
+  verifyArtifact: (directory: string) => { artifactPath: string; evidence: { filename: string; sha256: string; integrity: string } };
 };
 
 type PackageStageModule = {
@@ -112,12 +117,12 @@ test("release documentation records verified facts and keeps the runbook reusabl
   const upgradeNotes = readFileSync(path.join("skill", "UPGRADE_NOTES.md"), "utf8");
   const releaseCheck = await releaseCheckModule();
 
-  assert.match(changelog, /^## \[1\.0\.1\] - 2026-08-28$/m);
+  assert.match(changelog, /^## \[1\.0\.2\] - 2026-08-30$/m);
   assert.match(changelog, /^## \[1\.0\.0\] - 2026-08-26$/m);
   assert.match(changelog, /## \[0\.8\.1\] - 2026-08-12/);
   assert.match(changelog, /## \[0\.8\.0\][\s\S]*Verified publication:/);
   assert.doesNotMatch(changelog, /This entry describes the current source release\./);
-  assert.match(changelogZh, /^## \[1\.0\.1\] - 2026-08-28$/m);
+  assert.match(changelogZh, /^## \[1\.0\.2\] - 2026-08-30$/m);
   assert.match(changelogZh, /^## \[1\.0\.0\] - 2026-08-26$/m);
   assert.match(changelogZh, /## \[0\.8\.1\] - 2026-08-12/);
   assert.match(changelogZh, /## \[0\.8\.0\][\s\S]*已验证发布：/);
@@ -131,7 +136,7 @@ test("release documentation records verified facts and keeps the runbook reusabl
   }
   assert.match(releaseGuide, /maintainer-only release and Agent handoff guides/);
   assert.match(releaseGuideZh, /仅维护者使用的发布与 Agent handoff 指南/);
-  for (const version of ["1.0.1", "1.0.0", "0.8.1", "0.8.0", "0.7.1", "0.7.0"]) {
+  for (const version of ["1.0.2", "1.0.1", "1.0.0", "0.8.1", "0.8.0", "0.7.1", "0.7.0"]) {
     assert.match(upgradeNotes, new RegExp(`^## ${version.split(".").join("\\.")}$`, "m"));
   }
   const fixture = createReleaseFixture("1.0.1");
@@ -275,29 +280,54 @@ test("release truth rejects package symlinks that escape the source tree", async
   }
 });
 
-test("artifact helper records and verifies the only staged tgz", async () => {
+test("release artifact uses pack identity, separate SHA-256, and npm SRI for the exact tgz", async () => {
   const moduleUrl = pathToFileURL(path.join(process.cwd(), "scripts", "release-artifact.mjs")).href;
-  // Runtime import is intentional: this test exercises the source helper invoked directly by the workflow.
   const artifactModule = await import(moduleUrl) as ReleaseArtifactModule;
   const artifactDirectory = mkdtempSync(path.join(tmpdir(), "aiwiki-artifact-test-"));
+  const consumerDirectory = mkdtempSync(path.join(tmpdir(), "aiwiki-artifact-consumer-"));
   try {
+    const npmExecPath = process.env.npm_execpath ?? path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
+    const packed = spawnSync(process.execPath, [npmExecPath, "pack", process.cwd(), "--json", "--ignore-scripts"], {
+      cwd: artifactDirectory,
+      encoding: "utf8",
+      env: { ...process.env, npm_config_fund: "false", npm_config_audit: "false" }
+    });
+    assert.equal(packed.status, 0, packed.stderr);
+    const pack = JSON.parse(packed.stdout) as Array<{ name?: string; version?: string; filename?: string; integrity?: string }>;
+    assert.deepEqual(pack.map(({ name, version, filename }) => ({ name, version, filename })), [{
+      name: "@itradingai/aiwiki",
+      version: "1.0.2",
+      filename: "itradingai-aiwiki-1.0.2.tgz"
+    }]);
+    assert.match(pack[0]?.integrity ?? "", /^sha512-/);
+
     const evidence = artifactModule.buildArtifact(artifactDirectory);
+    const artifactPath = path.join(artifactDirectory, evidence.filename);
+    const sha256 = createHash("sha256").update(readFileSync(artifactPath)).digest("hex");
+    const integrity = `sha512-${createHash("sha512").update(readFileSync(artifactPath)).digest("base64")}`;
+    assert.equal(evidence.name, "@itradingai/aiwiki");
+    assert.equal(evidence.version, "1.0.2");
+    assert.equal(evidence.filename, "itradingai-aiwiki-1.0.2.tgz");
     assert.match(evidence.sha256, /^[0-9a-f]{64}$/);
-    assert.match(evidence.integrity, /^sha512-/);
-    assert.equal(evidence.readme_strategy, "S");
-    assert.equal(evidence.transformations.length, 3);
-    assert.ok(evidence.manifest.some((file) => file.path === "package.json"));
-    assert.ok(evidence.manifest.some((file) => file.path === "README.md"));
-    assert.ok(evidence.manifest.some((file) => file.path === "docs/README.zh-CN.md"));
-    assert.equal(evidence.manifest.some((file) => file.path === "README.zh-CN.md"), false);
-    assert.equal(readdirSync(artifactDirectory).filter((file) => file.endsWith(".tgz")).length, 1);
+    assert.equal(sha256, evidence.sha256);
+    assert.equal(integrity, evidence.integrity);
+    assert.equal(evidence.integrity, evidence.npm_integrity);
     assert.equal(artifactModule.verifyArtifact(artifactDirectory).evidence.filename, evidence.filename);
 
-    const artifactPath = path.join(artifactDirectory, evidence.filename);
+    writeFileSync(path.join(consumerDirectory, "package.json"), JSON.stringify({ private: true }), "utf8");
+    const installed = spawnSync(process.execPath, [npmExecPath, "install", "--ignore-scripts", "--no-package-lock", artifactPath], {
+      cwd: consumerDirectory,
+      encoding: "utf8",
+      env: { ...process.env, npm_config_fund: "false", npm_config_audit: "false" }
+    });
+    assert.equal(installed.status, 0, installed.stderr);
+    assert.equal(JSON.parse(readFileSync(path.join(consumerDirectory, "node_modules", "@itradingai", "aiwiki", "package.json"), "utf8")).version, "1.0.2");
+
     writeFileSync(artifactPath, Buffer.concat([readFileSync(artifactPath), Buffer.from("tamper")]));
     assert.throws(() => artifactModule.verifyArtifact(artifactDirectory), /artifact SHA-256 mismatch/);
   } finally {
     rmSync(artifactDirectory, { recursive: true, force: true });
+    rmSync(consumerDirectory, { recursive: true, force: true });
   }
 });
 

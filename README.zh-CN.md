@@ -28,7 +28,7 @@ Agent 应按 `aiwiki setup`、`aiwiki agent sync/check`、再到只读 JSON `doc
 
 **把 AI 助手读过的资料，变成以后可以查询、复用、整理的本地知识库。**
 
-当前版本：**1.0.1**
+当前版本：**1.0.2**
 
 AIWiki 是给 AI 助手使用的本地 Markdown 知识库。
 
@@ -68,6 +68,8 @@ aiwiki agent sync --yes
 aiwiki agent check --json
 aiwiki agent check --path "<替换成我的 AIWiki 知识库路径>" --json
 aiwiki doctor --json --path "<替换成我的 AIWiki 知识库路径>"
+aiwiki runs inspect --path "<替换成我的 AIWiki 知识库路径>" --json
+aiwiki runs compact --dry-run --path "<替换成我的 AIWiki 知识库路径>" --json
 aiwiki status --json --path "<替换成我的 AIWiki 知识库路径>"
 aiwiki next --json --path "<替换成我的 AIWiki 知识库路径>"
 
