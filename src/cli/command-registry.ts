@@ -39,6 +39,7 @@ export type CoreCommandHandlers = Readonly<{
   graph: CommandHandler;
   health: CommandHandler;
   repair: CommandHandler;
+  runs: CommandHandler;
   context: CommandHandler;
   query: CommandHandler;
   show: CommandHandler;
@@ -130,6 +131,16 @@ export function createCoreCommandRegistry(handlers: CoreCommandHandlers): Comman
       help: [
         { usage: "aiwiki health --json", visibility: "public", scope: "base" },
         { usage: "aiwiki health --write --json", visibility: "public", scope: "base" }
+      ]
+    },
+    {
+      id: "runs",
+      matches: ({ command }) => command === "runs",
+      handle: handlers.runs,
+      help: [
+        { usage: "aiwiki runs inspect --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki runs compact --dry-run --path <workspace> --json", visibility: "public", scope: "base" },
+        { usage: "aiwiki runs compact --yes --path <workspace> --json", visibility: "public", scope: "base" }
       ]
     },
     {

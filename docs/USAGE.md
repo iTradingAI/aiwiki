@@ -49,6 +49,8 @@ aiwiki agent check --path "<replace-with-my-aiwiki-path>" --json
 aiwiki doctor --json --path "<replace-with-my-aiwiki-path>"
 aiwiki status --json --path "<replace-with-my-aiwiki-path>"
 aiwiki next --json --path "<replace-with-my-aiwiki-path>"
+aiwiki runs inspect --path "<replace-with-my-aiwiki-path>" --json
+aiwiki runs compact --dry-run --path "<replace-with-my-aiwiki-path>" --json
 
 Then summarize what was installed, what was synced, whether workspace guidance exists, and whether I need to restart or reload the assistant.
 ```
@@ -523,6 +525,10 @@ aiwiki agent check --path <workspace> --json
 Then restart or reload the assistant if needed.
 
 The assistant should use `aiwiki lint`, `aiwiki status`, `aiwiki query`, `aiwiki context`, `aiwiki ingest-file`, or `aiwiki ingest-agent` before falling back to generic file search.
+
+### Inspect and compact run storage
+
+When a user explicitly asks to inspect or reduce run storage, first run `aiwiki runs inspect --path <workspace> --json`. Review `health_runs`, oversized files, legacy duplicates, and the compact plan. Preview with `aiwiki runs compact --dry-run --path <workspace> --json`; run `aiwiki runs compact --yes --path <workspace> --json` only after the user confirms that reviewed plan. Compact never rebuilds derived state automatically.
 
 ### The assistant cannot read a webpage
 

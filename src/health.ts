@@ -8,6 +8,8 @@ import { frontmatterString } from "./frontmatter.js";
 import { inspectRelationshipGraph, type RelationshipGraphState } from "./graph.js";
 import { inspectStructuredIndex, type StructuredIndexState } from "./indexing.js";
 import { lintWorkspace, type LintIssue, type MaintenanceDomain } from "./lint.js";
+import { MAX_PAYLOAD_SIZE } from "./ingest-limits.js";
+import { scanRuns } from "./runs.js";
 import { safeJoin } from "./paths.js";
 import { relationshipsFromFrontmatter } from "./relationships.js";
 import { buildRebuildProjection } from "./state/projection.js";
@@ -47,6 +49,14 @@ export type HealthMetrics = {
     path: string;
     created_at?: string;
   }>;
+  run_storage: {
+    runs: number;
+    health_runs: number;
+    total_bytes: number;
+    oversized_files: number;
+    legacy_duplicate_artifacts: number;
+    compactable_runs: number;
+  };
 };
 
 export type HealthReport = {
@@ -89,7 +99,8 @@ const MAINTENANCE_DOMAINS: readonly MaintenanceDomain[] = [
   "relationship",
   "index",
   "user_view",
-  "quality"
+  "quality",
+  "run_storage",
 ];
 
 export async function buildHealthReport(rootPath: string, now = new Date().toISOString()): Promise<HealthReport> {
@@ -110,7 +121,7 @@ export async function buildHealthReport(rootPath: string, now = new Date().toISO
   const errors = lint.issues.filter((issue) => issue.severity === "error").length;
   const warnings = lint.issues.filter((issue) => issue.severity === "warning").length;
   const info = lint.issues.filter((issue) => issue.severity === "info").length;
-  const metrics = buildHealthMetrics(artifacts, buildCapsulesFromArtifacts(artifacts, now), index.state);
+  const metrics = await buildHealthMetrics(rootPath, artifacts, buildCapsulesFromArtifacts(artifacts, now), index.state);
 
   return {
     schema_version: "aiwiki.health.v1",
@@ -164,11 +175,23 @@ export async function writeHealthReport(
   }
 }
 
-function buildHealthMetrics(
+async function buildHealthMetrics(
+  rootPath: string,
   artifacts: readonly AiwikiArtifact[],
   capsules: readonly SourceCapsule[],
   indexFreshness: StructuredIndexState
-): HealthMetrics {
+): Promise<HealthMetrics> {
+  const records = await scanRuns(rootPath);
+  let totalBytes = 0;
+  let oversizedFiles = 0;
+  for (const record of records) {
+    for (const entry of await fs.readdir(record.dirPath, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const bytes = (await fs.stat(path.join(record.dirPath, entry.name))).size;
+      totalBytes += bytes;
+      if (bytes > MAX_PAYLOAD_SIZE) oversizedFiles += 1;
+    }
+  }
   const total = capsules.length;
   const withPrimary = capsules.filter((capsule) => Boolean(capsule.primary)).length;
   const capsulesWithEvidence = capsules.filter((capsule) => capsule.artifacts.some((artifact) => (
@@ -203,6 +226,14 @@ function buildHealthMetrics(
         capsule.lifecycle.knowledgeStatus === "contradicted" || capsule.lifecycle.contradictedBy.length > 0
       )).length,
       scaffold_count: capsules.filter((capsule) => isScaffold(capsule)).length
+    },
+    run_storage: {
+      runs: records.filter((record) => record.classification !== "health").length,
+      health_runs: records.filter((record) => record.classification === "health").length,
+      total_bytes: totalBytes,
+      oversized_files: oversizedFiles,
+      legacy_duplicate_artifacts: records.reduce((count, record) => count + record.legacyDuplicates.length, 0),
+      compactable_runs: records.filter((record) => record.compactAction === "safe_delete").length
     },
     index_freshness: indexFreshness,
     recent_growth_topics: recentGrowthTopics(artifacts)
@@ -320,6 +351,7 @@ function renderHealthDashboard(written: WrittenHealthReport): string {
     `| 矛盾条目 | ${metrics.lifecycle.contradiction_count} |`,
     `| Scaffold 条目 | ${metrics.lifecycle.scaffold_count} |`,
     `| 索引状态 | ${metrics.index_freshness} |`,
+    `| Run storage | ${metrics.run_storage.runs} runs; ${metrics.run_storage.health_runs} health runs; ${metrics.run_storage.total_bytes} bytes; ${metrics.run_storage.oversized_files} oversized files; ${metrics.run_storage.legacy_duplicate_artifacts} legacy duplicates |`,
     "",
     "## 最近增长选题",
     "",

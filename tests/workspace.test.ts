@@ -129,6 +129,55 @@ test("status reads run directory without state machine", async () => {
   }
 });
 
+test("status six run types health not runCount unknown not success", async () => {
+  const root = await tempRoot("aiwiki-status-run-classification");
+  const manifest = (runId: string, status: "success" | "fetch_failed") => ({
+    schema_version: "aiwiki.run.v2",
+    run_id: runId,
+    status,
+    created_at: "2026-08-30T00:00:00.000Z",
+    source: {
+      kind: "text",
+      title: runId,
+      content_format: "markdown",
+      content_bytes: 1,
+      content_fingerprint: "sha256:test",
+      fetcher: "test",
+      fetch_status: status === "success" ? "ok" : "failed"
+    },
+    artifacts: status === "success"
+      ? { processing_summary: `09-runs/${runId}/processing-summary.md`, raw: "02-raw/articles/raw.md", source_card: "03-sources/article-cards/card.md", wiki_entry: "05-wiki/source-knowledge/wiki.md" }
+      : { processing_summary: `09-runs/${runId}/processing-summary.md` },
+    ...(status === "success" ? { generation: { wiki_entry_mode: "agent_enriched", wiki_entry_quality: "enriched" } } : {}),
+    warnings: []
+  });
+  try {
+    await initWorkspace(root);
+    const runs = path.join(root, "09-runs");
+    for (const name of ["legacy-success", "legacy-fetch-failed", "v2-success", "v2-fetch-failed", "health-test", "unknown-run"]) {
+      await mkdir(path.join(runs, name));
+    }
+    await writeFile(path.join(runs, "legacy-success", "payload.json"), JSON.stringify({ source: { fetch_status: "ok" } }), "utf8");
+    await writeFile(path.join(runs, "legacy-fetch-failed", "payload.json"), JSON.stringify({ source: { fetch_status: "failed" } }), "utf8");
+    for (const [name, status] of [["v2-success", "success"], ["v2-fetch-failed", "fetch_failed"]] as const) {
+      await writeFile(path.join(runs, name, "manifest.json"), JSON.stringify(manifest(name, status)), "utf8");
+      await writeFile(path.join(runs, name, "processing-summary.md"), "# Summary\n", "utf8");
+    }
+    await writeFile(path.join(runs, "health-test", "health-report.json"), "{}\n", "utf8");
+    await writeFile(path.join(runs, "unknown-run", "notes.txt"), "unknown\n", "utf8");
+
+    const summary = await statusSummary(root);
+
+    assert.equal(summary.runCount, 4);
+    assert.equal(summary.failedCount, 2);
+    assert.notEqual(summary.lastRunId, "health-test");
+    assert.notEqual(summary.lastSuccessRunId, "health-test");
+    assert.notEqual(summary.lastSuccessRunId, "unknown-run");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("doctor reports missing purpose index and log files", async () => {
   const root = await tempRoot("aiwiki-doctor-system-files");
   try {

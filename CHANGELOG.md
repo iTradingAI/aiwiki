@@ -2,6 +2,12 @@
 
 This changelog records public, consumer-visible release history. Repository tags and npm artifacts are cited only where both mappings were verified; registry-only history is labeled separately.
 
+## [1.0.2] - 2026-08-30
+
+- **Safety-hotfix deviation:** all ingest surfaces, including the Public SDK and `ingest-url`, reject payloads above 10 MiB before workspace writes.
+- New runs use the compact `aiwiki.run.v2` manifest layout; use `aiwiki runs inspect --json` and the explicit `runs compact` review flow to diagnose or safely repair legacy duplicate storage.
+- Health and lint expose run-storage evidence. Legacy workspaces remain readable; this release does not automatically compact historical runs.
+
 ## Unreleased
 
 ## [1.0.1] - 2026-08-28

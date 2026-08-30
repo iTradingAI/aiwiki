@@ -39,6 +39,10 @@ function ingestFile(rootPath: string, filePath: string): Promise<IngestResult>
 
 `ingestPayload` validates and stores an `aiwiki.agent_payload.v1`-compatible inline payload. `ingestFile` creates a payload from a non-empty UTF-8 file; it is appropriate for SDK/CLI callers, but is deliberately unavailable through MCP. Both return an `IngestResult` with `runId`, `runDir`, `generatedFiles`, `warnings`, and `agentReport`.
 
+### 1.0.2 safety-hotfix deviation
+
+`ingestPayload` and `ingestFile` now reject payloads larger than 10 MiB before any workspace write. The public signatures and `IngestResult` fields remain unchanged, but new successful runs retain only `manifest.json` and `processing-summary.md`; `generatedFiles` therefore no longer contains duplicate run copies of Raw, Source Card, or Wiki Entry. Legacy workspaces remain readable. Catch the rejection, reduce or split the input, and retry.
+
 ```ts
 const result = await ingestPayload("./knowledge", {
   schema_version: "aiwiki.agent_payload.v1",

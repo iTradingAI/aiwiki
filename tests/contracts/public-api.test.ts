@@ -79,14 +79,23 @@ test("packed package exposes only the stable public API", () => {
       "dist/src/public/index.js",
       "dist/src/public/index.d.ts",
       "dist/src/public/contracts.js",
-      "dist/src/public/contracts.d.ts"
+      "dist/src/public/contracts.d.ts",
+      "docs/schema/aiwiki.run.v2.schema.json",
+      "docs/schema/README.md",
+      "docs/schema/README.zh-CN.md"
     ]) {
       assert.doesNotThrow(() => readFileSync(path.join(installedRoot, relativePath), "utf8"), relativePath);
     }
+    const runSchema = JSON.parse(readFileSync(path.join(installedRoot, "docs", "schema", "aiwiki.run.v2.schema.json"), "utf8")) as { $id?: string; allOf?: unknown[] };
+    assert.match(runSchema.$id ?? "", /aiwiki\.run\.v2\.schema\.json$/);
+    assert.equal(runSchema.allOf?.length, 1);
+    for (const index of ["README.md", "README.zh-CN.md"]) assert.match(readFileSync(path.join(installedRoot, "docs", "schema", index), "utf8"), /aiwiki\.run\.v2\.schema\.json/);
 
     writeFileSync(
       path.join(consumerRoot, "consumer.mjs"),
       `import assert from "node:assert/strict";
+import { access, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { Writable } from "node:stream";
 import * as api from "@itradingai/aiwiki";
 import * as contracts from "@itradingai/aiwiki/contracts";
@@ -112,6 +121,15 @@ assert.equal(api.resolveWorkspace("."), process.cwd());
 for (const specifier of ["@itradingai/aiwiki/dist/src/app.js", "@itradingai/aiwiki/src/app.js"]) {
   await assert.rejects(() => import(specifier), (error) => error?.code === "ERR_PACKAGE_PATH_NOT_EXPORTED");
 }
+const oversizedFile = path.join(process.cwd(), "oversized.md");
+const oversizedWorkspace = path.join(process.cwd(), "oversized-workspace");
+await writeFile(oversizedFile, "x".repeat(11 * 1024 * 1024), "utf8");
+await assert.rejects(
+  api.ingestFile(oversizedWorkspace, oversizedFile),
+  (error) => error?.code === "AIWIKI_INGEST_PAYLOAD_TOO_LARGE" && error?.workspaceWritten === false
+);
+await assert.rejects(access(oversizedWorkspace));
+await rm(oversizedFile);
 `,
       "utf8"
     );
