@@ -1,10 +1,11 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
 import { flagBool, flagString } from "../../args.js";
 import { MAX_PAYLOAD_SIZE } from "../../ingest-limits.js";
 import { CliError, writeLine } from "../../output.js";
-import { createManifestFromLegacy, planCompact, readRunManifest, scanRuns, verifyByteEquality, type CompactPlan, type RunRecord } from "../../runs.js";
+import { createManifestFromLegacy, planCompact, readCanonicalContentFingerprint, readRunManifest, scanRuns, verifyByteEquality, type CompactPlan, type ManifestV2, type RunRecord } from "../../runs.js";
 import { resolveWorkspace } from "../../workspace.js";
 
 import type { CommandContext } from "../command-context.js";
@@ -80,21 +81,38 @@ export async function compactRuns(root: string, execute: boolean): Promise<Compa
     if (record.compactAction !== "safe_delete") continue;
     const verified = await verifyDuplicates(record, warnings);
     if (!verified) continue;
-    let manifest;
+    let manifest: ManifestV2;
     try {
       manifest = await createManifestFromLegacy(record);
     } catch (error) {
       warnings.push(`${record.runId}: ${(error as Error).message}`);
       continue;
     }
+    if (!await verifyPayloadRetention(record, manifest, warnings)) continue;
     safeRecords += 1;
     if (!execute) continue;
 
     if (!record.hasManifestJson) {
       const temporaryPath = path.join(record.dirPath, "manifest.json.tmp");
-      await fs.writeFile(temporaryPath, `${JSON.stringify(manifest, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
-      await readRunManifest(temporaryPath);
-      await fs.rename(temporaryPath, path.join(record.dirPath, "manifest.json"));
+      const manifestPath = path.join(record.dirPath, "manifest.json");
+      if (await pathExists(temporaryPath)) {
+        let temporaryManifest: ManifestV2;
+        try {
+          temporaryManifest = await readRunManifest(temporaryPath);
+        } catch {
+          warnings.push(`${record.runId}: manual_review_required (invalid_manifest_tmp)`);
+          continue;
+        }
+        if (!isDeepStrictEqual(temporaryManifest, manifest)) {
+          warnings.push(`${record.runId}: manual_review_required (manifest_tmp_mismatch)`);
+          continue;
+        }
+        await fs.rename(temporaryPath, manifestPath);
+      } else {
+        await fs.writeFile(temporaryPath, `${JSON.stringify(manifest, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+        await readRunManifest(temporaryPath);
+        await fs.rename(temporaryPath, manifestPath);
+      }
       executedActions += 1;
     }
     for (const duplicate of record.legacyDuplicates) {
@@ -133,6 +151,30 @@ async function verifyDuplicates(record: RunRecord, warnings: string[]): Promise<
     }
   }
   return true;
+}
+
+async function verifyPayloadRetention(record: RunRecord, manifest: ManifestV2, warnings: string[]): Promise<boolean> {
+  if (!record.hasPayloadJson || manifest.source.content_fingerprint.length === 0) return true;
+  const rawDuplicate = record.legacyDuplicates.find((duplicate) => duplicate.artifactType === "raw");
+  if (!rawDuplicate?.canonicalPath) {
+    warnings.push(`${record.runId}: manual_review_required (missing_verified_canonical_raw)`);
+    return false;
+  }
+  const canonicalFingerprint = await readCanonicalContentFingerprint(rawDuplicate.canonicalPath);
+  if (canonicalFingerprint !== manifest.source.content_fingerprint) {
+    warnings.push(`${record.runId}: manual_review_required (payload_content_fingerprint_mismatch)`);
+    return false;
+  }
+  return true;
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function inspectRunStorage(records: readonly RunRecord[]): Promise<{ totalBytes: number; largestFile: { path: string; bytes: number } | null; oversizedFiles: Array<{ path: string; bytes: number }> }> {

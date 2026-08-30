@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
 import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
@@ -66,6 +67,31 @@ test("help exposes core commands and only the implemented plugin commands", asyn
   assert.match(pluginHelp.text(), /declared-permission audit \+ no-injection default; NOT a runtime OS sandbox/i);
   assert.match(pluginHelp.text(), /local modules retain direct Node authority.*no write mediation/i);
   assert.doesNotMatch(pluginHelp.text(), /mediated writes/i);
+});
+
+test("A2: 15MiB stdin rejects in chunks before workspace initialization", async () => {
+  const root = await tempRoot("aiwiki-cli-stdin-limit");
+  await rm(root, { recursive: true, force: true });
+    assert.equal(await runCli(["init", "--path", root, "--yes"], { stdout: new MemoryWritable(), stderr: new MemoryWritable() }), 0);
+  try {
+    const child = spawn(process.execPath, [path.join(process.cwd(), "dist", "src", "cli.js"), "ingest-agent", "--stdin", "--path", root], {
+      stdio: ["pipe", "ignore", "pipe"]
+    });
+    child.stdin.on("error", () => {});
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => { stderr += chunk; });
+    for (let remaining = 15 * 1024 * 1024; remaining > 0; remaining -= 64 * 1024) {
+      child.stdin.write(Buffer.alloc(Math.min(remaining, 64 * 1024), 0x61));
+    }
+    child.stdin.end();
+    const [code] = await once(child, "close") as [number | null];
+    assert.equal(code, 1);
+    assert.match(stderr, /错误:.*maximum size/);
+    assert.deepEqual(await readdir(path.join(root, "09-runs")), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("CLI rebuild exposes stable modes, exit codes, and state-only side effects", async () => {

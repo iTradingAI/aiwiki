@@ -119,6 +119,9 @@ export async function classifyRunDirectory(dirPath: string, dirName: string): Pr
   const manifestPath = path.join(dirPath, "manifest.json");
   const manifest = await readManifestOrUndefined(manifestPath);
   const payload = await exists(path.join(dirPath, "payload.json"));
+  // A present but invalid manifest is authoritative evidence of an interrupted or corrupted migration.
+  // It must never fall through to legacy classification and a destructive compact path.
+  if (manifest === null) return "unknown";
   if (manifest) {
     const names = await fs.readdir(dirPath);
     if (names.length === Object.keys(TERMINAL_FILES).length && names.every((name) => TERMINAL_FILES[name])) return "v2_ingest";
@@ -189,6 +192,11 @@ export function streamingHash(filePath: string): Promise<string> {
     stream.once("error", reject);
     stream.once("end", () => resolve(hash.digest("hex")));
   });
+}
+
+/** Reads only the frontmatter prefix needed to validate legacy payload retention before deletion. */
+export async function readCanonicalContentFingerprint(filePath: string): Promise<string | null> {
+  return frontmatterString(await readFrontmatterPrefix(filePath), "content_fingerprint") ?? null;
 }
 
 export async function createManifestFromLegacy(record: RunRecord): Promise<ManifestV2> {
@@ -298,11 +306,12 @@ function workspaceRootForRun(dirPath: string): string {
   return path.resolve(dirPath, "..", "..");
 }
 
-async function readManifestOrUndefined(manifestPath: string): Promise<ManifestV2 | undefined> {
+async function readManifestOrUndefined(manifestPath: string): Promise<ManifestV2 | undefined | null> {
   try {
     return await readRunManifest(manifestPath);
-  } catch {
-    return undefined;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    return null;
   }
 }
 
@@ -325,20 +334,47 @@ async function exists(filePath: string): Promise<boolean> {
 }
 
 function isManifestV2(value: unknown): value is ManifestV2 {
-  if (!isRecord(value) || value.schema_version !== "aiwiki.run.v2" || (value.status !== "success" && value.status !== "fetch_failed")) return false;
-  if (typeof value.run_id !== "string" || typeof value.created_at !== "string" || !isRecord(value.source) || !isRecord(value.artifacts) || !Array.isArray(value.warnings)) return false;
+  if (!isRecord(value) || !hasOnlyAllowedKeys(value, ["schema_version", "run_id", "status", "created_at", "source", "artifacts", "warnings", "generation"])) return false;
+  if (value.schema_version !== "aiwiki.run.v2" || (value.status !== "success" && value.status !== "fetch_failed")) return false;
+  if (typeof value.run_id !== "string" || typeof value.created_at !== "string" || !isRecord(value.source) || !isRecord(value.artifacts) || !isStringArray(value.warnings)) return false;
+
   const source = value.source;
-  if (typeof source.kind !== "string" || typeof source.title !== "string" || typeof source.content_format !== "string" || typeof source.content_bytes !== "number" || typeof source.content_fingerprint !== "string" || typeof source.fetcher !== "string" || (source.fetch_status !== "ok" && source.fetch_status !== "failed")) return false;
-  if (typeof value.artifacts.processing_summary !== "string") return false;
-  const hasSuccessArtifacts = typeof value.artifacts.raw === "string" && typeof value.artifacts.source_card === "string" && typeof value.artifacts.wiki_entry === "string";
-  if (value.status === "success") {
-    return hasSuccessArtifacts && isGeneration(value.generation);
+  if (!hasOnlyAllowedKeys(source, ["kind", "title", "url", "content_format", "content_bytes", "content_fingerprint", "fetcher", "fetch_status"])) return false;
+  if (typeof source.kind !== "string" || typeof source.title !== "string" || (source.url !== undefined && typeof source.url !== "string") ||
+    typeof source.content_format !== "string" || !isNonNegativeFiniteNumber(source.content_bytes) || typeof source.content_fingerprint !== "string" ||
+    typeof source.fetcher !== "string" || (source.fetch_status !== "ok" && source.fetch_status !== "failed")) return false;
+
+  const artifacts = value.artifacts;
+  if (!hasOnlyAllowedKeys(artifacts, ["processing_summary", "raw", "source_card", "wiki_entry", "claims", "assets", "topics", "outline"]) ||
+    typeof artifacts.processing_summary !== "string") return false;
+  for (const key of ["raw", "source_card", "wiki_entry", "claims", "assets", "topics", "outline"] as const) {
+    if (artifacts[key] !== undefined && typeof artifacts[key] !== "string") return false;
   }
-  return !hasSuccessArtifacts && value.generation === undefined;
+
+  if (value.status === "success") {
+    return source.fetch_status === "ok" && typeof artifacts.raw === "string" && typeof artifacts.source_card === "string" &&
+      typeof artifacts.wiki_entry === "string" && isGeneration(value.generation);
+  }
+  return source.fetch_status === "failed" && artifacts.raw === undefined && artifacts.source_card === undefined &&
+    artifacts.wiki_entry === undefined && value.generation === undefined;
+}
+
+function hasOnlyAllowedKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
+  return Object.keys(value).every((key) => allowed.includes(key));
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isNonNegativeFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
 function isGeneration(value: unknown): value is NonNullable<ManifestV2["generation"]> {
-  return isRecord(value) && (value.wiki_entry_mode === "agent_enriched" || value.wiki_entry_mode === "deterministic_fallback") && (value.wiki_entry_quality === "enriched" || value.wiki_entry_quality === "scaffold");
+  return isRecord(value) && hasOnlyAllowedKeys(value, ["wiki_entry_mode", "wiki_entry_quality"]) &&
+    (value.wiki_entry_mode === "agent_enriched" || value.wiki_entry_mode === "deterministic_fallback") &&
+    (value.wiki_entry_quality === "enriched" || value.wiki_entry_quality === "scaffold");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
