@@ -5,7 +5,7 @@ import { isDeepStrictEqual } from "node:util";
 import { flagBool, flagString } from "../../args.js";
 import { MAX_PAYLOAD_SIZE } from "../../ingest-limits.js";
 import { CliError, writeLine } from "../../output.js";
-import { createManifestFromLegacy, planCompact, readCanonicalContentFingerprint, readRunManifest, scanRuns, verifyByteEquality, type CompactPlan, type ManifestV2, type RunRecord } from "../../runs.js";
+import { createManifestFromLegacy, deriveContentFingerprint, planCompact, readCanonicalContentFingerprint, readLegacyPayloadSource, readRunManifest, scanRuns, verifyByteEquality, type CompactPlan, type ManifestV2, type RunRecord } from "../../runs.js";
 import { resolveWorkspace } from "../../workspace.js";
 
 import type { CommandContext } from "../command-context.js";
@@ -154,14 +154,44 @@ async function verifyDuplicates(record: RunRecord, warnings: string[]): Promise<
 }
 
 async function verifyPayloadRetention(record: RunRecord, manifest: ManifestV2, warnings: string[]): Promise<boolean> {
-  if (!record.hasPayloadJson || manifest.source.content_fingerprint.length === 0) return true;
+  if (!record.hasPayloadJson) return true;
+  let source: Record<string, unknown> | null;
+  try {
+    source = await readLegacyPayloadSource(record);
+  } catch {
+    warnings.push(`${record.runId}: manual_review_required (invalid_payload_source)`);
+    return false;
+  }
+  if (!source) {
+    warnings.push(`${record.runId}: manual_review_required (invalid_payload_source)`);
+    return false;
+  }
+
+  const payloadFetchFailed = source.fetch_status === "failed";
+  if (manifest.status === "fetch_failed") {
+    if (!payloadFetchFailed || source.content !== undefined) {
+      warnings.push(`${record.runId}: manual_review_required (fetch_failed_payload_mismatch)`);
+      return false;
+    }
+    return true;
+  }
+  if (payloadFetchFailed) {
+    warnings.push(`${record.runId}: manual_review_required (payload_fetch_status_mismatch)`);
+    return false;
+  }
+
+  const payloadFingerprint = deriveContentFingerprint(source.content);
+  if (!payloadFingerprint) {
+    warnings.push(`${record.runId}: manual_review_required (invalid_payload_content)`);
+    return false;
+  }
   const rawDuplicate = record.legacyDuplicates.find((duplicate) => duplicate.artifactType === "raw");
   if (!rawDuplicate?.canonicalPath) {
     warnings.push(`${record.runId}: manual_review_required (missing_verified_canonical_raw)`);
     return false;
   }
   const canonicalFingerprint = await readCanonicalContentFingerprint(rawDuplicate.canonicalPath);
-  if (canonicalFingerprint !== manifest.source.content_fingerprint) {
+  if (canonicalFingerprint !== payloadFingerprint || manifest.source.content_fingerprint !== payloadFingerprint) {
     warnings.push(`${record.runId}: manual_review_required (payload_content_fingerprint_mismatch)`);
     return false;
   }

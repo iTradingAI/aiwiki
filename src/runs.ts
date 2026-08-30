@@ -198,6 +198,20 @@ export function streamingHash(filePath: string): Promise<string> {
 export async function readCanonicalContentFingerprint(filePath: string): Promise<string | null> {
   return frontmatterString(await readFrontmatterPrefix(filePath), "content_fingerprint") ?? null;
 }
+/** Returns the legacy payload's source object without synthesizing missing fields. */
+export async function readLegacyPayloadSource(record: Pick<RunRecord, "dirPath">): Promise<Record<string, unknown> | null> {
+  const payload = await readJsonStreaming(path.join(record.dirPath, "payload.json"));
+  return isRecord(payload) && isRecord(payload.source) ? payload.source : null;
+}
+
+/** Matches ingest's normalized SHA-256 content-fingerprint rule. */
+export function deriveContentFingerprint(content: unknown): string | null {
+  if (typeof content !== "string" || content.length === 0) return null;
+  const encoded = Buffer.from(content, "utf8");
+  if (encoded.toString("utf8") !== content) return null;
+  return `sha256:${createHash("sha256").update(content.replace(/\r\n/g, "\n"), "utf8").digest("hex")}`;
+}
+
 
 export async function createManifestFromLegacy(record: RunRecord): Promise<ManifestV2> {
   if (record.manifest) return record.manifest;
@@ -214,6 +228,7 @@ export async function createManifestFromLegacy(record: RunRecord): Promise<Manif
     throw new Error(`run ${record.runId} is missing an explicitly verified canonical artifact`);
   }
   const content = typeof source.content === "string" ? source.content : "";
+  const contentFingerprint = deriveContentFingerprint(source.content);
   return {
     schema_version: "aiwiki.run.v2",
     run_id: record.dirName,
@@ -225,7 +240,7 @@ export async function createManifestFromLegacy(record: RunRecord): Promise<Manif
       ...(typeof source.url === "string" && source.url ? { url: source.url } : {}),
       content_format: typeof source.content_format === "string" ? source.content_format : "markdown",
       content_bytes: Buffer.byteLength(content, "utf8"),
-      content_fingerprint: content ? `sha256:${createHash("sha256").update(content.replace(/\r\n/g, "\n"), "utf8").digest("hex")}` : "",
+      content_fingerprint: contentFingerprint ?? "",
       fetcher: typeof source.fetcher === "string" ? source.fetcher : "unknown",
       fetch_status: fetchFailed ? "failed" : "ok"
     },

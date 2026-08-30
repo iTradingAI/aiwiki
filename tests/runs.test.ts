@@ -7,7 +7,7 @@ import { test } from "node:test";
 
 import { compactRuns, inspectRuns } from "../src/cli/commands/runs.js";
 import { ingestPayload } from "../src/ingest.js";
-import { createManifestFromLegacy, scanRuns, streamingHash } from "../src/runs.js";
+import { createManifestFromLegacy, scanRuns } from "../src/runs.js";
 import { tempRoot } from "./helpers.js";
 
 function payload(content: string) {
@@ -244,30 +244,98 @@ test("C9: payload content fingerprint must match verified canonical Raw before d
     await rm(root, { recursive: true, force: true });
   }
 });
+test("C9: v2 partial compact preserves a payload whose body changed after manifest recovery", async () => {
+  const root = await tempRoot("aiwiki-run-partial-payload-fingerprint");
+  try {
+    const legacyDir = await createLegacyRun(root, "canonical content");
+    const [legacyRecord] = (await scanRuns(root)).filter((candidate) => candidate.dirName === "legacy-run");
+    assert.ok(legacyRecord);
+    const recoveredManifest = await createManifestFromLegacy(legacyRecord);
+    await writeFile(path.join(legacyDir, "manifest.json"), `${JSON.stringify(recoveredManifest, null, 2)}\n`, "utf8");
 
-test("C11: compact hashing streams a 200MiB run artifact without full read helpers", async () => {
-  const root = await tempRoot("aiwiki-run-streaming-hash");
-  const large = path.join(root, "large.md");
+    const payloadPath = path.join(legacyDir, "payload.json");
+    const modified = JSON.parse(await readFile(payloadPath, "utf8"));
+    modified.source.content = "modified payload body after manifest recovery";
+    await writeFile(payloadPath, JSON.stringify(modified), "utf8");
+    assert.equal((await scanRuns(root)).find((candidate) => candidate.dirName === "legacy-run")?.classification, "v2_partial_compact");
+
+    const result = await compactRuns(root, true);
+
+    assert.equal(result.warnings.some((warning) => warning.includes("payload_content_fingerprint_mismatch")), true, JSON.stringify(result));
+    assert.deepEqual((await readdir(legacyDir)).sort(), ["manifest.json", "payload.json", "processing-summary.md", "raw.md", "source-card.md", "wiki-entry.md"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+test("C9: compact fails closed when a success payload cannot losslessly prove its body", async () => {
+  const root = await tempRoot("aiwiki-run-invalid-payload-content");
+  const invalidContents: Array<["missing" | "non-string" | "empty" | "lossy-utf8", unknown]> = [
+    ["missing", undefined],
+    ["non-string", 42],
+    ["empty", ""],
+    ["lossy-utf8", "\ud800"]
+  ];
+  try {
+    for (const [name, content] of invalidContents) {
+      const legacyDir = await createLegacyRun(root, "canonical content", `invalid-${name}`);
+      const payloadPath = path.join(legacyDir, "payload.json");
+      const modified = JSON.parse(await readFile(payloadPath, "utf8"));
+      if (content === undefined) delete modified.source.content;
+      else modified.source.content = content;
+      await writeFile(payloadPath, JSON.stringify(modified), "utf8");
+
+      const result = await compactRuns(root, true);
+
+      assert.equal(result.warnings.some((warning) => warning.includes("manual_review_required (invalid_payload_content)")), true, JSON.stringify(result));
+      assert.deepEqual((await readdir(legacyDir)).sort(), ["payload.json", "processing-summary.md", "raw.md", "source-card.md", "wiki-entry.md"]);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+
+
+test("C11: compact streams a 100MiB canonical raw duplicate without full read helpers", async () => {
+  const root = await tempRoot("aiwiki-run-streaming-compact");
   const originalReadFile = fsModule.promises.readFile;
   const originalReadFileSync = fsModule.readFileSync;
   const originalCreateReadStream = fsModule.createReadStream;
-  let streamChunks = 0;
+  let largeStreamChunks = 0;
   try {
-    await writeFile(large, "start");
-    await truncate(large, 200 * 1024 * 1024);
-    fsModule.promises.readFile = (() => { throw new Error("full read is forbidden"); }) as typeof fsModule.promises.readFile;
-    fsModule.readFileSync = (() => { throw new Error("full read is forbidden"); }) as typeof fsModule.readFileSync;
+    const legacyDir = await createLegacyRun(root);
+    const [legacyRecord] = (await scanRuns(root)).filter((candidate) => candidate.dirName === "legacy-run");
+    const rawDuplicate = legacyRecord?.legacyDuplicates.find((duplicate) => duplicate.artifactType === "raw");
+    if (!rawDuplicate?.canonicalPath) throw new Error("expected canonical raw duplicate");
+    const largePaths = new Set([path.resolve(rawDuplicate.runPath), path.resolve(rawDuplicate.canonicalPath)]);
+    await Promise.all([
+      truncate(rawDuplicate.runPath, 100 * 1024 * 1024),
+      truncate(rawDuplicate.canonicalPath, 100 * 1024 * 1024)
+    ]);
+
+    fsModule.promises.readFile = ((...args: Parameters<typeof originalReadFile>) => {
+      if (typeof args[0] === "string" && largePaths.has(path.resolve(args[0]))) throw new Error("full read is forbidden");
+      return originalReadFile(...args);
+    }) as typeof fsModule.promises.readFile;
+    fsModule.readFileSync = ((...args: Parameters<typeof originalReadFileSync>) => {
+      if (typeof args[0] === "string" && largePaths.has(path.resolve(args[0]))) throw new Error("full read is forbidden");
+      return originalReadFileSync(...args);
+    }) as typeof fsModule.readFileSync;
     fsModule.createReadStream = ((...args: Parameters<typeof originalCreateReadStream>) => {
       const stream = originalCreateReadStream(...args);
-      stream.on("data", () => { streamChunks += 1; });
+      if (typeof args[0] === "string" && largePaths.has(path.resolve(args[0]))) {
+        stream.on("data", () => { largeStreamChunks += 1; });
+      }
       return stream;
     }) as typeof fsModule.createReadStream;
     syncBuiltinESMExports();
 
-    const digest = await streamingHash(large);
+    const result = await compactRuns(root, true);
 
-    assert.match(digest, /^[a-f0-9]{64}$/);
-    assert.equal(streamChunks > 1, true);
+    assert.equal(result.warnings.some((warning) => warning.includes("fingerprint_mismatch")), false, JSON.stringify(result));
+    assert.equal(result.executed_actions, 5, JSON.stringify(result));
+    assert.equal(largeStreamChunks > 2, true);
+    assert.deepEqual((await readdir(legacyDir)).sort(), ["manifest.json", "processing-summary.md"]);
   } finally {
     fsModule.promises.readFile = originalReadFile;
     fsModule.readFileSync = originalReadFileSync;
@@ -293,6 +361,31 @@ test("compact migrates fetch-failed payloads without success-only manifest field
     assert.equal(manifest.status, "fetch_failed");
     assert.deepEqual(manifest.artifacts, { processing_summary: "09-runs/legacy-fetch-failed/processing-summary.md" });
     assert.equal(manifest.generation, undefined);
+    assert.deepEqual((await readdir(legacyDir)).sort(), ["manifest.json", "processing-summary.md"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+test("C9: v2 partial compact deletes a fetch-failed payload with no body", async () => {
+  const root = await tempRoot("aiwiki-run-partial-fetch-failed");
+  try {
+    const legacyDir = path.join(root, "09-runs", "legacy-fetch-failed");
+    await mkdir(legacyDir, { recursive: true });
+    await writeFile(path.join(legacyDir, "processing-summary.md"), "# failed\n", "utf8");
+    await writeFile(path.join(legacyDir, "payload.json"), JSON.stringify({
+      schema_version: "aiwiki.agent_payload.v1",
+      source: { kind: "url", title: "Failed", fetch_status: "failed", fetcher: "test", captured_at: "2026-08-30T00:00:00.000Z" },
+      request: { mode: "record_fetch_failure", outputs: [] }
+    }), "utf8");
+    const [legacyRecord] = (await scanRuns(root)).filter((candidate) => candidate.dirName === "legacy-fetch-failed");
+    assert.ok(legacyRecord);
+    await writeFile(path.join(legacyDir, "manifest.json"), `${JSON.stringify(await createManifestFromLegacy(legacyRecord), null, 2)}\n`, "utf8");
+    assert.equal((await scanRuns(root)).find((candidate) => candidate.dirName === "legacy-fetch-failed")?.classification, "v2_partial_compact");
+
+    const result = await compactRuns(root, true);
+
+    assert.equal(result.warnings.length, 0, JSON.stringify(result));
+    assert.equal(result.executed_actions, 1);
     assert.deepEqual((await readdir(legacyDir)).sort(), ["manifest.json", "processing-summary.md"]);
   } finally {
     await rm(root, { recursive: true, force: true });
