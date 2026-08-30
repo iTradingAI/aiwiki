@@ -18,7 +18,7 @@
 
 **Save what your AI reads. Ask it later. Keep everything local.**
 
-Current release: **1.0.1**
+Current release: **1.0.2**
 
 AIWiki is a local Markdown knowledge base for AI assistants.
 
@@ -70,6 +70,8 @@ aiwiki agent sync --yes
 aiwiki agent check --json
 aiwiki agent check --path "<replace-with-my-aiwiki-path>" --json
 aiwiki doctor --json --path "<replace-with-my-aiwiki-path>"
+aiwiki runs inspect --path "<replace-with-my-aiwiki-path>" --json
+aiwiki runs compact --dry-run --path "<replace-with-my-aiwiki-path>" --json
 aiwiki status --json --path "<replace-with-my-aiwiki-path>"
 aiwiki next --json --path "<replace-with-my-aiwiki-path>"
 

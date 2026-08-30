@@ -86,7 +86,7 @@ Core 1.0 契约冻结记录以下发布就绪边界与正式偏差。这些声�
 | --- | --- | --- |
 | Schema 目录 | `docs/schema/` 目录冻结为仅可新增，且恰有 24 个键。既有键不得重命名或删除。 | 无。 |
 | Public API | 公开 barrel 恰有 30 个导出，稳定版本标记为 `aiwiki.public.v1`。 | 无。 |
-| legacy 命令 | `init`、`ingest-url`、`agent install` 和 `next` 全部保持兼容；本发布不改变其行为。 | 无。 |
+| legacy 命令 | `init`、`agent install` 和 `next` 保持兼容。`ingest-url` 继续将提供的正文仅作元数据输入，绝不抓取。 | **1.0.2 safety hotfix deviation：**`ingest-url` 现在会在工作区写入前拒绝超过 10 MiB 的输入；新生成的 run 使用 `aiwiki.run.v2`（`manifest.json` 加 `processing-summary.md`），不再写入重复的 run artifact。旧工作区继续可读。 |
 | Extension API | 包边界保持显式且仅声明。 | 源计划的 1.0 Extension API 范围正式降级为仅声明的 v0.1。`contextProviders` 和 `artifactGenerators` 的生产调用延后至 Pro 恢复决策轨道；Core 1.0 不承诺生产调用。 |
 
 ## 版本与标签

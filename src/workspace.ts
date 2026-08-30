@@ -8,6 +8,7 @@ import { frontmatterBoolean, frontmatterString, parseMarkdown } from "./frontmat
 import { CliError } from "./output.js";
 import { relativePath } from "./paths.js";
 import { assessSchemaCompatibility, type SchemaCompatibility } from "./schema.js";
+import { scanRuns } from "./runs.js";
 
 export const CONFIG_FILE = "aiwiki.yaml";
 
@@ -755,42 +756,20 @@ export type StatusSummary = {
 
 export async function statusSummary(rootPath: string) {
   const root = resolveRoot(rootPath);
-  const runsRoot = path.join(root, "09-runs");
-  if (!(await exists(runsRoot))) {
-    return {
-      root,
-      runCount: 0,
-      failedCount: 0,
-      fallbackCount: await countWikiEntries(root, "deterministic_fallback"),
-      groundingReviewCount: await countGroundingReviewEntries(root),
-      lintStatus: await readLintStatus(root),
-      lintReportPath: await lintReportPath(root),
-      systemFiles: await systemFileSummary(root)
-    };
-  }
-
-  const entries = await fs.readdir(runsRoot, { withFileTypes: true });
-  const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
-  const stats: Array<{ dir: string; mtimeMs: number; outcome: "success" | "failure" }> = [];
-  for (const dir of dirs) {
-    const payloadPath = path.join(runsRoot, dir, "payload.json");
-    let outcome: "success" | "failure" = dir.endsWith("-fetch-failed") ? "failure" : "success";
-    try {
-      const payload = JSON.parse(await fs.readFile(payloadPath, "utf8")) as { source?: { fetch_status?: string } };
-      if (payload.source?.fetch_status === "failed") {
-        outcome = "failure";
-      }
-    } catch {
-      // The stable directory suffix remains the compatibility fallback when payload metadata is unavailable.
-    }
-    stats.push({ dir, mtimeMs: (await fs.stat(path.join(runsRoot, dir))).mtimeMs, outcome });
-  }
+  const records = await scanRuns(root);
+  const stats = await Promise.all(records
+    .filter((record) => record.classification === "legacy_ingest" || record.classification === "v2_ingest" || record.classification === "v2_partial_compact")
+    .map(async (record) => ({
+      dir: record.dirName,
+      mtimeMs: (await fs.stat(record.dirPath)).mtimeMs,
+      outcome: record.status === "fetch_failed" || (!record.status && record.dirName.endsWith("-fetch-failed")) ? "failure" as const : "success" as const
+    })));
   stats.sort((a, b) => b.mtimeMs - a.mtimeMs || a.dir.localeCompare(b.dir));
   const failedCount = stats.filter((item) => item.outcome === "failure").length;
 
   return {
     root,
-    runCount: dirs.length,
+    runCount: stats.length,
     failedCount,
     lastRunId: stats[0]?.dir,
     lastSuccessRunId: stats.find((item) => item.outcome === "success")?.dir,

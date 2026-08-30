@@ -26,8 +26,11 @@ AIWiki Core records its current data contracts in one catalog. The catalog is an
 | Repair plan | `aiwiki.repair_plan.v1` | JSON output | Read-only advisory findings with evidence, risk, affected files, and suggested commands. |
 | Extension author contract | `aiwiki.extension.v1` | Package public contract | Declaration API remains stable; explicit hosting is documented separately. |
 | Extension Host | `aiwiki.extension-host.v1` | Local host state | Explicit local/bundled loading, state, and failure isolation; see [Extension Host v0.1](EXTENSION_HOST.md). |
+| Run manifest | `aiwiki.run.v2` | `09-runs/<run-id>/manifest.json` | [Formal schema](aiwiki.run.v2.schema.json); success records canonical artifact paths, while fetch failures retain only their processing summary. |
 
 `aiwiki.context.v2` is active as the explicit graph-aware Context view; default Context remains `aiwiki.context.v1`, and Context v2 never builds graph state automatically. `aiwiki.extension.v1` is active as the [Extension API v0.1](EXTENSION_SCHEMA.md). The [Extension Host v0.1](EXTENSION_HOST.md) adds only explicit `plugin add` and `plugin enable` administration for local or bundled extensions; there is no automatic discovery.
+
+`aiwiki.run.v2` is a storage manifest rather than an `AIWIKI_SCHEMAS` catalog key. Its formal schema is [aiwiki.run.v2.schema.json](aiwiki.run.v2.schema.json): `processing_summary` is always required; successful runs also require `generation` and canonical `raw`, `source_card`, and `wiki_entry` paths. Fetch-failed runs omit those success-only fields. Neither state stores source full text nor rendered Wiki Entry content.
 
 ## Schema Compatibility
 
@@ -59,10 +62,10 @@ For a manual migration, prefer this review-first process:
 3. Review each legacy page individually, including its content, frontmatter, and any schema markers.
 4. Manually ingest only the pages and source material you approve into the new workspace.
 
-The following legacy commands remain keep-compatible and have no behavior changes:
+The following legacy commands retain their documented behavior except for the 1.0.2 safety-hotfix deviation:
 
 - `aiwiki init --path "<workspace>" --yes --set-default` continues to initialize the specified workspace and set it as the default.
-- `aiwiki ingest-url --content-file "<file>" "<url>"` continues to use the URL as metadata only; it never fetches the URL.
+- `aiwiki ingest-url --content-file "<file>" "<url>"` continues to use the URL as metadata only and never fetches it, but inputs larger than 10 MiB are rejected before workspace writes.
 - `aiwiki agent install --agent "<agent>" --yes --force` continues to install the requested Agent integration.
 - `aiwiki next` remains a read-only readiness report and does not execute recommended actions.
 

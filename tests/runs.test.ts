@@ -3,7 +3,7 @@ import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promi
 import path from "node:path";
 import { test } from "node:test";
 
-import { compactRuns } from "../src/cli/commands/runs.js";
+import { compactRuns, inspectRuns } from "../src/cli/commands/runs.js";
 import { ingestPayload } from "../src/ingest.js";
 import { scanRuns } from "../src/runs.js";
 import { tempRoot } from "./helpers.js";
@@ -53,6 +53,23 @@ test("direct ingestPayload rejects oversized input before workspace seed", async
       (error: unknown) => error instanceof Error && error.message.includes("maximum size")
     );
     await assert.rejects(readdir(root));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("runs inspect oversized legacy_duplicate compactable", async () => {
+  const root = await tempRoot("aiwiki-runs-inspect-storage");
+  try {
+    const legacyDir = await createLegacyRun(root);
+    await writeFile(path.join(legacyDir, "oversized-copy.md"), "x".repeat(11 * 1024 * 1024), "utf8");
+
+    const report = await inspectRuns(root);
+
+    assert.equal(report.oversized_files.length, 1);
+    assert.equal(report.oversized_files[0]?.bytes, 11 * 1024 * 1024);
+    assert.equal(report.legacy_duplicate_artifacts, 3);
+    assert.deepEqual(report.compactable_runs, ["legacy-run"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -2,6 +2,12 @@
 
 本日志记录面向使用者的公开版本历史。只有同时验证仓库 tag 与 npm 产物映射后才会列出两类证据；仅存在于 registry 的历史会单独标注。
 
+## [1.0.2] - 2026-08-30
+
+- **Safety hotfix deviation：**所有 ingest 入口（包括 Public SDK 与 `ingest-url`）都会在工作区写入前拒绝超过 10 MiB 的 payload。
+- 新 run 使用紧凑的 `aiwiki.run.v2` manifest 布局；使用 `aiwiki runs inspect --json` 和显式 `runs compact` 审阅流程诊断或安全修复 legacy duplicate 存储。
+- health 与 lint 会输出 run-storage 证据。旧工作区继续可读；本发布不会自动 compact 历史 run。
+
 ## Unreleased
 
 ## [1.0.1] - 2026-08-28

@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import { buildContext } from "../src/context.js";
 import { buildRelationshipGraph, inspectRelationshipGraph } from "../src/graph.js";
+import { ingestPayload } from "../src/ingest.js";
 import { tempRoot } from "./helpers.js";
 
 const FIXED_NOW = "2026-07-20T08:00:00.000Z";
@@ -76,6 +77,20 @@ test("relationship graph projects deterministic evidence-backed edges without Ma
 
     const persisted = JSON.parse(await readFile(path.join(root, ".aiwiki", "state", "graph.json"), "utf8")) as typeof graph;
     assert.deepEqual(persisted, graph);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("graph duplicate primary absent run debug not pollute", async () => {
+  const root = await tempRoot("aiwiki-graph-v2-run");
+  try {
+    await ingestPayload(root, v2Payload());
+    const graph = await buildRelationshipGraph(root, FIXED_NOW);
+
+    assert.equal(graph.summary.artifact_nodes, 4);
+    assert.equal(graph.nodes.filter((node) => node.kind === "artifact" && node.path?.startsWith("05-wiki/")).length, 1);
+    assert.equal(graph.nodes.filter((node) => node.kind === "artifact" && node.path?.startsWith("09-runs/")).length, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -257,4 +272,20 @@ function hasEdge(
 
 function edgeKey(edge: Awaited<ReturnType<typeof buildRelationshipGraph>>["edges"][number]): string {
   return [edge.source_id, edge.target_id, edge.type, edge.origin, edge.evidence_ref ?? ""].join("\u0000");
+}
+
+function v2Payload() {
+  return {
+    schema_version: "aiwiki.agent_payload.v1",
+    source: {
+      kind: "text",
+      title: "V2 graph source",
+      content_format: "markdown",
+      content: "V2 graph source content.",
+      fetcher: "test",
+      fetch_status: "ok",
+      captured_at: FIXED_NOW
+    },
+    request: { mode: "ingest", outputs: ["source_card", "wiki_entry", "processing_summary"], language: "zh-CN" }
+  };
 }
