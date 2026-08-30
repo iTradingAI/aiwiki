@@ -270,7 +270,7 @@ test("MCP validation rejects symlink escapes and serializes pipelined workspace 
     assert.equal(runs.length, 2);
     for (const run of runs) {
       await fs.access(path.join(root, "09-runs", run, "processing-summary.md"));
-      await fs.access(path.join(root, "09-runs", run, "source-card.md"));
+      await fs.access(path.join(root, "09-runs", run, "manifest.json"));
     }
 
     const target = path.join(root, "serialized.txt");

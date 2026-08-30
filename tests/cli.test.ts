@@ -871,6 +871,7 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     "graph",
     "health",
     "repair",
+    "runs",
     "context",
     "query",
     "show",
@@ -907,6 +908,7 @@ test("Core CommandRegistry dispatches every public and compatibility route", asy
     [["graph", "status"], "graph"],
     [["health"], "health"],
     [["repair", "--plan"], "repair"],
+    [["runs", "inspect"], "runs"],
     [["context", "topic"], "context"],
     [["query", "topic"], "query"],
     [["show", "topic"], "show"],
@@ -1515,7 +1517,7 @@ test("CLI ingest-agent payload and ingest-url boundary", async () => {
     assert.match(out.text(), /grounding_markers: none/);
     assert.match(out.text(), /source_card:/);
     assert.match(out.text(), /source_card: 03-sources\/article-cards\/ai-agent-workflow-notes\.md/);
-    assert.match(out.text(), /draft_outline:/);
+    assert.doesNotMatch(out.text(), /draft_outline:/);
     assert.match(out.text(), /dashboard: dashboards\/AIWiki Home\.md/);
     assert.match(out.text(), /review_queue: dashboards\/Review Queue\.md/);
     assert.equal(err.text(), "");
@@ -2032,8 +2034,8 @@ test("CLI ingest-url with content file reuses ingest", async () => {
     assert.equal(code, 0);
     const runId = /run_id: (.+)/.exec(out.text())?.[1]?.trim();
     assert.ok(runId);
-    const payload = await readFile(path.join(root, "09-runs", runId, "payload.json"), "utf8");
-    assert.match(payload, /https:\/\/example.com\/article/);
+    const manifest = await readFile(path.join(root, "09-runs", runId, "manifest.json"), "utf8");
+    assert.match(manifest, /https:\/\/example.com\/article/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

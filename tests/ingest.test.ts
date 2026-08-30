@@ -20,20 +20,22 @@ test("ingests agent payload into run and long-term files", async () => {
     assertAllUnderRoot(root, result.generatedFiles);
 
     const runFiles = await readdir(result.runDir);
-    assert.deepEqual(runFiles.sort(), [
-      "creative-assets.md",
-      "draft-outline.md",
-      "payload.json",
-      "processing-summary.md",
-      "raw.md",
-      "source-card.md",
-      "wiki-entry.md",
-      "topics.md"
-    ].sort());
+    assert.deepEqual(runFiles.sort(), ["manifest.json", "processing-summary.md"]);
+
+    const manifest = JSON.parse(await readFile(path.join(result.runDir, "manifest.json"), "utf8")) as {
+      schema_version: string;
+      artifacts: { raw: string; source_card: string; wiki_entry: string };
+      generation: { wiki_entry_mode: string; wiki_entry_quality: string };
+    };
+    assert.equal(manifest.schema_version, "aiwiki.run.v2");
+    assert.equal(manifest.artifacts.raw, "02-raw/articles/ai-agent-workflow-notes.md");
+    assert.equal(manifest.artifacts.source_card, "03-sources/article-cards/ai-agent-workflow-notes.md");
+    assert.equal(manifest.artifacts.wiki_entry, "05-wiki/source-knowledge/ai-agent-workflow-notes.md");
+    assert.equal(manifest.generation.wiki_entry_mode, "deterministic_fallback");
 
     await stat(path.join(root, "03-sources", "article-cards", "ai-agent-workflow-notes.md"));
     await stat(path.join(root, "05-wiki", "source-knowledge", "ai-agent-workflow-notes.md"));
-    await assertSourceCardFrontmatter(path.join(result.runDir, "source-card.md"));
+    await assertSourceCardFrontmatter(path.join(root, "03-sources", "article-cards", "ai-agent-workflow-notes.md"));
     await assertFallbackWikiEntry(path.join(root, "05-wiki", "source-knowledge", "ai-agent-workflow-notes.md"));
     await assertSummaryContains(path.join(result.runDir, "processing-summary.md"));
     await assertContentFingerprint(root, result.runDir);
@@ -43,12 +45,16 @@ test("ingests agent payload into run and long-term files", async () => {
   }
 });
 
-test("fetch failure writes only payload and summary", async () => {
+test("fetch failure writes only manifest and summary", async () => {
   const root = await tempRoot("aiwiki-fetch-failed");
   try {
     const result = await ingestPayload(root, await readFixture("agent_payload.fetch_failed.valid.json"));
     const runFiles = await readdir(result.runDir);
-    assert.deepEqual(runFiles.sort(), ["payload.json", "processing-summary.md"].sort());
+    assert.deepEqual(runFiles.sort(), ["manifest.json", "processing-summary.md"].sort());
+    const manifest = JSON.parse(await readFile(path.join(result.runDir, "manifest.json"), "utf8")) as { status: string; artifacts: Record<string, string>; generation?: unknown };
+    assert.equal(manifest.status, "fetch_failed");
+    assert.deepEqual(Object.keys(manifest.artifacts), ["processing_summary"]);
+    assert.equal(manifest.generation, undefined);
     const summary = await readFile(path.join(result.runDir, "processing-summary.md"), "utf8");
     assert.match(summary, /没有自行抓取网页/);
   } finally {
@@ -99,13 +105,13 @@ test("ingest file uses the file title instead of content headings", async () => 
       ].join("\n"),
       "utf8"
     );
-
     const result = await ingestFile(root, inputFile);
-    const payload = JSON.parse(await readFile(path.join(result.runDir, "payload.json"), "utf8")) as {
+
+    const manifest = JSON.parse(await readFile(path.join(result.runDir, "manifest.json"), "utf8")) as {
       source: { kind: string; title: string };
     };
-    assert.equal(payload.source.kind, "file");
-    assert.equal(payload.source.title, "2025-12-31-cursor-dev-log");
+    assert.equal(manifest.source.kind, "file");
+    assert.equal(manifest.source.title, "2025-12-31-cursor-dev-log");
 
     const expectedSlug = "2025-12-31-cursor-dev-log";
     await stat(path.join(root, "02-raw", "articles", `${expectedSlug}.md`));
@@ -132,11 +138,8 @@ test("minimal ingest creates only core long-term artifacts by default", async ()
     });
 
     assert.deepEqual((await readdir(result.runDir)).sort(), [
-      "payload.json",
-      "processing-summary.md",
-      "raw.md",
-      "source-card.md",
-      "wiki-entry.md"
+      "manifest.json",
+      "processing-summary.md"
     ].sort());
     await stat(path.join(root, "02-raw", "articles", "minimal-core-note.md"));
     await stat(path.join(root, "03-sources", "article-cards", "minimal-core-note.md"));
@@ -472,7 +475,7 @@ async function assertObsidianLinks(root: string, runDir: string) {
   assert.match(summary, /^type: "processing_summary"$/m);
   assert.match(summary, /^status: "to-review"$/m);
   assert.match(summary, /\[\[05-wiki\/source-knowledge\/ai-agent-workflow-notes\|ai-agent-workflow-notes\]\]/);
-  assert.match(summary, /\[\[09-runs\/.+\/source-card\|source-card\]\]/);
+  assert.doesNotMatch(summary, /\[\[09-runs\/.+\/source-card\|source-card\]\]/);
   assert.match(summary, /\[\[03-sources\/article-cards\/ai-agent-workflow-notes\|ai-agent-workflow-notes\]\]/);
 }
 

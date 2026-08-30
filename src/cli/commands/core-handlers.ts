@@ -11,6 +11,7 @@ import { buildContext, type ContextFilters, type ContextResult } from "../../con
 import { buildGraphContext } from "../../graph-context.js";
 import { evaluateExtensionLintFindings } from "../../extension/host.js";
 import { deriveFileTitle, ingestFile, ingestPayload } from "../../ingest.js";
+import { assertFileWithinLimit, assertBytesWithinLimit } from "../../ingest-limits.js";
 import { attachAppliedSafeFixes, filterLintReport, lintWorkspace, mergeLintIssues, removeEmptyOptionalDirs, renderLintReport, renderLintSummary, writeLintReport, type LintIssue, type LintSeverity } from "../../lint.js";
 import { CliError, type CliStreams, writeLine } from "../../output.js";
 import { PACKAGE_VERSION } from "../../package-version.js";
@@ -38,6 +39,7 @@ import { handleGraphCommand } from "./graph.js";
 import { handleHealthCommand } from "./health.js";
 import { handleRebuildCommand } from "./rebuild.js";
 import { handleRepairCommand } from "./repair.js";
+import { handleRunsCommand } from "./runs.js";
 
 export function createCoreCommandHandlers(): CoreCommandHandlers {
 
@@ -317,7 +319,9 @@ const root = await resolveWorkspace(flagString(args, "path"));
       if (!payloadPath && !useStdin) {
         throw new CliError("请提供 --payload <file> 或 --stdin。");
       }
-      const rawText = payloadPath ? await fs.readFile(payloadPath, "utf8") : await readStdin();
+      const rawText = payloadPath
+        ? (await assertFileWithinLimit(payloadPath), await fs.readFile(payloadPath, "utf8"))
+        : await readStdin();
       const payload = parseJson(rawText);
       const result = await ingestPayload(root, payload);
       printIngestResult(streams.stdout, result);
@@ -347,6 +351,7 @@ const contentFile = flagString(args, "content-file");
         throw new CliError("请提供 URL。");
       }
       const root = await resolveWorkspace(flagString(args, "path"));
+      await assertFileWithinLimit(contentFile);
       const content = await fs.readFile(contentFile, "utf8");
       const result = await ingestPayload(root, {
         schema_version: "aiwiki.agent_payload.v1",
@@ -391,6 +396,7 @@ const contentFile = flagString(args, "content-file");
     graph: handleGraphCommand,
     health: handleHealthCommand,
     repair: handleRepairCommand,
+    runs: handleRunsCommand,
     context: handleContext,
     query: handleQuery,
     show: handleShow,
@@ -1420,8 +1426,12 @@ function printIngestResult(stream: NodeJS.WritableStream, result: Awaited<Return
 
 async function readStdin() {
   const chunks: Buffer[] = [];
+  let receivedBytes = 0;
   for await (const chunk of process.stdin) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    receivedBytes += bytes.length;
+    assertBytesWithinLimit(receivedBytes);
+    chunks.push(bytes);
   }
   return Buffer.concat(chunks).toString("utf8");
 }
